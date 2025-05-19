@@ -1,41 +1,52 @@
 """
-Script: agent.__main__
+Adapted client for OpenAI and local llama.cpp server.
+Supports streaming completions and environment-based switching.
 """
 
-import requests
+import os
+import sys
 
+import dotenv
+from openai import OpenAI
+from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
 
-def ask_local_model(
-    prompt,
-    system="You are a helpful assistant.",
-    base_url="http://localhost:8080/v1/chat/completions",
-):
-    payload = {
-        "model": "qwen3",
-        "messages": [
-            {"role": "system", "content": system},
-            {"role": "user", "content": prompt},
-        ],
-        "temperature": 0.7,
-        "max_tokens": 256,
-        "stream": False,
-    }
+# Load environment
+dotenv.load_dotenv(".env")
 
-    response = requests.post(base_url, json=payload)
-    response.raise_for_status()
-    return response.json()["choices"][0]["message"]["content"]
+api_key = os.getenv("OPENAI_API_KEY", "")
+base_url = os.getenv("OPENAI_BASE_URL", "")
 
+if not api_key:
+    raise ValueError("EnvironmentError: OPENAI_API_KEY not set in .env")
 
-def main():
-    print("Ask your local agent a question (Ctrl+C to quit):")
-    try:
-        while True:
-            query = input("> ")
-            response = ask_local_model(query)
-            print(f"\nAssistant:\n{response}\n")
-    except KeyboardInterrupt:
-        print("\nExiting.")
+# Setup default base URL if using local mode
+if api_key == "sk-no-key-required" and not base_url:
+    base_url = "http://localhost:8080/v1"
 
+# Initialize client
+client = OpenAI(api_key=api_key, base_url=base_url)
 
-if __name__ == "__main__":
-    main()
+# Sample chat sequence
+messages = [
+    {"role": "system", "content": "You are a helpful assistant."},
+    {"role": "user", "content": "What is the capital of France?"},
+]
+
+try:
+    response = client.chat.completions.create(
+        model="qwen3",  # Use "gpt-4" for OpenAI, "qwen3" for local
+        messages=messages,
+        stream=True,
+        temperature=0.7,
+        max_tokens=512,
+    )
+
+    for chunk in response:
+        if isinstance(chunk, ChatCompletionChunk):
+            content = chunk.choices[0].delta.content
+            if content:
+                print(content, end="")
+                sys.stdout.flush()
+    print()
+except Exception as e:
+    print(f"Error: {e}")
