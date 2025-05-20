@@ -26,42 +26,33 @@ import dotenv
 from openai import OpenAI
 from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
 
+from agent.tools.weather import get_weather
+
 ESCAPE = "\x1b"
 BOLD = ESCAPE + "[1m"
 UNDERLINE = ESCAPE + "[4m"
 RESET = ESCAPE + "[0m"
 
-# Load environment
-dotenv.load_dotenv(".env")
 
-api_key = os.getenv("OPENAI_API_KEY", "")
-base_url = os.getenv("OPENAI_BASE_URL", "")
+def create_client():
+    # Load environment
+    dotenv.load_dotenv(".env")
 
-if not api_key:
-    raise ValueError("EnvironmentError: OPENAI_API_KEY not set in .env")
+    api_key = os.getenv("OPENAI_API_KEY", "")
+    base_url = os.getenv("OPENAI_BASE_URL", "")
 
-# Setup default base URL if using local mode
-if api_key == "sk-no-key-required" and not base_url:
-    base_url = "http://localhost:8080/v1"
+    if not api_key:
+        raise ValueError("EnvironmentError: OPENAI_API_KEY not set in .env")
 
-# Initialize client
-client = OpenAI(api_key=api_key, base_url=base_url)
+    # Setup default base URL if using local mode
+    if api_key == "sk-no-key-required" and not base_url:
+        base_url = "http://localhost:8080/v1"
 
-# Sample chat sequence
-messages = [
-    {"role": "system", "content": "You are a helpful assistant."},
-    {"role": "user", "content": "What is the capital of France? /no_think"},
-]
+    # Initialize client
+    return OpenAI(api_key=api_key, base_url=base_url)
 
-try:
-    response = client.chat.completions.create(
-        model="qwen3",  # Use "gpt-4" for OpenAI, "qwen3" for local
-        messages=messages,
-        stream=True,
-        temperature=0.7,
-        max_tokens=512,
-    )
 
+def stream_response(response):
     for chunk in response:
         if isinstance(chunk, ChatCompletionChunk):
             content = chunk.choices[0].delta.content
@@ -74,5 +65,55 @@ try:
                     print(content, end="")
                 sys.stdout.flush()
     print()
-except Exception as e:
-    print(f"Error: {e}")
+
+
+def main():
+    tools = [
+        {
+            "type": "function",
+            "function": {
+                "name": "get_weather",
+                "description": "Retrieves current weather for the given location.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "location": {
+                            "type": "string",
+                            "description": "The city and state, e.g. San Francisco, CA",
+                        },
+                        "units": {
+                            "type": "string",
+                            "enum": ["metric", "uscs"],
+                            "description": "The unit system. Default is 'metric'.",
+                        },
+                    },
+                    "required": ["location", "units"],
+                    "additionalProperties": False,
+                },
+                "strict": True,
+            },
+        }
+    ]
+
+    # Sample chat sequence
+    messages = [
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": "What is the weather like in Paris today?"},
+    ]
+
+    try:
+        client = create_client()
+        response = client.chat.completions.create(
+            model="qwen3",  # Use "gpt-4" for OpenAI, "qwen3" for local
+            messages=messages,
+            stream=True,
+            temperature=0.8,
+            tools=tools,
+        )
+        stream_response(response)
+    except Exception as e:
+        print(f"Error: {e}")
+
+
+if __name__ == "__main__":
+    main()
