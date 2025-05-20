@@ -1,6 +1,22 @@
 """
-Adapted client for OpenAI and local llama.cpp server.
-Supports streaming completions and environment-based switching.
+Adapted client for OpenAI and local llama.cpp servers.
+Supports streaming completions and environment-based endpoint switching.
+
+Qwen3 models support internal "thinking" behavior, which is wrapped in <think>...</think> blocks.
+This behavior is controlled via special user prompt suffixes, as interpreted by the model's chat template.
+
+Usage notes for Qwen3 (when chat templates support reasoning):
+
+- Default behavior: reflection is enabled, and the model emits <think>...</think> with internal reasoning.
+- To explicitly disable reflection, append `/no_think` to the user prompt.
+- To explicitly enable reflection (optional), append `/think`.
+
+Example:
+    {"role": "user", "content": "What is the capital of France? /no_think"}
+
+Important:
+- `/no_think` disables reflection content but not the presence of <think> tags.
+- To suppress <think> tags entirely, the chat template must be modified.
 """
 
 import os
@@ -34,7 +50,7 @@ client = OpenAI(api_key=api_key, base_url=base_url)
 # Sample chat sequence
 messages = [
     {"role": "system", "content": "You are a helpful assistant."},
-    {"role": "user", "content": "What is the capital of France?"},
+    {"role": "user", "content": "What is the capital of France? /no_think"},
 ]
 
 try:
