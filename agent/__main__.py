@@ -10,6 +10,11 @@ import dotenv
 from openai import OpenAI
 from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
 
+ESCAPE = "\x1b"
+BOLD = ESCAPE + "[1m"
+UNDERLINE = ESCAPE + "[4m"
+RESET = ESCAPE + "[0m"
+
 # Load environment
 dotenv.load_dotenv(".env")
 
@@ -45,7 +50,12 @@ try:
         if isinstance(chunk, ChatCompletionChunk):
             content = chunk.choices[0].delta.content
             if content:
-                print(content, end="")
+                if content == "<think>":
+                    print(f"{UNDERLINE}{BOLD}Thinking{RESET}", end="\n")
+                elif content == "</think>":
+                    print(f"\n{UNDERLINE}{BOLD}Completion{RESET}", end="")
+                else:
+                    print(content, end="")
                 sys.stdout.flush()
     print()
 except Exception as e:
