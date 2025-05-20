@@ -19,6 +19,7 @@ Important:
 - To suppress <think> tags entirely, the chat template must be modified.
 """
 
+import json
 import os
 import sys
 
@@ -53,10 +54,18 @@ def create_client():
 
 
 def stream_response(response):
+    tool_call_buffer = ""
+    buffering_tool = False
+    finish_reason = None
+
     for chunk in response:
         if isinstance(chunk, ChatCompletionChunk):
-            content = chunk.choices[0].delta.content
-            if content:
+            delta = chunk.choices[0].delta
+            finish_reason = chunk.choices[0].finish_reason
+
+            # Handle streaming reasoning
+            if delta.content:
+                content = delta.content
                 if content == "<think>":
                     print(f"{UNDERLINE}{BOLD}Thinking{RESET}", end="\n")
                 elif content == "</think>":
@@ -64,7 +73,25 @@ def stream_response(response):
                 else:
                     print(content, end="")
                 sys.stdout.flush()
-    print()
+
+            # Handle tool call streaming
+            if delta.tool_calls:
+                buffering_tool = True
+                for tool_call in delta.tool_calls:
+                    arguments = tool_call.function.arguments or ""
+                    tool_call_buffer += arguments
+
+    print()  # Newline after stream ends
+
+    # Dispatch if tool call is complete
+    if buffering_tool and finish_reason == "tool_calls":
+        try:
+            tool_args = json.loads(tool_call_buffer)
+            print(f"\n{UNDERLINE}{BOLD}Calling Tool...{RESET}")
+            result = get_weather(**tool_args)
+            print(f"\n{UNDERLINE}{BOLD}Tool Result:{RESET} {result}")
+        except json.JSONDecodeError:
+            print(f"{BOLD}Warning:{RESET} Failed to decode tool call arguments.")
 
 
 def main():
