@@ -15,10 +15,33 @@ class Weather:
     BASE_URL = "https://wttr.in"
 
     def __init__(
-        self, session: Optional[requests.Session] = None, timeout: float = 8.0
+        self,
+        session: Optional[requests.Session] = None,
+        timeout: float = 8.0,
     ):
         self.session = session or requests.Session()
         self.timeout = timeout
+
+    @staticmethod
+    def normalize(location: str) -> str:
+        """
+        Prepares a location string for wttr.in path usage.
+        - 'Paris, France' -> 'Paris_-France'
+        - 'New York City, New York' -> 'New-York-City_-New-York'
+        """
+        return location.replace(" ", "-").replace(",", "_") if location else ""
+
+    @staticmethod
+    def denormalize(result: str) -> str:
+        """
+        Converts wttr.in-style location back to a natural readable name.
+        - 'Paris_-France' -> 'Paris, France'
+        - 'New-York-City_-New-York' -> 'New York City, New York'
+        NOTE: This is only useful for inline responses and does not account for errors.
+        """
+        parts = result.split(" ")
+        parts[0] = parts[0].replace("-", " ").replace("_", ",")
+        return " ".join(parts)
 
     def get(
         self,
@@ -43,7 +66,7 @@ class Weather:
         Returns:
             str | dict | requests.Response
         """
-        loc = location.replace(" ", "-").replace(",", "_") if location else ""
+        loc = Weather.normalize(location)
         params = {}
 
         # Handle units as wttr.in expects them
@@ -95,8 +118,7 @@ class Weather:
         Return plain-text, single-line, or formatted weather string.
         """
         kwargs.setdefault("format", "3")  # Prettiest one-liner by default
-        result = self.get(location, **kwargs)
-        return result if isinstance(result, str) else str(result)
+        return str(self.get(location, **kwargs)).strip()
 
     def get_json(self, location: Optional[str] = None, **kwargs) -> Dict[str, Any]:
         """
@@ -124,15 +146,15 @@ class Weather:
 if __name__ == "__main__":
     wx = Weather()
 
+    # Get a one-liner (default)
+    print(wx.get_text(""))  # Empty string uses current location
+
     # Get JSON weather
     # for k, v in wx.get_json("San Francisco, CA")["current_condition"][0].items():
     #     print(f"{k}: {v}")
 
-    # Get a one-liner (default)
-    print(wx.get_text("Berlin"))
-
     # Custom format (emoji + temp)
-    # print(wx.get_custom("Paris", fmt="%l: %C %t"))
+    # print(wx.get_custom("Paris, France", fmt="%l: %C %t"))
 
     # Raw text (e.g., multi-line ASCII)
-    # print(wx.get("Tokyo", format=None))
+    # print(wx.get("New York City, New York", format=None))
