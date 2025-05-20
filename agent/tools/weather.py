@@ -7,7 +7,7 @@ from time import sleep
 from agent.api.wttr import Weather
 
 
-def get_weather(location: str, unit: str = "metric") -> str:
+def get_weather(location: str, units: str = "metric") -> str:
     """
     Get the current weather in a given location.
     Parameters:
@@ -18,7 +18,7 @@ def get_weather(location: str, unit: str = "metric") -> str:
     """
     # Set the API response formatting
     wx = Weather()
-    result = wx.get_custom(location, fmt="%l+%T+%S+%s+%C+%w+%t", unit=unit)
+    result = wx.get_custom(location, fmt="%l+%T+%S+%s+%C+%w+%t", unit=units)
     return wx.denormalize(result)
 
 
