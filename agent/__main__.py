@@ -40,7 +40,6 @@ def run_tool(tool_name: str, **kwargs) -> any:
 
 
 def run_agent(model: Model, **kwargs: dict[str, any]):
-    thoughts = ""
     content = ""
     tool_call_happened = False
     messages = kwargs.get("messages", {})
@@ -56,12 +55,14 @@ def run_agent(model: Model, **kwargs: dict[str, any]):
     for event in stream:
         event_type = event[0]
         if event_type == model.THINK_OPEN:
+            content += event[0]
             print(f"{UNDERLINE}{BOLD}Thinking:{RESET}")
         elif event_type == "reasoning":
             token = event[1]
-            thoughts += token
+            content += token
             print(f"{ITALIC}{token}{RESET}", end="")
         elif event_type == model.THINK_CLOSE:
+            content += event[0]
             print(f"\n{UNDERLINE}{BOLD}Completion:{RESET}")
         elif event_type == "content":
             output = event[1]
