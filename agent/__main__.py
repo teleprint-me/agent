@@ -106,36 +106,43 @@ def run_agent(model: Model, **kwargs: dict[str, any]):
         )
 
 
-def main():
-    # Sample chat sequence
+def run_chat(model, tools):
     messages = [
-        {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": "What is the weather like in Paris today?"},
+        {"role": "system", "content": "My name is Qwen. I am a helpful assistant."}
     ]
 
-    model = Model()
-    try:
-        run_agent(
-            model,
-            messages=messages,
-            stream=True,
-            temperature=0.8,
-            tools=tools,
-        )
-        run_agent(
-            model,
-            messages=messages,
-            stream=True,
-            temperature=0.8,
-            tools=tools,
-        )
-    except Exception as e:
-        print(f"Error: {e}")
+    while True:
+        try:
+            if "tool" != messages[-1]["role"]:
+                if "system" != messages[-1]["role"]:
+                    print()
+                user_input = input("<user> ")
+                if user_input.lower() in ("exit", "quit"):
+                    print("Exiting.")
+                    break
+                messages.append({"role": "user", "content": user_input})
 
-    print(f"\n{UNDERLINE}{BOLD}Messages:{RESET}")
-    for message in messages:
-        for k, v in message.items():
-            print(f"{k}: {v}")
+            # run_agent appends new messages as needed
+            run_agent(
+                model,
+                temperature=0.8,
+                stream=True,
+                tools=tools,
+                messages=messages,
+            )
+        except (KeyboardInterrupt,):
+            break
+
+
+def main():
+    model = Model()
+    model = Model()
+    run_chat(model, tools)
+
+    # print(f"\n{UNDERLINE}{BOLD}Messages:{RESET}")
+    # for message in messages:
+    #     for k, v in message.items():
+    #         print(f"{k}: {v}")
 
 
 if __name__ == "__main__":
