@@ -19,109 +19,20 @@ Important:
 - To suppress <think> tags entirely, the chat template must be modified.
 """
 
-import json
-import os
 import sys
 
-import dotenv
-from openai import OpenAI
-from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
-
+from agent.api.openai import Model
+from agent.tools import tools
 from agent.tools.weather import get_weather
 
 ESCAPE = "\x1b"
-BOLD = ESCAPE + "[1m"
-UNDERLINE = ESCAPE + "[4m"
 RESET = ESCAPE + "[0m"
-
-
-def create_client():
-    # Load environment
-    dotenv.load_dotenv(".env")
-
-    api_key = os.getenv("OPENAI_API_KEY", "")
-    base_url = os.getenv("OPENAI_BASE_URL", "")
-
-    if not api_key:
-        raise ValueError("EnvironmentError: OPENAI_API_KEY not set in .env")
-
-    # Setup default base URL if using local mode
-    if api_key == "sk-no-key-required" and not base_url:
-        base_url = "http://localhost:8080/v1"
-
-    # Initialize client
-    return OpenAI(api_key=api_key, base_url=base_url)
-
-
-def stream_response(response):
-    tool_call_buffer = ""
-    buffering_tool = False
-    finish_reason = None
-
-    for chunk in response:
-        if isinstance(chunk, ChatCompletionChunk):
-            delta = chunk.choices[0].delta
-            finish_reason = chunk.choices[0].finish_reason
-
-            # Handle streaming reasoning
-            if delta.content:
-                content = delta.content
-                if content == "<think>":
-                    print(f"{UNDERLINE}{BOLD}Thinking{RESET}", end="\n")
-                elif content == "</think>":
-                    print(f"\n{UNDERLINE}{BOLD}Completion{RESET}", end="")
-                else:
-                    print(content, end="")
-                sys.stdout.flush()
-
-            # Handle tool call streaming
-            if delta.tool_calls:
-                buffering_tool = True
-                for tool_call in delta.tool_calls:
-                    arguments = tool_call.function.arguments or ""
-                    tool_call_buffer += arguments
-
-    print()  # Newline after stream ends
-
-    # Dispatch if tool call is complete
-    if buffering_tool and finish_reason == "tool_calls":
-        try:
-            tool_args = json.loads(tool_call_buffer)
-            print(f"\n{UNDERLINE}{BOLD}Calling Tool...{RESET}")
-            result = get_weather(**tool_args)
-            print(f"\n{UNDERLINE}{BOLD}Tool Result:{RESET} {result}")
-        except json.JSONDecodeError:
-            print(f"{BOLD}Warning:{RESET} Failed to decode tool call arguments.")
+BOLD = ESCAPE + "[1m"
+ITALIC = ESCAPE + "[3m"
+UNDERLINE = ESCAPE + "[4m"
 
 
 def main():
-    tools = [
-        {
-            "type": "function",
-            "function": {
-                "name": "get_weather",
-                "description": "Retrieves current weather for the given location.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "location": {
-                            "type": "string",
-                            "description": "The city and state, e.g. San Francisco, CA",
-                        },
-                        "units": {
-                            "type": "string",
-                            "enum": ["metric", "uscs"],
-                            "description": "The unit system. Default is 'metric'.",
-                        },
-                    },
-                    "required": ["location", "units"],
-                    "additionalProperties": False,
-                },
-                "strict": True,
-            },
-        }
-    ]
-
     # Sample chat sequence
     messages = [
         {"role": "system", "content": "You are a helpful assistant."},
@@ -129,15 +40,34 @@ def main():
     ]
 
     try:
-        client = create_client()
-        response = client.chat.completions.create(
-            model="qwen3",  # Use "gpt-4" for OpenAI, "qwen3" for local
+        model = Model()
+        completion = model.completion(
+            model="gpt-3.5-turbo",
             messages=messages,
             stream=True,
             temperature=0.8,
-            tools=tools,
+            tools=tools,  # Leave this blank for now
         )
-        stream_response(response)
+
+        for event in completion:
+            if event[0] == model.THINK_OPEN:
+                print(f"{UNDERLINE}{BOLD}Thinking:{RESET}")
+
+            elif event[0] == "reasoning":
+                print(f"{ITALIC}{event[1]}{RESET}", end="")
+
+            elif event[0] == model.THINK_CLOSE:
+                print()  # End reasoning block (newline)
+
+            elif event[0] == "content":
+                print(event[1], end="")
+
+            elif event[0] == "tool_call":
+                tool_name, args = event[1], event[2]
+                print(f"\n{UNDERLINE}{BOLD}Tool Call:{RESET} ", end="")
+                print(f"{ITALIC}{tool_name}({args}){RESET}")
+
+            sys.stdout.flush()
     except Exception as e:
         print(f"Error: {e}")
 
