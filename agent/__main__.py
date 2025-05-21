@@ -136,7 +136,6 @@ def run_chat(model, tools):
 
 def main():
     model = Model()
-    model = Model()
     run_chat(model, tools)
 
     # print(f"\n{UNDERLINE}{BOLD}Messages:{RESET}")
