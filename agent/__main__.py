@@ -19,6 +19,7 @@ Important:
 - To suppress <think> tags entirely, the chat template must be modified.
 """
 
+import json
 import sys
 
 from agent.api.openai import Model
@@ -32,6 +33,75 @@ ITALIC = ESCAPE + "[3m"
 UNDERLINE = ESCAPE + "[4m"
 
 
+def run_tool(tool_name: str, **kwargs) -> any:
+    if tool_name == "get_weather":
+        return get_weather(kwargs["location"], kwargs["units"])
+    return ""
+
+
+def run_agent(model: Model, **kwargs: dict[str, any]):
+    thoughts = ""
+    content = ""
+    messages = kwargs.get("messages", {})
+
+    stream = model.completion(
+        model="gpt-3.5-turbo",
+        messages=messages,
+        stream=kwargs.get("stream", True),
+        temperature=kwargs.get("temperature", 0.8),
+        tools=kwargs.get("tools", tools),
+    )
+
+    for event in stream:
+        event_type = event[0]
+        if event_type == model.THINK_OPEN:
+            print(f"{UNDERLINE}{BOLD}Thinking:{RESET}")
+        elif event_type == "reasoning":
+            token = event[1]
+            print(f"{ITALIC}{token}{RESET}", end="")
+            thoughts += token
+        elif event_type == model.THINK_CLOSE:
+            print(f"\n{UNDERLINE}{BOLD}Completion:{RESET}")
+        elif event_type == "content":
+            output = event[1]
+            print(output, end="")
+            content += output
+        elif event_type == "tool_call":
+            tool_name, args = event[1], event[2]
+            print(f"{UNDERLINE}{BOLD}Tool Call:{RESET}")
+            result = run_tool(tool_name, **args)
+            print(f"{UNDERLINE}{BOLD}{tool_name}({args}){RESET}: {result}")
+            messages.append(
+                {
+                    "role": "assistant",
+                    "tool_calls": [
+                        {
+                            "type": "function",
+                            "function": {
+                                "name": tool_name,
+                                "arguments": json.dumps(args),  # MUST be a string
+                            },
+                        }
+                    ],
+                }
+            )
+            messages.append(
+                {
+                    "role": "tool",
+                    "name": tool_name,
+                    "content": result,
+                }
+            )
+        sys.stdout.flush()
+    if content:
+        messages.append(
+            {
+                "role": "assistant",
+                "content": content,
+            }
+        )
+
+
 def main():
     # Sample chat sequence
     messages = [
@@ -39,37 +109,29 @@ def main():
         {"role": "user", "content": "What is the weather like in Paris today?"},
     ]
 
+    model = Model()
     try:
-        model = Model()
-        completion = model.completion(
-            model="gpt-3.5-turbo",
+        run_agent(
+            model,
             messages=messages,
             stream=True,
             temperature=0.8,
-            tools=tools,  # Leave this blank for now
+            tools=tools,
         )
-
-        for event in completion:
-            if event[0] == model.THINK_OPEN:
-                print(f"{UNDERLINE}{BOLD}Thinking:{RESET}")
-
-            elif event[0] == "reasoning":
-                print(f"{ITALIC}{event[1]}{RESET}", end="")
-
-            elif event[0] == model.THINK_CLOSE:
-                print()  # End reasoning block (newline)
-
-            elif event[0] == "content":
-                print(event[1], end="")
-
-            elif event[0] == "tool_call":
-                tool_name, args = event[1], event[2]
-                print(f"\n{UNDERLINE}{BOLD}Tool Call:{RESET} ", end="")
-                print(f"{ITALIC}{tool_name}({args}){RESET}")
-
-            sys.stdout.flush()
+        run_agent(
+            model,
+            messages=messages,
+            stream=True,
+            temperature=0.8,
+            tools=tools,
+        )
     except Exception as e:
         print(f"Error: {e}")
+
+    print(f"\n{UNDERLINE}{BOLD}Messages:{RESET}")
+    for message in messages:
+        for k, v in message.items():
+            print(f"{k}: {v}")
 
 
 if __name__ == "__main__":
