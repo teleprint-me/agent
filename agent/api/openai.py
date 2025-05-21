@@ -3,6 +3,7 @@ agent.api.openai
 """
 
 import os
+import re
 import sys
 from typing import Any, Dict, Generator, List, Tuple
 
@@ -38,6 +39,31 @@ class Model:
 
         return OpenAI(api_key=api_key, base_url=base_url)
 
+    def _think_token_heal(self, token: Tuple[str, str]) -> List[Tuple[str, str]]:
+        kind, text = token
+        if kind != "content" or (THINK_OPEN not in text and THINK_CLOSE not in text):
+            return [token]
+        pattern = f"({re.escape(THINK_OPEN)}|{re.escape(THINK_CLOSE)})"
+        parts = re.split(pattern, text)
+        return [(kind, part) for part in parts if part]
+
+    @staticmethod
+    def classify(stream):
+        is_reasoning = False
+        for token in stream:
+            kind, *rest = token
+            if kind == "content":
+                text = rest[0]
+                if text == THINK_OPEN:
+                    is_reasoning = True
+                    continue  # Optional: skip the tag token itself
+                elif text == THINK_CLOSE:
+                    is_reasoning = False
+                    continue  # Optional: skip the tag token itself
+                yield ("reasoning" if is_reasoning else "content", text)
+            else:
+                yield token  # Pass through other tuple types
+
     def stream(
         self, **kwargs: Dict[str, Any]
     ) -> Generator[Tuple[str, str], None, None]:
@@ -48,7 +74,9 @@ class Model:
                 if delta.role:
                     yield ("role", delta.role)
                 if delta.content:
-                    yield ("content", delta.content)
+                    token = ("content", delta.content)
+                    for healed_token in self._think_token_heal(token):
+                        yield healed_token
                 if delta.tool_calls:
                     for tool_call in delta.tool_calls:
                         yield (
@@ -79,15 +107,15 @@ if __name__ == "__main__":
 
     try:
         model = Model()
-        generator = model.stream(
+        stream = model.stream(
             model="gpt-3.5-turbo",
             messages=messages,
             stream=True,
             temperature=0.8,
             tools=tools,  # Leave this blank for now
         )
-        for token in generator:
-            print(token, end="")
+        for token in model.classify(stream):
+            print(token)
             sys.stdout.flush()
         print()
     except Exception as e:
