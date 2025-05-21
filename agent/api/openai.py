@@ -88,10 +88,12 @@ class Model:
                 text = rest[0]
                 if text == self.THINK_OPEN:
                     is_reasoning = True
-                    continue  # Optional: skip the tag token itself
+                    yield (self.THINK_OPEN, None)
+                    continue
                 elif text == self.THINK_CLOSE:
                     is_reasoning = False
-                    continue  # Optional: skip the tag token itself
+                    yield (self.THINK_CLOSE, None)
+                    continue
                 yield ("reasoning" if is_reasoning else "content", text)
             else:
                 yield token  # Pass through other tuple types
