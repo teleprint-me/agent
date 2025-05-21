@@ -152,6 +152,9 @@ class LlamaCppAPI:
         self.data["prompt"] = prompt
         self.logger.debug(f"Completion request payload: {self.data}")
 
+        # LlamaCpp docs say /v1/completions, but does not work
+        # /completion is the original LlamaCpp endpoint, which does work
+        # NOTE: Investigate why /v1/completions fails to produce logits
         endpoint = "/completion"
         if self.data.get("stream"):
             self.logger.debug("Streaming completion request")
