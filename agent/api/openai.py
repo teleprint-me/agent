@@ -12,11 +12,11 @@ from openai import OpenAI
 
 from agent.tools import tools
 
-THINK_OPEN = "<think>"
-THINK_CLOSE = "</think>"
-
 
 class Model:
+    THINK_OPEN = "<think>"
+    THINK_CLOSE = "</think>"
+
     def __init__(self, base_url: str = None, api_key: str = None):
         self.client = self.connect(base_url, api_key)
 
@@ -41,28 +41,12 @@ class Model:
 
     def _think_token_heal(self, token: Tuple[str, str]) -> List[Tuple[str, str]]:
         kind, text = token
-        if kind != "content" or (THINK_OPEN not in text and THINK_CLOSE not in text):
+        thinking = self.THINK_OPEN not in text and self.THINK_CLOSE not in text
+        if kind != "content" or thinking:
             return [token]
-        pattern = f"({re.escape(THINK_OPEN)}|{re.escape(THINK_CLOSE)})"
+        pattern = f"({re.escape(self.THINK_OPEN)}|{re.escape(self.THINK_CLOSE)})"
         parts = re.split(pattern, text)
         return [(kind, part) for part in parts if part]
-
-    @staticmethod
-    def classify(stream):
-        is_reasoning = False
-        for token in stream:
-            kind, *rest = token
-            if kind == "content":
-                text = rest[0]
-                if text == THINK_OPEN:
-                    is_reasoning = True
-                    continue  # Optional: skip the tag token itself
-                elif text == THINK_CLOSE:
-                    is_reasoning = False
-                    continue  # Optional: skip the tag token itself
-                yield ("reasoning" if is_reasoning else "content", text)
-            else:
-                yield token  # Pass through other tuple types
 
     def stream(
         self, **kwargs: Dict[str, Any]
@@ -92,6 +76,29 @@ class Model:
                         delta.function_call.name,
                         delta.function_call.arguments,
                     )
+
+    def classify(
+        self, stream: Generator[Tuple[str, str], None, None]
+    ) -> Generator[Tuple[str, str], None, None]:
+        is_reasoning = False
+        for token in stream:
+            kind, *rest = token
+            if kind == "content":
+                text = rest[0]
+                if text == self.THINK_OPEN:
+                    is_reasoning = True
+                    continue  # Optional: skip the tag token itself
+                elif text == self.THINK_CLOSE:
+                    is_reasoning = False
+                    continue  # Optional: skip the tag token itself
+                yield ("reasoning" if is_reasoning else "content", text)
+            else:
+                yield token  # Pass through other tuple types
+
+    def tool_call(
+        self, stream: Generator[Tuple[str, str], None, None]
+    ) -> Generator[Tuple[str, str], None, None]:
+        pass
 
 
 if __name__ == "__main__":
