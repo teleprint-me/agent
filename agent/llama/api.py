@@ -155,7 +155,11 @@ class LlamaCppAPI:
         # LlamaCpp docs say /v1/completions, but does not work
         # /completion is the original LlamaCpp endpoint, which does work
         # NOTE: Investigate why /v1/completions fails to produce logits
-        endpoint = "/completion"
+        # /completion, /completions, and /v1/completions all call `handle_completions_impl`
+        # An enum handles which endpoint type to handle, e.g. `oaicompat_type`.
+        # Enums support None, Chat, Completion, and Embedding
+        # When compat is set to OAI, it triggers a multimodal context, which need not be enabled.
+        endpoint = "/completions"
         if self.data.get("stream"):
             self.logger.debug("Streaming completion request")
             return self.request.stream(endpoint=endpoint, data=self.data)
@@ -205,7 +209,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-a", "--assertion", help="Enable assertions", action="store_true"
+        "-n", "--predict", help="Tokens generated.", default=128, type=int
     )
     parser.add_argument("-d", "--debug", help="Enable debugging", action="store_true")
     args = parser.parse_args()
@@ -214,17 +218,9 @@ if __name__ == "__main__":
 
     # Create an instance of LlamaCppAPI
     # llama_api = LlamaCppAPI(n_predict=45, log_level=logging.DEBUG)
-    llama_api = LlamaCppAPI(n_predict=45, log_level=log_level)
-
-    if args.assertion:
-        assert (
-            llama_api.sanitize("[INST] Test [/INST]") == "\\[INST\\] Test \\[/INST\\]"
-        )
-        assert (
-            llama_api.sanitize("This is [example] text.")
-            == "This is \\[example\\] text."
-        )
-        assert llama_api.sanitize("No brackets here!") == "No brackets here!"
+    # NOTE: Reasoning models require a larger context size and may fail to emit a closing
+    # token (if any) if provided with insufficient space within a given window.
+    llama_api = LlamaCppAPI(n_predict=args.predict, log_level=log_level)
 
     if args.debug:
         # Example: Get health status of the Llama.cpp server
