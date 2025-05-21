@@ -11,7 +11,8 @@ import logging
 from typing import Any, Dict, Generator
 
 import requests
-from llama_cpp_client.common.logger import get_logger
+
+from agent.utils.logger import get_logger
 
 
 class StreamNotAllowedError(Exception):
@@ -136,11 +137,11 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    log_level = logging.DEBUG if args.debug else logging.INFO
-
     # Initialize the LlamaCppRequest instance
-    llama_cpp_request = LlamaCppRequest(
-        base_url="http://127.0.0.1", port="8080", log_level=log_level
+    llama_requests = LlamaCppRequest(
+        base_url="http://127.0.0.1",
+        port="8080",
+        verbose=args.debug,
     )
 
     # Define the prompt for the model
@@ -150,7 +151,7 @@ if __name__ == "__main__":
     data = {"prompt": args.prompt, "n_predict": args.predict, "stream": True}
 
     # Generate the model's response
-    generator = llama_cpp_request.stream("/completion", data=data)
+    generator = llama_requests.stream("/completion", data=data)
 
     # Handle the model's generated response
     content = ""
