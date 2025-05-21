@@ -44,11 +44,26 @@ class Model:
         response = self.client.chat.completions.create(**kwargs)
         for chunk in response:
             delta = chunk.choices[0].delta
-            if delta and delta.content:
-                yield ("content", delta.content)
-            if delta and delta.tool_calls:
-                for tool_call in delta.tool_calls:
-                    yield ("argument", tool_call.function.arguments)
+            if delta:
+                if delta.role:
+                    yield ("role", delta.role)
+                if delta.content:
+                    yield ("content", delta.content)
+                if delta.tool_calls:
+                    for tool_call in delta.tool_calls:
+                        yield (
+                            "tool_call",
+                            tool_call.function.name,
+                            tool_call.function.arguments,
+                        )
+                if delta.refusal:
+                    yield ("refusal", delta.refusal)
+                if delta.function_call:
+                    yield (
+                        "function_call",
+                        delta.function_call.name,
+                        delta.function_call.arguments,
+                    )
 
 
 if __name__ == "__main__":
