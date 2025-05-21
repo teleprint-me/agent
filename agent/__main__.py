@@ -42,6 +42,7 @@ def run_tool(tool_name: str, **kwargs) -> any:
 def run_agent(model: Model, **kwargs: dict[str, any]):
     thoughts = ""
     content = ""
+    tool_call_happened = False
     messages = kwargs.get("messages", {})
 
     stream = model.completion(
@@ -58,19 +59,17 @@ def run_agent(model: Model, **kwargs: dict[str, any]):
             print(f"{UNDERLINE}{BOLD}Thinking:{RESET}")
         elif event_type == "reasoning":
             token = event[1]
-            print(f"{ITALIC}{token}{RESET}", end="")
             thoughts += token
+            print(f"{ITALIC}{token}{RESET}", end="")
         elif event_type == model.THINK_CLOSE:
             print(f"\n{UNDERLINE}{BOLD}Completion:{RESET}")
         elif event_type == "content":
             output = event[1]
-            print(output, end="")
             content += output
+            print(output, end="")
         elif event_type == "tool_call":
             tool_name, args = event[1], event[2]
-            print(f"{UNDERLINE}{BOLD}Tool Call:{RESET}")
             result = run_tool(tool_name, **args)
-            print(f"{UNDERLINE}{BOLD}{tool_name}({args}){RESET}: {result}")
             messages.append(
                 {
                     "role": "assistant",
@@ -92,8 +91,11 @@ def run_agent(model: Model, **kwargs: dict[str, any]):
                     "content": result,
                 }
             )
-        sys.stdout.flush()
-    if content:
+            tool_call_happened = True
+            print(f"{UNDERLINE}{BOLD}Tool Call:{RESET}")
+            print(f"{UNDERLINE}{BOLD}{tool_name}({args}){RESET}: {result}")
+        sys.stdout.flush()  # The order that print statements happen might be affected by flush?
+    if content and not tool_call_happened:
         messages.append(
             {
                 "role": "assistant",
