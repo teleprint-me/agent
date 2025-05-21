@@ -11,8 +11,6 @@ from typing import Any, Dict, Generator, List, Tuple
 import dotenv
 from openai import OpenAI
 
-from agent.tools import tools
-
 
 class Model:
     THINK_OPEN = "<think>"
@@ -151,6 +149,8 @@ class Model:
 
 
 if __name__ == "__main__":
+    from agent.tools import tools
+
     # Sample chat sequence
     # messages = [
     #     {"role": "system", "content": "You are a helpful assistant."},
