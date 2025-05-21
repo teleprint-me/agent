@@ -1,5 +1,8 @@
 """
 agent.api.openai
+
+"Embrace the journey of discovery and evolution in the world of software development, and remember that adaptability is key to staying resilient in the face of change."
+    - OpenAI's GPT-3.5
 """
 
 import json
