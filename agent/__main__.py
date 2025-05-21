@@ -94,7 +94,9 @@ def run_agent(model: Model, **kwargs: dict[str, any]):
             tool_call_happened = True
             print(f"{UNDERLINE}{BOLD}Tool Call:{RESET}")
             print(f"{UNDERLINE}{BOLD}{tool_name}({args}){RESET}: {result}")
-        sys.stdout.flush()  # The order that print statements happen might be affected by flush?
+        sys.stdout.flush()  # Flushing print() is affecting values?
+
+    # Append assistant content message if any
     if content and not tool_call_happened:
         messages.append(
             {
