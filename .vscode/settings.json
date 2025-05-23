@@ -27,7 +27,7 @@
   "python.analysis.extraPaths": [
     "${workspaceFolder}/.venv/bin",
     "${workspaceFolder}/.venv/lib/python3.11/site-packages",
-    "${workspaceFolder}/agent",
+    "${workspaceFolder}/agent"
   ],
   "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
   "python.languageServer": "Jedi",
@@ -40,5 +40,5 @@
       "source.organizeImports": "explicit"
     }
   },
-  "isort.args": ["--profile", "black"],
+  "isort.args": ["--profile", "black"]
 }
