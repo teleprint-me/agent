@@ -28,7 +28,7 @@ Dependencies are intentionally minimal:
 
 - `Python 3.12+` — Stable baseline
 - `OpenAI` and `gguf` — Language model compatibility (OpenAI + local LLMs)
-- `Tkinter` and `CustomTkinter` — GUI and theming support for the editor
+- `Tkinter` and `TtkBootstrap` — GUI and theming support for the editor
 - `jsonpycraft`, `dotenv`, etc. — Configuration tools (planned use)
 
 A few utilities are included but not fully integrated yet.
