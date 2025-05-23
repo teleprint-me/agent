@@ -83,7 +83,10 @@ class AgentApp(ctk.CTk):
         self.tabview.set(name)
 
     def close_tab(self):
-        pass
+        current = self.tabview.get()
+        if current:
+            self.tabview.delete(current)
+            self.tabs = [tab for tab in self.tabs if tab.name != current]
 
 
 if __name__ == "__main__":
