@@ -6,6 +6,13 @@ ctk.set_appearance_mode("dark")  # "light", "dark", or "system"
 ctk.set_default_color_theme("blue")  # or "green", "dark-blue", etc.
 
 
+class TabData:
+    def __init__(self, name, textbox, filename=None):
+        self.name = name
+        self.textbox = textbox
+        self.filename = filename
+
+
 class AgentApp(ctk.CTk):
     def __init__(self):
         super().__init__()
@@ -17,16 +24,17 @@ class AgentApp(ctk.CTk):
         self.font = (self.font_name, self.font_size)
         self._make_menu()
 
+        self.tabs = []
         self.tabview = ctk.CTkTabview(self)
         self.tabview.pack(expand=True, fill="both")
 
-        self.new_tab("untitled")
+        self.new_tab()
 
     def _make_menu(self):
         menubar = tk.Menu(self)
 
         filemenu = tk.Menu(menubar, tearoff=0)
-        filemenu.add_command(label="New Tab", command=lambda: self.new_tab("untitled"))
+        filemenu.add_command(label="New Tab", command=lambda: self.new_tab())
         filemenu.add_command(label="Open...", command=self.open_file)
         filemenu.add_command(label="Save", command=self.save_file)
         filemenu.add_command(label="Save As...", command=self.save_file_as)
@@ -65,10 +73,14 @@ class AgentApp(ctk.CTk):
         if self.font_size > 6:
             self.set_font_size(self.font_size - 1)
 
-    def new_tab(self, name):
+    def new_tab(self, name=None):
+        if not name:
+            name = f"Untitled-{len(self.tabs) + 1}"
         tab = self.tabview.add(name)
-        textbox = ctk.CTkTextbox(tab, wrap="none")
+        textbox = ctk.CTkTextbox(tab, wrap="none", font=self.font)
         textbox.pack(expand=True, fill="both")
+        self.tabs.append(TabData(name, textbox))
+        self.tabview.set(name)
 
     def close_tab(self):
         pass
