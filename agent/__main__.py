@@ -63,8 +63,9 @@ class AgentApp(ctk.CTk):
     # --- Font size controls ---
     def set_font_size(self, size):
         self.font_size = size
+        self.font = (self.font_name, self.font_size)
         for tab in self.tabs:
-            tab.text_widget.configure(font=self.font)
+            tab.textbox.configure(font=self.font)
 
     def increase_font(self):
         self.set_font_size(self.font_size + 1)
