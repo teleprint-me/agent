@@ -25,6 +25,7 @@ import sys
 from agent.api.openai import Model
 from agent.tools import tools
 from agent.tools.weather import get_weather
+from agent.utils.json import save_json
 
 ESCAPE = "\x1b"
 RESET = ESCAPE + "[0m"
@@ -40,7 +41,10 @@ def run_tool(tool_name: str, **kwargs) -> any:
 
 
 def run_agent(model: Model, **kwargs: dict[str, any]):
-    content = ""
+    message = {
+        "role": "assistant",
+        "content": "",
+    }
     tool_call_happened = False
     messages = kwargs.get("messages", {})
 
@@ -55,22 +59,20 @@ def run_agent(model: Model, **kwargs: dict[str, any]):
     for event in stream:
         event_type = event[0]
         if event_type == model.THINK_OPEN:
-            content += event[0]
+            message["content"] += event[0]
             print(f"{UNDERLINE}{BOLD}Thinking:{RESET}")
-        elif event_type == "reasoning":
-            token = event[1]
-            content += token
-            print(f"{ITALIC}{token}{RESET}", end="")
         elif event_type == model.THINK_CLOSE:
-            content += event[0]
+            message["content"] += event[0]
             print(f"\n{UNDERLINE}{BOLD}Completion:{RESET}")
-        elif event_type == "content":
+        elif event_type in ["content", "reasoning"]:
             output = event[1]
-            content += output
+            message["content"] += output
             print(output, end="")
         elif event_type == "tool_call":
             tool_name, args = event[1], event[2]
             result = run_tool(tool_name, **args)
+            if message["content"]:  # Model might reason BEFORE calling a tool
+                messages.append(message)
             messages.append(
                 {
                     "role": "assistant",
@@ -98,13 +100,8 @@ def run_agent(model: Model, **kwargs: dict[str, any]):
         sys.stdout.flush()  # Flushing print() is affecting values?
 
     # Append assistant content message if any
-    if content and not tool_call_happened:
-        messages.append(
-            {
-                "role": "assistant",
-                "content": content,
-            }
-        )
+    if message["content"] and not tool_call_happened:
+        messages.append(message)
 
 
 def run_chat(model, tools):
@@ -123,6 +120,9 @@ def run_chat(model, tools):
                     break
                 messages.append({"role": "user", "content": user_input})
 
+            print()
+            save_json(messages, "test.json")  # Update once per turn
+
             # run_agent appends new messages as needed
             run_agent(
                 model,
@@ -131,6 +131,9 @@ def run_chat(model, tools):
                 tools=tools,
                 messages=messages,
             )
+
+            print()
+            save_json(messages, "test.json")
         except (KeyboardInterrupt,):
             break
 
