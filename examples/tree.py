@@ -12,12 +12,9 @@ EXCLUDED_FILES = {".flake8", ".gitignore"}
 def get_full_path(tree, node_id):
     parts = []
     while node_id:
-        print(tree.item(node_id)["text"])
         parts.insert(0, tree.item(node_id)["text"])
-        print(parts)
         node_id = tree.parent(node_id)
     path = os.path.join(Path(os.getcwd()).parent, *parts)
-    print(path)
     return path
 
 
@@ -61,7 +58,9 @@ def main():
     tree.pack(fill="both", expand=True)
 
     base_path = os.getcwd()
-    root_node = tree.insert("", "end", text=os.path.basename(base_path), open=True)
+    base_name = os.path.basename(base_path)
+    root_node = tree.insert("", "end", text=base_name, values=[base_path], open=True)
+
     list_directory(tree, root_node, base_path)
 
     tree.bind("<<TreeviewOpen>>", on_open_node)
