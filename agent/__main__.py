@@ -2,8 +2,8 @@ import tkinter as tk
 
 import customtkinter as ctk
 
-ctk.set_appearance_mode("dark")  # "light", "dark", or "system"
-ctk.set_default_color_theme("blue")  # or "green", "dark-blue", etc.
+ctk.set_appearance_mode("dark")
+ctk.set_default_color_theme("blue")
 
 
 class TabData:
@@ -22,19 +22,20 @@ class AgentApp(ctk.CTk):
         self.font_size = 12
         self.font_name = "Noto Sans Mono"
         self.font = (self.font_name, self.font_size)
-        self._make_menu()
 
         self.tabs = []
+        self._make_menu()
+
         self.tabview = ctk.CTkTabview(self)
         self.tabview.pack(expand=True, fill="both")
 
-        self.new_tab()
+        self.new_tab()  # Initial tab
 
     def _make_menu(self):
         menubar = tk.Menu(self)
 
         filemenu = tk.Menu(menubar, tearoff=0)
-        filemenu.add_command(label="New Tab", command=lambda: self.new_tab())
+        filemenu.add_command(label="New Tab", command=self.new_tab)
         filemenu.add_command(label="Open...", command=self.open_file)
         filemenu.add_command(label="Save", command=self.save_file)
         filemenu.add_command(label="Save As...", command=self.save_file_as)
@@ -60,7 +61,22 @@ class AgentApp(ctk.CTk):
     def save_file_as(self):
         pass
 
-    # --- Font size controls ---
+    # Tab management
+    def new_tab(self):
+        name = f"Untitled-{len(self.tabs) + 1}"
+        tab = self.tabview.add(name)
+        textbox = ctk.CTkTextbox(tab, wrap="none", font=self.font)
+        textbox.pack(expand=True, fill="both")
+        self.tabs.append(TabData(name, textbox))
+        self.tabview.set(name)
+
+    def close_tab(self):
+        current = self.tabview.get()
+        if current:
+            self.tabview.delete(current)
+            self.tabs = [tab for tab in self.tabs if tab.name != current]
+
+    # Font management
     def set_font_size(self, size):
         self.font_size = size
         self.font = (self.font_name, self.font_size)
@@ -73,21 +89,6 @@ class AgentApp(ctk.CTk):
     def decrease_font(self):
         if self.font_size > 6:
             self.set_font_size(self.font_size - 1)
-
-    def new_tab(self, name=None):
-        if not name:
-            name = f"Untitled-{len(self.tabs) + 1}"
-        tab = self.tabview.add(name)
-        textbox = ctk.CTkTextbox(tab, wrap="none", font=self.font)
-        textbox.pack(expand=True, fill="both")
-        self.tabs.append(TabData(name, textbox))
-        self.tabview.set(name)
-
-    def close_tab(self):
-        current = self.tabview.get()
-        if current:
-            self.tabview.delete(current)
-            self.tabs = [tab for tab in self.tabs if tab.name != current]
 
 
 if __name__ == "__main__":
