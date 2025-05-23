@@ -63,6 +63,7 @@ class Model:
                     for healed_token in self._think_token_heal(token):
                         yield healed_token
                 if delta.tool_calls:
+                    # print(f"delta.tool_calls: {delta.tool_calls}")
                     for tool_call in delta.tool_calls:
                         yield (
                             "tool_call",
@@ -171,6 +172,7 @@ if __name__ == "__main__":
         completion = model.completion(
             model="gpt-3.5-turbo",
             messages=messages,
+            max_tokens=-1,
             stream=True,
             temperature=0.8,
             tools=tools,  # Leave this blank for now
