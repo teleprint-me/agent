@@ -1,3 +1,7 @@
+"""
+https://pythonassets.com/posts/treeview-in-tk-tkinter
+"""
+
 import os
 import tkinter as tk
 from pathlib import Path
