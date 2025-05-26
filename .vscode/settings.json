@@ -24,14 +24,13 @@
   "notebook.codeActionsOnSave": {
     "source.organizeImports": "explicit"
   },
-  "python.analysis.extraPaths": [
+  "python.autoComplete.extraPaths": [
     "${workspaceFolder}/.venv/bin",
     "${workspaceFolder}/.venv/lib/python3.11/site-packages",
     "${workspaceFolder}/agent"
   ],
   "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
-  "python.languageServer": "Jedi",
-  "python.analysis.typeCheckingMode": "strict",
+  "python.languageServer": "Pylance",
   "[python]": {
     "editor.defaultFormatter": "ms-python.black-formatter",
     "editor.formatOnSave": true,
