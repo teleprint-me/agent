@@ -35,14 +35,19 @@ A few utilities are included but not fully integrated yet.
 
 ## Usage
 
-Once installed, launch the GUI with:
+Once installed, launch the CLI with:
 
 ```sh
-python -m agent
+python -m agent.cli
+```
+
+Or you can launch the GUI with:
+
+```sh
+python -m agent.gui
 ```
 
 The editor should appear.
-It supports basic file operations and agent interaction stubs.
 
 ## Notes
 
