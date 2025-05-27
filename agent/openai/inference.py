@@ -26,6 +26,7 @@ import sys
 
 from agent.openai.stream import GPTRequest
 from agent.tools import tools
+from agent.tools.read_file import read_file
 from agent.tools.weather import get_weather
 from agent.utils.json import save_json
 
@@ -38,6 +39,10 @@ UNDERLINE = ESCAPE + "[4m"
 def run_tool(tool_name: str, **kwargs) -> str:
     if tool_name == "get_weather":
         return get_weather(kwargs["location"], kwargs["units"])
+    if tool_name == "read_file":
+        return read_file(
+            kwargs["filepath"], kwargs["start_line"], kwargs.get("end_line", None)
+        )
     return ""
 
 

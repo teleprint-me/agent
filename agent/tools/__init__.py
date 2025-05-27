@@ -1,3 +1,7 @@
+"""
+Module: agent.tools.__init__
+"""
+
 tools = [
     {
         "type": "function",
@@ -22,5 +26,34 @@ tools = [
             },
             "strict": True,
         },
-    }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "read_file",
+            "description": "Reads a portion of a file between two line numbers.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "filepath": {
+                        "type": "string",
+                        "description": "The path of the file to read.",
+                    },
+                    "start_line": {
+                        "type": "integer",
+                        "description": "The line number to start reading from (0-based).",
+                        "minimum": 0,
+                    },
+                    "end_line": {
+                        "type": ["integer", "null"],
+                        "description": "The line number to stop reading at (exclusive). If null, reads to the end of the file.",
+                        "minimum": 0,
+                    },
+                },
+                "required": ["filepath", "start_line"],
+                "additionalProperties": False,
+            },
+            "strict": True,
+        },
+    },
 ]
