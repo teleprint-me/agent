@@ -1,12 +1,20 @@
+# Dev
 bpython
 isort
 black
+
+# Deps
 numpy
 requests
 python-dotenv
 jsonpycraft
-ttkbootstrap
-jedi-language-server
+peewee
+
+# Core
 tiktoken
 openai
 gguf
+
+# GUI
+ttkbootstrap
+jedi-language-server
