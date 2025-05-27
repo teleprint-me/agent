@@ -86,6 +86,9 @@ class GPTRequest:
                     )
         return None
 
+    def _dump_value(self, val):
+        return val.model_dump() if hasattr(val, "model_dump") else val
+
     def stream(self, **kwargs) -> Generator[Dict[str, Any], None, None]:
         response: Stream[ChatCompletionChunk] = self.client.chat.completions.create(
             **kwargs
@@ -111,11 +114,11 @@ class GPTRequest:
                         yield result
 
             if delta.refusal:
-                yield {"type": "refusal", "value": delta.refusal.model_dump()}
+                yield {"type": "refusal", "value": self._dump_value(delta.refusal)}
 
             # Future-proofing: support for native reasoning deltas
             if hasattr(delta, "reasoning") and delta.reasoning:
-                yield {"type": "reasoning", "value": delta.reasoning.model_dump()}
+                yield {"type": "reasoning", "value": self._dump_value(delta.reasoning)}
 
 
 def main():
