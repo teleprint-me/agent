@@ -135,8 +135,13 @@ def run_agent(model: GPTRequest, messages: JSONListTemplate) -> None:
 
 
 def run_chat():
+    path = config.get_value("templates.messages.path")
+    if path is None:
+        raise RuntimeError(
+            "Missing config: templates.messages.path is required. Please check your config."
+        )
     messages = JSONListTemplate(
-        config.get_value("templates.messages.path"),
+        path,
         initial_data=[
             {
                 "role": "system",
