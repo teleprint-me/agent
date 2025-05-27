@@ -16,6 +16,7 @@ openai
 gguf
 
 # UI Libraries
+pygments
 prompt-toolkit
 ttkbootstrap
 jedi-language-server
