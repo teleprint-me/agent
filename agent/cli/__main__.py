@@ -24,11 +24,12 @@ Important:
 import json
 import sys
 
+from jsonpycraft import JSONList, JSONListTemplate, JSONMap
+
 from agent.backend.gpt.requests import GPTRequest
 from agent.tools import tools
 from agent.tools.read_file import read_file
 from agent.tools.weather import get_weather
-from agent.utils.json import save_json
 
 ESCAPE = "\x1b"
 RESET = ESCAPE + "[0m"
@@ -46,10 +47,10 @@ def run_tool(tool_name: str, **kwargs) -> str:
     return ""
 
 
-def run_agent(model: GPTRequest, messages: list[dict], **kwargs):
+def run_agent(model: GPTRequest, template: JSONListTemplate, **kwargs):
     stream = model.stream(
         model="gpt-3.5-turbo",
-        messages=messages,
+        messages=template.data,
         stream=kwargs.get("stream", True),
         temperature=kwargs.get("temperature", 0.8),
         tools=kwargs.get("tools", tools),
@@ -72,6 +73,7 @@ def run_agent(model: GPTRequest, messages: list[dict], **kwargs):
 
         elif event_type == "reasoning.close":
             print(f"\n{UNDERLINE}{BOLD}Completion:{RESET}")
+            print()
             message["content"] += value
 
         elif event_type == "content":
@@ -83,9 +85,9 @@ def run_agent(model: GPTRequest, messages: list[dict], **kwargs):
             tool_args = value["arguments"]
 
             if message["content"]:
-                messages.append(message)
+                template.append(message)
 
-            messages.append(
+            template.append(
                 {
                     "role": "assistant",
                     "tool_calls": [
@@ -101,7 +103,7 @@ def run_agent(model: GPTRequest, messages: list[dict], **kwargs):
             )
 
             result = run_tool(tool_name, **tool_args)
-            messages.append(
+            template.append(
                 {
                     "role": "tool",
                     "name": tool_name,
@@ -117,30 +119,33 @@ def run_agent(model: GPTRequest, messages: list[dict], **kwargs):
         sys.stdout.flush()
 
     if message["content"] and not tool_call_pending:
-        messages.append(message)
+        template.append(message)
 
 
 def run_chat(model: GPTRequest, tools: list):
-    messages = [
+    messages: JSONList = [
         {"role": "system", "content": "My name is Qwen. I am a helpful assistant."}
     ]
 
+    template = JSONListTemplate(".agent/cli/messages.json", initial_data=messages)
+    template.make_directory()
+
     while True:
         try:
-            if messages[-1]["role"] != "tool":
-                if messages[-1]["role"] != "system":
+            if template.data[-1]["role"] != "tool":
+                if template.data[-1]["role"] != "system":
                     print()
                 user_input = input("<user> ").strip()
                 if user_input.lower() in ("exit", "quit"):
                     print("Exiting.")
                     break
-                messages.append({"role": "user", "content": user_input})
-                save_json(messages, "test.json")  # Update records
+                template.append({"role": "user", "content": user_input})
+                template.save_json()
 
             print()
-            run_agent(model, messages, temperature=0.8, stream=True, tools=tools)
+            run_agent(model, template, temperature=0.8, stream=True, tools=tools)
             print()
-            save_json(messages, "test.json")  # Update records
+            template.save_json()  # Update records
 
         except KeyboardInterrupt:
             print("\nInterrupted.")
