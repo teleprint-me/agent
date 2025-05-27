@@ -10,6 +10,11 @@ from openai import OpenAI
 
 from agent.tools import tools
 
+REASON_TAGS = [
+    (re.compile(r"<think>"), "reasoning.open"),
+    (re.compile(r"</think>"), "reasoning.close"),
+]
+
 
 class GPTRequest:
     def __init__(self, base_url: str = None, api_key: str = None):
@@ -19,35 +24,29 @@ class GPTRequest:
         if not base_url or not api_key:
             dotenv.load_dotenv(".env")
 
-        if not base_url:
-            base_url = os.getenv("OPENAI_BASE_URL", "")
-
-        if not api_key:
-            api_key = os.getenv("OPENAI_API_KEY", "")
+        base_url = base_url or os.getenv("OPENAI_BASE_URL", "")
+        api_key = api_key or os.getenv("OPENAI_API_KEY", "")
 
         if not api_key:
             raise ValueError("EnvironmentError: OPENAI_API_KEY not set in .env")
 
-        # Setup default base URL if using local mode
         if api_key == "sk-no-key-required" and not base_url:
             base_url = "http://localhost:8080/v1"
 
         return OpenAI(api_key=api_key, base_url=base_url)
 
     def _think_token_heal(self, token: str) -> List[str]:
-        think_open = "<think>"
-        think_close = "</think>"
-        if think_open not in token and think_close not in token:
+        tags = [t.pattern for t, _ in REASON_TAGS]
+        if not any(t in token for t in tags):
             return [token]
-        pattern = f"({re.escape(think_open)}|{re.escape(think_close)})"
+        pattern = f"({'|'.join(re.escape(t) for t in tags)})"
         parts = re.split(pattern, token)
         return [part for part in parts if part]
 
     def _classify_reasoning(self, text: str) -> Optional[str]:
-        if "<think>" in text:
-            return "reasoning.open"
-        if "</think>" in text:
-            return "reasoning.close"
+        for pattern, label in REASON_TAGS:
+            if pattern.search(text):
+                return label
         return None
 
     def _classify_tool(self, tool_call, buffer, args_fragments):
@@ -94,7 +93,7 @@ class GPTRequest:
             if delta.refusal:
                 yield {"type": "refusal", "value": delta.refusal.model_dump()}
 
-            # Future compatibility with OpenAI's or llama.cpp's structured reasoning output
+            # Future-proofing: support for native reasoning deltas
             if hasattr(delta, "reasoning") and delta.reasoning:
                 yield {"type": "reasoning", "value": delta.reasoning.model_dump()}
 
@@ -107,9 +106,9 @@ def main():
 
     request = GPTRequest()
     generator = request.stream(
-        model="gpt-3.5-turbo",  # Llama.Cpp expects this model definition
+        model="gpt-3.5-turbo",
         messages=messages,
-        max_tokens=-1,  # Allow the to model to naturally stop on its own
+        max_tokens=-1,
         stream=True,
         temperature=0.8,
         tools=tools,
