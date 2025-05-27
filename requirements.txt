@@ -1,20 +1,21 @@
-# Dev
+# Development Tools
 bpython
 isort
 black
 
-# Deps
+# Dependencies
 numpy
 requests
 python-dotenv
 jsonpycraft
 peewee
 
-# Core
+# Core Libraries
 tiktoken
 openai
 gguf
 
-# GUI
+# UI Libraries
+prompt-toolkit
 ttkbootstrap
 jedi-language-server
