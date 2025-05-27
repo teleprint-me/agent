@@ -24,10 +24,11 @@ Important:
 import json
 import sys
 
-from jsonpycraft import JSONList, JSONListTemplate, JSONMap
+from jsonpycraft import JSONList, JSONListTemplate
 from prompt_toolkit import PromptSession
 
 from agent.backend.gpt.requests import GPTRequest
+from agent.cli.config import config
 from agent.tools import tools
 from agent.tools.read_file import read_file
 from agent.tools.weather import get_weather
@@ -48,13 +49,15 @@ def run_tool(tool_name: str, **kwargs) -> str:
     return ""
 
 
-def run_agent(model: GPTRequest, template: JSONListTemplate, **kwargs):
+def run_agent(model: GPTRequest, messages: JSONListTemplate):
     stream = model.stream(
-        model="gpt-3.5-turbo",
-        messages=template.data,
-        stream=kwargs.get("stream", True),
-        temperature=kwargs.get("temperature", 0.8),
-        tools=kwargs.get("tools", tools),
+        messages=messages.data,
+        model=config.get_value("openai.model"),
+        stream=config.get_value("openai.stream"),
+        temperature=config.get_value("openai.temperature"),
+        max_tokens=config.get_value("openai.max_tokens"),
+        seed=config.get_value("openai.seed"),
+        tools=config.get_value("openai.tools"),
     )
 
     message = {"role": "assistant", "content": ""}
@@ -69,12 +72,13 @@ def run_agent(model: GPTRequest, template: JSONListTemplate, **kwargs):
             continue  # Already handled by message["role"]
 
         elif event_type == "reasoning.open":
+            print()
             print(f"{UNDERLINE}{BOLD}Thinking:{RESET}")
             message["content"] += value
 
         elif event_type == "reasoning.close":
-            print(f"\n{UNDERLINE}{BOLD}Completion:{RESET}")
             print()
+            print(f"\n{UNDERLINE}{BOLD}Completion:{RESET}")
             message["content"] += value
 
         elif event_type == "content":
@@ -86,9 +90,9 @@ def run_agent(model: GPTRequest, template: JSONListTemplate, **kwargs):
             tool_args = value["arguments"]
 
             if message["content"]:
-                template.append(message)
+                messages.append(message)
 
-            template.append(
+            messages.append(
                 {
                     "role": "assistant",
                     "tool_calls": [
@@ -104,7 +108,7 @@ def run_agent(model: GPTRequest, template: JSONListTemplate, **kwargs):
             )
 
             result = run_tool(tool_name, **tool_args)
-            template.append(
+            messages.append(
                 {
                     "role": "tool",
                     "name": tool_name,
@@ -114,41 +118,44 @@ def run_agent(model: GPTRequest, template: JSONListTemplate, **kwargs):
 
             tool_call_pending = True
 
+            print()
             print(f"\n{UNDERLINE}{BOLD}Tool Call:{RESET}")
             print(f"{UNDERLINE}{BOLD}{tool_name}({tool_args}){RESET}: {result}")
 
         sys.stdout.flush()
 
     if message["content"] and not tool_call_pending:
-        template.append(message)
+        messages.append(message)
 
 
 def run_chat(model: GPTRequest, tools: list):
-    messages: JSONList = [
-        {"role": "system", "content": "My name is Qwen. I am a helpful assistant."}
-    ]
-
-    template = JSONListTemplate(".agent/cli/messages.json", initial_data=messages)
-    template.make_directory()
-
+    messages = JSONListTemplate(
+        ".agent/cli/messages.json",
+        initial_data=[
+            {
+                "role": "system",
+                "content": config.get_value("openai.system"),
+            },
+        ],
+    )
+    messages.make_directory()
     session = PromptSession()  # Initialize prompt-toolkit session
 
     while True:
         try:
-            if template.data[-1]["role"] != "tool":
-                if template.data[-1]["role"] != "system":
+            if messages.data[-1]["role"] != "tool":
+                if messages.data[-1]["role"] != "system":
                     print()
                 user_input = session.prompt("> ", multiline=True)
                 if user_input.lower() in ("exit", "quit"):
                     print("Exiting.")
                     break
-                template.append({"role": "user", "content": user_input})
-                template.save_json()
+                messages.append({"role": "user", "content": user_input})
+                messages.save_json()
 
+            run_agent(model, messages)
             print()
-            run_agent(model, template, temperature=0.8, stream=True, tools=tools)
-            print()
-            template.save_json()
+            messages.save_json()
 
         except KeyboardInterrupt:
             print("\nInterrupted.")

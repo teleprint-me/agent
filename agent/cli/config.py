@@ -2,27 +2,46 @@
 Module: agent.cli.config
 """
 
-from jsonpycraft.manager.configuration import ConfigurationManager
+from jsonpycraft import (
+    ConfigurationManager,
+    JSONDecodeErrorHandler,
+    JSONFileErrorHandler,
+    JSONMap,
+)
 
 from agent.tools import tools
 
-# Define defaults here
 DEFAULTS = {
     "openai": {
+        "system": "My name is ChatGPT. I am a helpful assistant.",
         "model": "gpt-3.5-turbo",
         "stream": True,
-        "temperature": 0.7,
-        "max_tokens": -1,
         "seed": 1337,
-        "system": "You are a helpful assistant.",
+        "max_tokens": -1,
+        "temperature": 0.7,
+        "n": 1,
+        "top_p": 0.95,
+        "presence_penalty": 0,
+        "frequency_penalty": 0,
+        "stop": [],
+        "logit_bias": {},
         "tools": tools,
     },
+    "messages": {
+        "path": ".agent/cli/messages.json",
+    },
+    # Add other sections as needed
 }
 
-config = ConfigurationManager(".agent/cli/settings.json", initial_data=DEFAULTS)
 
-try:
-    config.mkdir()  # Create if not present
-    config.load()  # Read if present
-except Exception:
-    config.save()  # Create if not present
+def load_or_init_config(path: str, defaults: JSONMap, indent: int = 2):
+    config = ConfigurationManager(path, initial_data=defaults, indent=indent)
+    config.mkdir()
+    try:
+        config.load()
+    except (JSONFileErrorHandler, JSONDecodeErrorHandler):
+        config.save()
+    return config
+
+
+config = load_or_init_config(".agent/cli/settings.json", DEFAULTS)
