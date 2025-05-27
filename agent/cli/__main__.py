@@ -25,6 +25,7 @@ import json
 import sys
 
 from jsonpycraft import JSONList, JSONListTemplate, JSONMap
+from prompt_toolkit import PromptSession
 
 from agent.backend.gpt.requests import GPTRequest
 from agent.tools import tools
@@ -39,7 +40,7 @@ UNDERLINE = ESCAPE + "[4m"
 
 def run_tool(tool_name: str, **kwargs) -> str:
     if tool_name == "get_weather":
-        return get_weather(kwargs["location"], kwargs["units"])
+        return get_weather(kwargs["location"], kwargs.get("units", "metric"))
     if tool_name == "read_file":
         return read_file(
             kwargs["filepath"], kwargs["start_line"], kwargs.get("end_line", None)
@@ -130,12 +131,14 @@ def run_chat(model: GPTRequest, tools: list):
     template = JSONListTemplate(".agent/cli/messages.json", initial_data=messages)
     template.make_directory()
 
+    session = PromptSession()  # Initialize prompt-toolkit session
+
     while True:
         try:
             if template.data[-1]["role"] != "tool":
                 if template.data[-1]["role"] != "system":
                     print()
-                user_input = input("<user> ").strip()
+                user_input = session.prompt("> ", multiline=True)
                 if user_input.lower() in ("exit", "quit"):
                     print("Exiting.")
                     break
@@ -145,7 +148,7 @@ def run_chat(model: GPTRequest, tools: list):
             print()
             run_agent(model, template, temperature=0.8, stream=True, tools=tools)
             print()
-            template.save_json()  # Update records
+            template.save_json()
 
         except KeyboardInterrupt:
             print("\nInterrupted.")
