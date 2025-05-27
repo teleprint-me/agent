@@ -135,12 +135,12 @@ def run_chat(model: GPTRequest, tools: list):
                     print("Exiting.")
                     break
                 messages.append({"role": "user", "content": user_input})
+                save_json(messages, "test.json")  # Update records
 
             print()
-            save_json(messages, "test.json")
             run_agent(model, messages, temperature=0.8, stream=True, tools=tools)
             print()
-            save_json(messages, "test.json")
+            save_json(messages, "test.json")  # Update records
 
         except KeyboardInterrupt:
             print("\nInterrupted.")
