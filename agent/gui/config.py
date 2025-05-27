@@ -1,4 +1,7 @@
-# config.py
+"""
+Module: agent.gui.config
+"""
+
 from jsonpycraft.manager.configuration import ConfigurationManager
 
 # Define defaults here
@@ -6,7 +9,7 @@ DEFAULTS = {
     "editor": {"font": {"size": 12, "name": "Noto Sans Mono"}, "theme": "darkly"}
 }
 
-config = ConfigurationManager(".agent/settings.json", initial_data=DEFAULTS)
+config = ConfigurationManager(".agent/gui/settings.json", initial_data=DEFAULTS)
 
 try:
     config.mkdir()  # Create if not present
