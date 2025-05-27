@@ -1,5 +1,5 @@
 """
-agent.openai.inference
+Script: cli.__main__
 
 Adapted client for OpenAI and local llama.cpp servers.
 Supports streaming completions and environment-based endpoint switching.
@@ -24,7 +24,7 @@ Important:
 import json
 import sys
 
-from agent.openai.stream import GPTRequest
+from agent.backend.gpt.requests import GPTRequest
 from agent.tools import tools
 from agent.tools.read_file import read_file
 from agent.tools.weather import get_weather
