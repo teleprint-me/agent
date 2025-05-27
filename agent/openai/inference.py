@@ -1,4 +1,6 @@
 """
+agent.openai.inference
+
 Adapted client for OpenAI and local llama.cpp servers.
 Supports streaming completions and environment-based endpoint switching.
 
