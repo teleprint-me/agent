@@ -10,12 +10,12 @@ Module: agent.backend.gpt.requests
 import json
 import os
 import re
-from dataclasses import dataclass
 from pprint import pprint
-from typing import Any, Dict, Generator, List, Literal, Optional, Union
+from typing import Any, Dict, Generator, List, Optional, Union
 
 import dotenv
 from openai import OpenAI, Stream
+from openai.types.chat.chat_completion import ChatCompletion
 from openai.types.chat.chat_completion_chunk import (
     ChatCompletionChunk,
     ChoiceDelta,
@@ -91,10 +91,12 @@ class GPTRequest:
     def _dump_value(self, val):
         return val.model_dump() if hasattr(val, "model_dump") else val
 
+    def get(self, **kwargs) -> Union[ChatCompletion, Stream[ChatCompletionChunk]]:
+        return self.client.chat.completions.create(**kwargs)
+
     def stream(self, **kwargs) -> Generator[Dict[str, Any], None, None]:
-        response: Stream[ChatCompletionChunk] = self.client.chat.completions.create(
-            **kwargs
-        )
+        kwargs["stream"] = True  # Coerce streaming
+        response = self.get(**kwargs)
         tool_buffer = {}
         args_fragments = []
 

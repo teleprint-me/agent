@@ -13,7 +13,6 @@ from agent.tools import tools
 
 DEFAULTS = {
     "openai": {
-        "system": "My name is ChatGPT. I am a helpful assistant.",
         "model": "gpt-3.5-turbo",
         "stream": True,
         "seed": 1337,
@@ -25,10 +24,20 @@ DEFAULTS = {
         "frequency_penalty": 0,
         "stop": [],
         "logit_bias": {},
-        "tools": tools,
     },
-    "messages": {
-        "path": ".agent/cli/messages.json",
+    "templates": {
+        "system": {
+            "content": "My name is ChatGPT. I am a helpful assistant.",
+            "type": "str",
+        },
+        "messages": {
+            "path": ".agent/cli/messages.json",
+            "type": "file",
+        },
+        "schemas": {
+            "tools": tools,
+            "type": "list",
+        },
     },
     # Add other sections as needed
 }

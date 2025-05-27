@@ -24,7 +24,7 @@ Important:
 import json
 import sys
 
-from jsonpycraft import JSONList, JSONListTemplate
+from jsonpycraft import JSONListTemplate
 from prompt_toolkit import PromptSession
 
 from agent.backend.gpt.requests import GPTRequest
@@ -49,15 +49,21 @@ def run_tool(tool_name: str, **kwargs) -> str:
     return ""
 
 
-def run_agent(model: GPTRequest, messages: JSONListTemplate):
+def run_agent(model: GPTRequest, messages: JSONListTemplate) -> None:
     stream = model.stream(
         messages=messages.data,
         model=config.get_value("openai.model"),
         stream=config.get_value("openai.stream"),
-        temperature=config.get_value("openai.temperature"),
-        max_tokens=config.get_value("openai.max_tokens"),
         seed=config.get_value("openai.seed"),
-        tools=config.get_value("openai.tools"),
+        max_tokens=config.get_value("openai.max_tokens"),
+        temperature=config.get_value("openai.temperature"),
+        n=config.get_value("openai.n"),
+        top_p=config.get_value("openai.top_p"),
+        presence_penalty=config.get_value("openai.presence_penalty"),
+        frequency_penalty=config.get_value("openai.frequency_penalty"),
+        stop=config.get_value("openai.stop"),
+        logit_bias=config.get_value("openai.logit_bias"),
+        tools=config.get_value("templates.schemas.tools"),
     )
 
     message = {"role": "assistant", "content": ""}
@@ -120,7 +126,7 @@ def run_agent(model: GPTRequest, messages: JSONListTemplate):
 
             print()
             print(f"\n{UNDERLINE}{BOLD}Tool Call:{RESET}")
-            print(f"{UNDERLINE}{BOLD}{tool_name}({tool_args}){RESET}: {result}")
+            print(f"{UNDERLINE}{BOLD}{tool_name}({tool_args}){RESET}:\n{result}")
 
         sys.stdout.flush()
 
@@ -128,19 +134,20 @@ def run_agent(model: GPTRequest, messages: JSONListTemplate):
         messages.append(message)
 
 
-def run_chat(model: GPTRequest, tools: list):
+def run_chat():
     messages = JSONListTemplate(
-        ".agent/cli/messages.json",
+        config.get_value("templates.messages.path"),
         initial_data=[
             {
                 "role": "system",
-                "content": config.get_value("openai.system"),
+                "content": config.get_value("templates.system.content"),
             },
         ],
     )
     messages.make_directory()
     session = PromptSession()  # Initialize prompt-toolkit session
 
+    gpt = GPTRequest()
     while True:
         try:
             if messages.data[-1]["role"] != "tool":
@@ -153,7 +160,7 @@ def run_chat(model: GPTRequest, tools: list):
                 messages.append({"role": "user", "content": user_input})
                 messages.save_json()
 
-            run_agent(model, messages)
+            run_agent(gpt, messages)
             print()
             messages.save_json()
 
@@ -163,8 +170,7 @@ def run_chat(model: GPTRequest, tools: list):
 
 
 def main():
-    gpt = GPTRequest()
-    run_chat(gpt, tools)
+    run_chat()
 
 
 if __name__ == "__main__":
