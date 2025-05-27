@@ -22,7 +22,7 @@ Important:
 import json
 import sys
 
-from agent.api.openai import Model
+from agent.openai.stream import GPTRequest
 from agent.tools import tools
 from agent.tools.weather import get_weather
 from agent.utils.json import save_json
@@ -30,25 +30,17 @@ from agent.utils.json import save_json
 ESCAPE = "\x1b"
 RESET = ESCAPE + "[0m"
 BOLD = ESCAPE + "[1m"
-ITALIC = ESCAPE + "[3m"
 UNDERLINE = ESCAPE + "[4m"
 
 
-def run_tool(tool_name: str, **kwargs) -> any:
+def run_tool(tool_name: str, **kwargs) -> str:
     if tool_name == "get_weather":
         return get_weather(kwargs["location"], kwargs["units"])
     return ""
 
 
-def run_agent(model: Model, **kwargs: dict[str, any]):
-    message = {
-        "role": "assistant",
-        "content": "",
-    }
-    tool_call_happened = False
-    messages = kwargs.get("messages", {})
-
-    stream = model.completion(
+def run_agent(model: GPTRequest, messages: list[dict], **kwargs):
+    stream = model.stream(
         model="gpt-3.5-turbo",
         messages=messages,
         stream=kwargs.get("stream", True),
@@ -56,23 +48,36 @@ def run_agent(model: Model, **kwargs: dict[str, any]):
         tools=kwargs.get("tools", tools),
     )
 
+    message = {"role": "assistant", "content": ""}
+    tool_call_pending = False
+    tool_name, tool_args = None, {}
+
     for event in stream:
-        event_type = event[0]
-        if event_type == model.THINK_OPEN:
-            message["content"] += event[0]
+        event_type = event["type"]
+        value = event["value"]
+
+        if event_type == "role":
+            continue  # Already handled by message["role"]
+
+        elif event_type == "reasoning.open":
             print(f"{UNDERLINE}{BOLD}Thinking:{RESET}")
-        elif event_type == model.THINK_CLOSE:
-            message["content"] += event[0]
+            message["content"] += value
+
+        elif event_type == "reasoning.close":
             print(f"\n{UNDERLINE}{BOLD}Completion:{RESET}")
-        elif event_type in ["content", "reasoning"]:
-            output = event[1]
-            message["content"] += output
-            print(output, end="")
+            message["content"] += value
+
+        elif event_type == "content":
+            message["content"] += value
+            print(value, end="")
+
         elif event_type == "tool_call":
-            tool_name, args = event[1], event[2]
-            result = run_tool(tool_name, **args)
-            if message["content"]:  # Model might reason BEFORE calling a tool
+            tool_name = value["name"]
+            tool_args = value["arguments"]
+
+            if message["content"]:
                 messages.append(message)
+
             messages.append(
                 {
                     "role": "assistant",
@@ -81,12 +86,14 @@ def run_agent(model: Model, **kwargs: dict[str, any]):
                             "type": "function",
                             "function": {
                                 "name": tool_name,
-                                "arguments": json.dumps(args),  # MUST be a string
+                                "arguments": json.dumps(tool_args),
                             },
                         }
                     ],
                 }
             )
+
+            result = run_tool(tool_name, **tool_args)
             messages.append(
                 {
                     "role": "tool",
@@ -94,58 +101,48 @@ def run_agent(model: Model, **kwargs: dict[str, any]):
                     "content": result,
                 }
             )
-            tool_call_happened = True
-            print(f"{UNDERLINE}{BOLD}Tool Call:{RESET}")
-            print(f"{UNDERLINE}{BOLD}{tool_name}({args}){RESET}: {result}")
-        sys.stdout.flush()  # Flushing print() is affecting values?
 
-    # Append assistant content message if any
-    if message["content"] and not tool_call_happened:
+            tool_call_pending = True
+
+            print(f"\n{UNDERLINE}{BOLD}Tool Call:{RESET}")
+            print(f"{UNDERLINE}{BOLD}{tool_name}({tool_args}){RESET}: {result}")
+
+        sys.stdout.flush()
+
+    if message["content"] and not tool_call_pending:
         messages.append(message)
 
 
-def run_chat(model, tools):
+def run_chat(model: GPTRequest, tools: list):
     messages = [
         {"role": "system", "content": "My name is Qwen. I am a helpful assistant."}
     ]
 
     while True:
         try:
-            if "tool" != messages[-1]["role"]:
-                if "system" != messages[-1]["role"]:
+            if messages[-1]["role"] != "tool":
+                if messages[-1]["role"] != "system":
                     print()
-                user_input = input("<user> ")
+                user_input = input("<user> ").strip()
                 if user_input.lower() in ("exit", "quit"):
                     print("Exiting.")
                     break
                 messages.append({"role": "user", "content": user_input})
 
             print()
-            save_json(messages, "test.json")  # Update once per turn
-
-            # run_agent appends new messages as needed
-            run_agent(
-                model,
-                temperature=0.8,
-                stream=True,
-                tools=tools,
-                messages=messages,
-            )
-
+            save_json(messages, "test.json")
+            run_agent(model, messages, temperature=0.8, stream=True, tools=tools)
             print()
             save_json(messages, "test.json")
-        except (KeyboardInterrupt,):
+
+        except KeyboardInterrupt:
+            print("\nInterrupted.")
             break
 
 
 def main():
-    model = Model()
-    run_chat(model, tools)
-
-    # print(f"\n{UNDERLINE}{BOLD}Messages:{RESET}")
-    # for message in messages:
-    #     for k, v in message.items():
-    #         print(f"{k}: {v}")
+    gpt = GPTRequest()
+    run_chat(gpt, tools)
 
 
 if __name__ == "__main__":
