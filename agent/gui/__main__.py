@@ -9,7 +9,7 @@ from tkinter import filedialog, messagebox
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 
-from agent.utils.config import config
+from agent.gui.config import config
 
 
 class TabData:
