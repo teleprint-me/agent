@@ -5,6 +5,8 @@ from tkinter import filedialog, messagebox
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 
+from agent.utils.config import config
+
 
 class TabData:
     def __init__(self, name, text_widget, filename=None):
@@ -15,12 +17,14 @@ class TabData:
 
 class AgentApp(ttk.Window):
     def __init__(self):
-        super().__init__(themename="darkly")  # Options: darkly, flatly, journal, etc.
+        theme = config.get_value("editor.theme", "darkly")
+        super().__init__(themename=theme)
+
         self.title("Agent Editor")
         self.geometry("800x600")
 
-        self.font_size = 10
-        self.font_name = "Noto Sans Mono"
+        self.font_size = config.get_value("editor.font.size", 12)
+        self.font_name = config.get_value("editor.font.name", "Noto Sans Mono")
         self.font = (self.font_name, self.font_size)
         self.tabs = []
 
@@ -148,10 +152,14 @@ class AgentApp(ttk.Window):
 
     def increase_font(self):
         self.set_font_size(self.font_size + 1)
+        config.set_value("editor.font.size", self.font_size)
+        config.save()
 
     def decrease_font(self):
         if self.font_size > 6:
             self.set_font_size(self.font_size - 1)
+            config.set_value("editor.font.size", self.font_size)
+            config.save()
 
 
 if __name__ == "__main__":
