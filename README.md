@@ -49,6 +49,8 @@ python -m agent.gui
 
 The editor should appear.
 
+_**NOTE:** The CLI uses [prompt-toolkit](https://python-prompt-toolkit.readthedocs.io/en/stable/index.html) and the GUI uses [tkinter](https://docs.python.org/3/library/tkinter.html)_.
+
 ## Notes
 
 The goal is to build a **custom, extensible editor** that fits my personal workflow.
