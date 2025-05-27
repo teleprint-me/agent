@@ -4,7 +4,7 @@ agent.tools.weather
 
 from time import sleep
 
-from agent.api.wttr import Weather
+from agent.backend.wttr import Weather
 
 
 def get_weather(location: str, units: str = "metric") -> str:
