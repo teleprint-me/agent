@@ -8,11 +8,18 @@ agent.openai.stream
 import json
 import os
 import re
+from dataclasses import dataclass
 from pprint import pprint
-from typing import Any, Dict, Generator, List, Optional
+from typing import Any, Dict, Generator, List, Literal, Optional, Union
 
 import dotenv
-from openai import OpenAI
+from openai import OpenAI, Stream
+from openai.types.chat.chat_completion_chunk import (
+    ChatCompletionChunk,
+    ChoiceDelta,
+    ChoiceDeltaFunctionCall,
+    ChoiceDeltaToolCall,
+)
 
 from agent.tools import tools
 
@@ -55,8 +62,13 @@ class GPTRequest:
                 return label
         return None
 
-    def _classify_tool(self, tool_call, buffer, args_fragments):
-        fn = tool_call.function
+    def _classify_tool(
+        self,
+        tool_call: ChoiceDeltaToolCall,
+        buffer: Dict[str, Any],
+        args_fragments: List[str],
+    ) -> Optional[Dict[str, Any]]:
+        fn: ChoiceDeltaFunctionCall = tool_call.function
         if fn.name:
             buffer["name"] = fn.name
         if fn.arguments:
@@ -75,12 +87,14 @@ class GPTRequest:
         return None
 
     def stream(self, **kwargs) -> Generator[Dict[str, Any], None, None]:
-        response = self.client.chat.completions.create(**kwargs)
+        response: Stream[ChatCompletionChunk] = self.client.chat.completions.create(
+            **kwargs
+        )
         tool_buffer = {}
         args_fragments = []
 
         for chunk in response:
-            delta = chunk.choices[0].delta
+            delta: ChoiceDelta = chunk.choices[0].delta
 
             if delta.role:
                 yield {"type": "role", "value": delta.role}
