@@ -49,8 +49,6 @@ python -m agent.gui
 
 The editor should appear.
 
-_**NOTE:** The CLI uses [prompt-toolkit](https://python-prompt-toolkit.readthedocs.io/en/stable/index.html) and the GUI uses [tkinter](https://docs.python.org/3/library/tkinter.html)_.
-
 ## Notes
 
 The goal is to build a **custom, extensible editor** that fits my personal workflow.
@@ -60,6 +58,15 @@ The agent layer depends on experimental LLaMA.cpp integration and OpenAI APIs.
 Some features are unstable or under active development.
 
 Expect broken things, weird output, and a lot of duct tape.
+
+## Resources
+
+- [llama.cpp](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md)
+- [openai](https://platform.openai.com/docs/api-reference/introduction)
+- [jsonpycraft](https://github.com/teleprint-me/json-py-craft/tree/main/docs)
+- [prompt-toolkit](https://python-prompt-toolkit.readthedocs.io/en/stable/index.html)
+- [tkinter](https://docs.python.org/3/library/tkinter.html)
+- [ttkbootstrap](https://ttkbootstrap.readthedocs.io/en/latest/)
 
 ## License
 
