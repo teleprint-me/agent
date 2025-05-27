@@ -1,7 +1,7 @@
 """
 Copyright © 2023 Austin Berrio
 
-Module: agent.llama.request
+Module: agent.backend.llama.requests
 
 Description: Module for handling low-level requests to the LlamaCpp REST API.
 """

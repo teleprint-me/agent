@@ -1,3 +1,12 @@
+"""
+Copyright © 2023 Austin Berrio
+
+Module: agent.backend.gpt.chat
+
+NOTE: This should be merged with requests to handle simple GET requests.
+POST requests can be put on hold.
+"""
+
 import json
 import os
 import re

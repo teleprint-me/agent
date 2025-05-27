@@ -1,7 +1,7 @@
 """
 Copyright © 2023 Austin Berrio
 
-Module: llama_cpp_client.llama.api
+Module: agent.backend.llama.api
 
 Description: High-level Requests API for interacting with the LlamaCpp REST API.
 """
@@ -12,7 +12,7 @@ from typing import Any, Dict, List
 
 import requests
 
-from agent.llama.requests import LlamaCppRequest
+from agent.backend.llama.requests import LlamaCppRequest
 from agent.utils.logger import get_logger
 
 
