@@ -7,7 +7,7 @@ from time import sleep
 from agent.backend.wttr import Weather
 
 
-def get_weather(location: str, units: str = "metric") -> str:
+def weather(location: str, units: str = "metric") -> str:
     """
     Get the current weather in a given location.
     Parameters:
@@ -34,4 +34,4 @@ if __name__ == "__main__":
     print(f"Timeout per cycle: {__timeout__}")
     for location in locations:
         sleep(__timeout__)
-        print(get_weather(location))
+        print(weather(location))
