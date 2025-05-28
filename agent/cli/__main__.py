@@ -1,5 +1,5 @@
 """
-Script: cli.__main__
+Script: agent.cli.__main__
 
 Adapted client for OpenAI and local llama.cpp servers.
 Supports streaming completions and environment-based endpoint switching.
@@ -21,14 +21,14 @@ Important:
 - To suppress <think> tags entirely, the chat template must be modified.
 """
 
-import json
 import sys
 
 from jsonpycraft import JSONListTemplate
 from prompt_toolkit import PromptSession
 
 from agent.backend.gpt.requests import GPTRequest
-from agent.cli.config import config
+from agent.config import config
+from agent.tools.memory import memory_initialize
 from agent.tools.registry import ToolRegistry
 
 ESCAPE = "\x1b"
@@ -122,10 +122,11 @@ def run_chat():
         ],
     )
     messages.mkdir()
-    session = PromptSession()  # Initialize prompt-toolkit session
+    session = PromptSession()
     registry = ToolRegistry()
-
     model = GPTRequest()
+    memory_initialize()  # Initialize the models memories
+
     while True:
         try:
             if messages.data[-1]["role"] != "tool":
