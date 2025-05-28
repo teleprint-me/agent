@@ -21,7 +21,7 @@ def memory_initialize() -> sqlite3.Cursor:
             """
             CREATE TABLE IF NOT EXISTS memories (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                timestamp DATETIME DEFAULT (datetime('now', 'localtime')),
                 content TEXT NOT NULL,
                 tags TEXT,
                 user TEXT
