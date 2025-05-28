@@ -84,7 +84,9 @@ OPENAI_BASE_URL=http://localhost:8080/v1
   python -m agent.cli
   ```
 
-- **GUI Editor:**
+The text user interface should appear.
+
+- **GUI:**
 
   ```sh
   python -m agent.gui
@@ -92,12 +94,12 @@ OPENAI_BASE_URL=http://localhost:8080/v1
 
 The editor window should appear.
 
-## Configuration
+- **Config:**
 
 A simple CLI tool is included for customizing agent and model settings. For help:
 
 ```sh
-python -m agent.cli.config -h
+python -m agent.config -h
 ```
 
 Configuration is managed via `jsonpycraft` for clean, editable JSON-based settings.
