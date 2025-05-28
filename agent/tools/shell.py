@@ -1,5 +1,5 @@
 """
-Module: agent.tools.cli
+Module: agent.tools.shell
 
 My current idea is to:
 - Create a group named `agent`.

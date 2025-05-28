@@ -1,16 +1,18 @@
 """
-agent.tools.read_file
+agent.tools.file
 
 Usage Example:
-    content = read_file('path/to/your/file.py', 100, 200)
+    content = file_read('path/to/your/file.py', 100, 200)
     # This reads lines 100 to 200 of the file
 """
 
+from typing import Optional
 
-def read_file(
+
+def file_read(
     filepath: str,
     start_line: int,
-    end_line: int = None,
+    end_line: Optional[int] = None,
 ) -> str:
     """
     Reads a portion of a file from start_line to end_line.
@@ -33,3 +35,12 @@ def read_file(
             lines.append(line)
 
     return "".join(lines)
+
+
+def file_write(
+    filepath: str,
+    content: str,
+    start_line: Optional[int] = None,
+    end_line: Optional[int] = None,
+) -> str:
+    pass
