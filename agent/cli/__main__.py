@@ -29,7 +29,6 @@ from prompt_toolkit import PromptSession
 
 from agent.backend.gpt.requests import GPTRequest
 from agent.cli.config import config
-from agent.tools import tools
 from agent.tools.read_file import read_file
 from agent.tools.weather import get_weather
 
@@ -149,7 +148,7 @@ def run_chat():
             },
         ],
     )
-    messages.make_directory()
+    messages.mkdir()
     session = PromptSession()  # Initialize prompt-toolkit session
 
     gpt = GPTRequest()
