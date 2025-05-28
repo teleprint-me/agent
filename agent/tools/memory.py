@@ -11,7 +11,7 @@ DB_PATH = config.get_value("memory.db.path", default=DEFAULT_PATH_MEM)
 
 
 def memory_connect() -> sqlite3.Connection:
-    return sqlite3.connect()
+    return sqlite3.connect(DB_PATH)
 
 
 def memory_initialize() -> sqlite3.Cursor:
