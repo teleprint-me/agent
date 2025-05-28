@@ -6,7 +6,7 @@ tools = [
     {
         "type": "function",
         "function": {
-            "name": "get_weather",
+            "name": "weather",
             "description": "Retrieves current weather for the given location.",
             "parameters": {
                 "type": "object",
@@ -30,8 +30,8 @@ tools = [
     {
         "type": "function",
         "function": {
-            "name": "read_file",
-            "description": "Reads a portion of a file between two line numbers.",
+            "name": "file_read",
+            "description": "Reads one or more lines from a file, using 1-based (inclusive) line numbers.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -41,16 +41,49 @@ tools = [
                     },
                     "start_line": {
                         "type": "integer",
-                        "description": "The line number to start reading from (0-based).",
-                        "minimum": 0,
+                        "description": "The line number to start reading from (1-based, inclusive).",
+                        "minimum": 1,
                     },
                     "end_line": {
                         "type": ["integer", "null"],
-                        "description": "The line number to stop reading at (exclusive). If null, reads to the end of the file.",
-                        "minimum": 0,
+                        "description": "The line number to stop reading at (1-based, inclusive). If null, reads to the end of the file.",
+                        "minimum": 1,
                     },
                 },
                 "required": ["filepath", "start_line"],
+                "additionalProperties": False,
+            },
+            "strict": True,
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "file_write",
+            "description": "Writes text to a file. Optionally replaces a specific line range (1-based, inclusive). If no lines are specified, replaces the entire file.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "filepath": {
+                        "type": "string",
+                        "description": "The path of the file to write.",
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "The content to write to the file.",
+                    },
+                    "start_line": {
+                        "type": ["integer", "null"],
+                        "description": "The first line number to replace (1-based, inclusive). If not set, overwrites the entire file.",
+                        "minimum": 1,
+                    },
+                    "end_line": {
+                        "type": ["integer", "null"],
+                        "description": "The last line number to replace (1-based, inclusive). If not set, overwrites or appends after start_line.",
+                        "minimum": 1,
+                    },
+                },
+                "required": ["filepath", "content"],
                 "additionalProperties": False,
             },
             "strict": True,
