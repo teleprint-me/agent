@@ -1,15 +1,36 @@
+"""
+Module: agent.tools.memory
+"""
+
 import sqlite3
 from typing import Dict, List, Optional
 
-DB_PATH = ".agent/memory.sqlite3"
+from agent.config import DEFAULT_PATH_MEM, config
+
+DB_PATH = config.get_value("memory.db.path", default=DEFAULT_PATH_MEM)
 
 
-def get_db(db_path: Optional[str] = None):
-    return sqlite3.connect(db_path if db_path is not None else DB_PATH)
+def memory_connect() -> sqlite3.Connection:
+    return sqlite3.connect()
+
+
+def memory_initialize() -> sqlite3.Cursor:
+    with memory_connect() as conn:
+        return conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS memories (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                content TEXT NOT NULL,
+                tags TEXT,
+                user TEXT
+            );
+        """
+        )
 
 
 def memory_create(content: str, tags: Optional[List[str]] = None) -> int:
-    with get_db() as conn:
+    with memory_connect() as conn:
         cur = conn.cursor()
         cur.execute(
             "INSERT INTO memories (content, tags) VALUES (?, ?)",
@@ -25,7 +46,7 @@ def memory_read(
     limit: int = 10,
     offset: int = 0,
 ) -> List[Dict]:
-    with get_db() as conn:
+    with memory_connect() as conn:
         cur = conn.cursor()
         query = "SELECT id, timestamp, content, tags FROM memories"
         params = []
@@ -54,7 +75,7 @@ def memory_read(
 def memory_update(
     id: int, content: Optional[str] = None, tags: Optional[List[str]] = None
 ) -> bool:
-    with get_db() as conn:
+    with memory_connect() as conn:
         cur = conn.cursor()
         fields = []
         params = []
@@ -74,7 +95,7 @@ def memory_update(
 
 
 def memory_delete(id: Optional[int] = None, tags: Optional[List[str]] = None) -> int:
-    with get_db() as conn:
+    with memory_connect() as conn:
         cur = conn.cursor()
         if id:
             cur.execute("DELETE FROM memories WHERE id = ?", (id,))
