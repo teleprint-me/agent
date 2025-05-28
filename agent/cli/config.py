@@ -13,7 +13,9 @@ from jsonpycraft import (
 
 from agent.tools import tools
 
-DEFAULTS = {
+DEFAULT_PATH = ".agent/cli/settings.json"
+
+DEFAULT_CONF = {
     "openai": {
         "model": "gpt-3.5-turbo",
         "stream": True,
@@ -45,8 +47,8 @@ DEFAULTS = {
 }
 
 
-def load_or_init_config(path: str, defaults: JSONMap, indent: int = 2):
-    config = ConfigurationManager(path, initial_data=defaults, indent=indent)
+def load_or_init_config(path: str, defaults: JSONMap):
+    config = ConfigurationManager(path, initial_data=defaults)
     config.mkdir()
     try:
         config.load()
@@ -55,7 +57,8 @@ def load_or_init_config(path: str, defaults: JSONMap, indent: int = 2):
     return config
 
 
-config = load_or_init_config(".agent/cli/settings.json", DEFAULTS)
+# NOTE: Do not assign to `config` in any function; it is a top-level singleton.
+config = load_or_init_config(DEFAULT_PATH, DEFAULT_CONF)
 
 
 def main():
@@ -111,9 +114,9 @@ def main():
 
         walk(config.data)
     elif args.command == "reset":
-        config.clear()
-        config.save()
-        print("Config reset to defaults.")
+        # Overwrite the config file directly with defaults
+        config.reset(initial_data=DEFAULT_CONF)
+        print("Config reset to defaults. Please restart your agent to reload settings.")
     else:
         parser.print_help()
 
