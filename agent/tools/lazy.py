@@ -5,13 +5,13 @@ This module defines classes and functions related to lazy loading of functions a
 
 # Usage Prerequisites
 from agent.config import ConfigurationManager
-from agent.tools.lazy import LazyFunctionMapper
+from agent.tools.lazy import LazyToolMapper
 from agent.tools.memory import SQLiteMemoryFunction
 
 config = ConfigurationManager("tests/config.dev.json")
 
-# `LazyFunctionMapper` Usage
-function_mapper = LazyFunctionMapper()
+# `LazyToolMapper` Usage
+function_mapper = LazyToolMapper()
 
 function_mapper.register_class(
     "SQLiteMemoryFunction",
@@ -38,7 +38,7 @@ print()
 from typing import Any, Callable, Dict, Type
 
 
-class LazyFunctionWrapper:
+class LazyToolWrapper:
     """
     Wrapper class for lazily initializing a class instance.
 
@@ -78,7 +78,7 @@ class LazyFunctionWrapper:
         return self.instance
 
 
-class LazyFunctionMapper:
+class LazyToolMapper:
     """
     Mapper class for managing lazy loading of functions and classes.
 
@@ -88,7 +88,7 @@ class LazyFunctionMapper:
     Attributes:
         _functions (Dict[str, Callable]): A dictionary mapping function names to their corresponding functions.
         _classes (Dict[str, Type[Any]]): A dictionary mapping class names to their corresponding classes.
-        _class_configurations (Dict[str, LazyFunctionWrapper]): A dictionary mapping class names to LazyFunctionWrapper instances.
+        _class_configurations (Dict[str, LazyToolWrapper]): A dictionary mapping class names to LazyToolWrapper instances.
     """
 
     def __init__(self):
@@ -130,9 +130,7 @@ class LazyFunctionMapper:
             **kwargs: Keyword arguments to be passed to the class constructor.
         """
         self._classes[class_name] = cls
-        self._class_configurations[class_name] = LazyFunctionWrapper(
-            cls, *args, **kwargs
-        )
+        self._class_configurations[class_name] = LazyToolWrapper(cls, *args, **kwargs)
 
     def instantiate_class(self, class_name: str):
         """
@@ -152,16 +150,16 @@ class LazyFunctionMapper:
         else:
             raise ValueError(f"No registered class with the name {class_name}")
 
-    def map_class_methods(self, class_name: str, methods: list[str]) -> None:
+    def map_class_methods(self, class_name: str) -> None:
         """
         Map methods of a registered class to functions for lazy loading.
 
         Args:
             class_name (str): The name of the registered class.
-            methods (list[str]): A list of method names to be mapped to functions.
         """
         instance = self.instantiate_class(class_name)
-        for method_name in methods:
-            method = getattr(instance, method_name)
-            if callable(method):
-                self._functions[f"{class_name}_{method_name}"] = method
+        for method_name in dir(instance):
+            if not method_name.startswith("_"):
+                method = getattr(instance, method_name)
+                if callable(method):
+                    self._functions[f"{class_name}_{method_name}"] = method
