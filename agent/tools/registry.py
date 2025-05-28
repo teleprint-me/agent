@@ -29,11 +29,11 @@ class ToolRegistry:
 
     def call(self, name: str, **kwargs: Dict[str, Any]) -> str:
         if name not in self._tools:
-            return {"error": f"Tool '{name}' not found."}
+            return f"Error: Tool '{name}' not found."
         try:
             return self._tools[name](**kwargs)
         except Exception as e:
-            return {"error": str(e)}
+            return f"Error: Tool raised exception: {e}"
 
     def request(self, event: Dict[str, Any]) -> Dict[str, Any]:
         tool_name = event["value"]["name"]
