@@ -29,8 +29,7 @@ from prompt_toolkit import PromptSession
 
 from agent.backend.gpt.requests import GPTRequest
 from agent.cli.config import config
-from agent.tools.read_file import read_file
-from agent.tools.weather import get_weather
+from agent.tools.registry import ToolRegistry
 
 ESCAPE = "\x1b"
 RESET = ESCAPE + "[0m"
@@ -38,17 +37,9 @@ BOLD = ESCAPE + "[1m"
 UNDERLINE = ESCAPE + "[4m"
 
 
-def run_tool(tool_name: str, **kwargs) -> str:
-    if tool_name == "get_weather":
-        return get_weather(kwargs["location"], kwargs.get("units", "metric"))
-    if tool_name == "read_file":
-        return read_file(
-            kwargs["filepath"], kwargs["start_line"], kwargs.get("end_line", None)
-        )
-    return ""
-
-
-def run_agent(model: GPTRequest, messages: JSONListTemplate) -> None:
+def run_agent(
+    model: GPTRequest, messages: JSONListTemplate, registry: ToolRegistry
+) -> None:
     stream = model.stream(
         messages=messages.data,
         model=config.get_value("openai.model"),
@@ -97,35 +88,17 @@ def run_agent(model: GPTRequest, messages: JSONListTemplate) -> None:
             if message["content"]:
                 messages.append(message)
 
-            messages.append(
-                {
-                    "role": "assistant",
-                    "tool_calls": [
-                        {
-                            "type": "function",
-                            "function": {
-                                "name": tool_name,
-                                "arguments": json.dumps(tool_args),
-                            },
-                        }
-                    ],
-                }
-            )
+            tool_req = registry.request(event)
+            messages.append(tool_req)
 
-            result = run_tool(tool_name, **tool_args)
-            messages.append(
-                {
-                    "role": "tool",
-                    "name": tool_name,
-                    "content": result,
-                }
-            )
+            tool_res = registry.dispatch(event)
+            messages.append(tool_res)
 
             tool_call_pending = True
 
             print()
             print(f"\n{UNDERLINE}{BOLD}Tool Call:{RESET}")
-            print(f"{UNDERLINE}{BOLD}{tool_name}({tool_args}){RESET}:\n{result}")
+            print(f"{UNDERLINE}{BOLD}{tool_name}({tool_args}){RESET}:\n{tool_res}")
 
         sys.stdout.flush()
 
@@ -150,8 +123,9 @@ def run_chat():
     )
     messages.mkdir()
     session = PromptSession()  # Initialize prompt-toolkit session
+    registry = ToolRegistry()
 
-    gpt = GPTRequest()
+    model = GPTRequest()
     while True:
         try:
             if messages.data[-1]["role"] != "tool":
@@ -164,7 +138,7 @@ def run_chat():
                 messages.append({"role": "user", "content": user_input})
                 messages.save_json()
 
-            run_agent(gpt, messages)
+            run_agent(model, messages, registry)
             print()
             messages.save_json()
 
