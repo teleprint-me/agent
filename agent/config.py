@@ -13,7 +13,9 @@ from jsonpycraft import (
 
 from agent.tools import tools
 
-DEFAULT_PATH = ".agent/settings.json"
+DEFAULT_PATH_CONF = ".agent/settings.json"
+DEFAULT_PATH_MSGS = ".agent/messages.json"
+DEFAULT_PATH_MEM = ".agent/memory.sqlite3"
 
 DEFAULT_CONF = {
     "openai": {
@@ -35,13 +37,19 @@ DEFAULT_CONF = {
             "type": "str",
         },
         "messages": {
-            "path": ".agent/messages.json",
+            "path": DEFAULT_PATH_MSGS,
             "type": "file",
         },
         "schemas": {
             "tools": tools,
             "type": "list",
         },
+    },
+    "memory": {
+        "db": {
+            "path": DEFAULT_PATH_MEM,
+            "type": "file",
+        }
     },
     "cli": {},
     "gui": {
@@ -66,7 +74,7 @@ def load_or_init_config(path: str, defaults: JSONMap):
 
 
 # NOTE: Do not assign to `config` in any function; it is a top-level singleton.
-config = load_or_init_config(DEFAULT_PATH, DEFAULT_CONF)
+config = load_or_init_config(DEFAULT_PATH_CONF, DEFAULT_CONF)
 
 
 def main():
