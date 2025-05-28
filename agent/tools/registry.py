@@ -24,10 +24,10 @@ class ToolRegistry:
             "shell": shell,  # Optional, gated/whitelisted
         }
 
-    def register(self, name, function):
+    def register(self, name: str, function: callable):
         self._tools[name] = function
 
-    def call(self, name, **kwargs):
+    def call(self, name: str, **kwargs: Dict[str, Any]) -> str:
         if name not in self._tools:
             return {"error": f"Tool '{name}' not found."}
         try:
@@ -51,7 +51,7 @@ class ToolRegistry:
             ],
         }
 
-    def dispatch(self, event: Dict[str, Any]) -> Dict[str, Any]:
+    def dispatch(self, event: Dict[str, Any]) -> Dict[str, str]:
         tool_name = event["value"]["name"]
         tool_args = event["value"].get("arguments", {})
         result = self.call(tool_name, **tool_args)
