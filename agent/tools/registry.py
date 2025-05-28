@@ -35,7 +35,7 @@ class ToolRegistry:
         except Exception as e:
             return {"error": str(e)}
 
-    def request(event: Dict[str, Any]) -> Dict[str, Any]:
+    def request(self, event: Dict[str, Any]) -> Dict[str, Any]:
         tool_name = event["value"]["name"]
         tool_args = event["value"]["arguments"]
         return {
@@ -53,8 +53,7 @@ class ToolRegistry:
 
     def dispatch(self, event: Dict[str, Any]) -> Dict[str, Any]:
         tool_name = event["value"]["name"]
-        tool_args = event["value"]["arguments"] or {}
-
+        tool_args = event["value"].get("arguments", {})
         result = self.call(tool_name, **tool_args)
         return {
             "role": "tool",
