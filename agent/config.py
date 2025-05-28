@@ -1,5 +1,5 @@
 """
-Module: agent.cli.config
+Module: agent.config
 """
 
 import argparse
@@ -13,7 +13,7 @@ from jsonpycraft import (
 
 from agent.tools import tools
 
-DEFAULT_PATH = ".agent/cli/settings.json"
+DEFAULT_PATH = ".agent/settings.json"
 
 DEFAULT_CONF = {
     "openai": {
@@ -35,13 +35,21 @@ DEFAULT_CONF = {
             "type": "str",
         },
         "messages": {
-            "path": ".agent/cli/messages.json",
+            "path": ".agent/messages.json",
             "type": "file",
         },
         "schemas": {
             "tools": tools,
             "type": "list",
         },
+    },
+    "cli": {},
+    "gui": {
+        "font": {
+            "size": 12,
+            "name": "Noto Sans Mono",
+        },
+        "theme": "darkly",
     },
     # Add other sections as needed
 }
