@@ -89,4 +89,116 @@ tools = [
             "strict": True,
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "memory_create",
+            "description": "Create a new memory with optional tags.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "content": {
+                        "type": "string",
+                        "description": "The memory or information to store.",
+                    },
+                    "tags": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Optional list of tags for searching or filtering.",
+                    },
+                },
+                "required": ["content"],
+                "additionalProperties": False,
+            },
+            "strict": True,
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "memory_read",
+            "description": "Retrieve memories by ID or by tags. If neither is given, returns the latest memories.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": ["integer", "null"],
+                        "description": "Optional memory ID. If given, retrieves only that memory.",
+                    },
+                    "tags": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Optional list of tags to filter by.",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of memories to retrieve.",
+                        "default": 10,
+                        "minimum": 1,
+                    },
+                    "offset": {
+                        "type": "integer",
+                        "description": "Number of memories to skip (for pagination).",
+                        "default": 0,
+                        "minimum": 0,
+                    },
+                },
+                "required": [],
+                "additionalProperties": False,
+            },
+            "strict": True,
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "memory_update",
+            "description": "Update the content and/or tags of an existing memory by ID.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "description": "ID of the memory to update.",
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "New content for the memory (optional if just updating tags).",
+                    },
+                    "tags": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "New list of tags for the memory (optional).",
+                    },
+                },
+                "required": ["id"],
+                "additionalProperties": False,
+            },
+            "strict": True,
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "memory_delete",
+            "description": "Delete a memory by ID, or multiple memories by tags.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": ["integer", "null"],
+                        "description": "Optional ID of the memory to delete.",
+                    },
+                    "tags": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Optional list of tags. If set, deletes all matching memories.",
+                    },
+                },
+                "required": [],
+                "additionalProperties": False,
+            },
+            "strict": True,
+        },
+    },
 ]
