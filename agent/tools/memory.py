@@ -2,6 +2,7 @@
 Module: agent.tools.memory
 """
 
+import json
 import sqlite3
 from typing import Dict, List, Optional
 
@@ -29,7 +30,7 @@ def memory_initialize() -> sqlite3.Cursor:
         )
 
 
-def memory_create(content: str, tags: Optional[List[str]] = None) -> int:
+def memory_create(content: str, tags: Optional[List[str]] = None) -> str:
     with memory_connect() as conn:
         cur = conn.cursor()
         cur.execute(
@@ -37,7 +38,7 @@ def memory_create(content: str, tags: Optional[List[str]] = None) -> int:
             (content, ",".join(tags) if tags else None),
         )
         conn.commit()
-        return cur.lastrowid
+        return f"Memory Created: ID={cur.lastrowid}, Tags={','.join(tags)}"
 
 
 def memory_read(
@@ -45,7 +46,7 @@ def memory_read(
     tags: Optional[List[str]] = None,
     limit: int = 10,
     offset: int = 0,
-) -> List[Dict]:
+) -> str:
     with memory_connect() as conn:
         cur = conn.cursor()
         query = "SELECT id, timestamp, content, tags FROM memories"
@@ -54,27 +55,32 @@ def memory_read(
             query += " WHERE id = ?"
             params.append(id)
         elif tags:
-            # Simple CSV search; for better, use a tags table or FTS
             query += " WHERE " + " OR ".join(["tags LIKE ?"] * len(tags))
             params += [f"%{tag}%" for tag in tags]
         query += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
         params += [limit, offset]
         cur.execute(query, params)
         rows = cur.fetchall()
-        return [
-            {
-                "id": r[0],
-                "timestamp": r[1],
-                "content": r[2],
-                "tags": r[3].split(",") if r[3] else [],
-            }
+        if not rows:
+            return "No memories found."
+        return "\n".join(
+            json.dumps(
+                {
+                    "id": r[0],
+                    "timestamp": r[1],
+                    "content": r[2],
+                    "tags": r[3].split(",") if r[3] else [],
+                }
+            )
             for r in rows
-        ]
+        )
 
 
 def memory_update(
-    id: int, content: Optional[str] = None, tags: Optional[List[str]] = None
-) -> bool:
+    id: int,
+    content: Optional[str] = None,
+    tags: Optional[List[str]] = None,
+) -> str:
     with memory_connect() as conn:
         cur = conn.cursor()
         fields = []
@@ -86,26 +92,37 @@ def memory_update(
             fields.append("tags = ?")
             params.append(",".join(tags))
         if not fields:
-            return False
+            return "No update fields provided. Please specify content and/or tags to update."
         params.append(id)
         query = f"UPDATE memories SET {', '.join(fields)}, timestamp = CURRENT_TIMESTAMP WHERE id = ?"
         cur.execute(query, params)
         conn.commit()
-        return cur.rowcount > 0
+        if cur.rowcount > 0:
+            tag_str = ",".join(tags) if tags else "(unchanged)"
+            return f"Memory Updated: ID={id}, Tags={tag_str}"
+        return "No memories were modified."
 
 
-def memory_delete(id: Optional[int] = None, tags: Optional[List[str]] = None) -> int:
+def memory_delete(id: Optional[int] = None, tags: Optional[List[str]] = None) -> str:
     with memory_connect() as conn:
         cur = conn.cursor()
-        if id:
+        if id is not None:
             cur.execute("DELETE FROM memories WHERE id = ?", (id,))
+            conn.commit()
+            if cur.rowcount > 0:
+                return f"Memory Deleted: ID={id}"
+            else:
+                return f"No memory found with ID={id}."
         elif tags:
-            # Caution: broad delete if multiple tags
             query = "DELETE FROM memories WHERE " + " OR ".join(
                 ["tags LIKE ?"] * len(tags)
             )
             cur.execute(query, [f"%{tag}%" for tag in tags])
+            conn.commit()
+            if cur.rowcount > 0:
+                tag_str = ", ".join(tags)
+                return f"Memories Deleted: {cur.rowcount} entries with tags matching [{tag_str}]"
+            else:
+                return f"No memories found with tags matching [{', '.join(tags)}]."
         else:
-            return 0
-        conn.commit()
-        return cur.rowcount
+            return "No memories were deleted. Specify an ID or tags."
