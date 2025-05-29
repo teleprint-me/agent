@@ -2,7 +2,7 @@
 Module: agent.tools.__init__
 """
 
-tools = [
+utilities = [
     {
         "type": "function",
         "function": {
@@ -27,6 +27,32 @@ tools = [
             "strict": True,
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "shell",
+            "description": "Run a limited, safe shell command. Only specific commands are allowed (e.g., ls, cat, head, tail, grep, git). Returns the output or an error message.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "command": {
+                        "type": "string",
+                        "description": (
+                            "The full shell command to run, e.g., 'ls -l agent/'. "
+                            "Only the following commands are allowed: ls, cat, head, tail, grep, git. "
+                            "Arguments are supported, but pipes and shell features are not."
+                        ),
+                    },
+                },
+                "required": ["command"],
+                "additionalProperties": False,
+            },
+            "strict": True,
+        },
+    },
+]
+
+file_managment = [
     {
         "type": "function",
         "function": {
@@ -89,6 +115,9 @@ tools = [
             "strict": True,
         },
     },
+]
+
+memories = [
     {
         "type": "function",
         "function": {
@@ -202,3 +231,5 @@ tools = [
         },
     },
 ]
+
+tools = utilities + file_managment + memories
