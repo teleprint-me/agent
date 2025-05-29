@@ -10,31 +10,39 @@ This has its own risks, e.g. privelage escalation, destructive actions, imperson
 Limiting the behavior here is crucial to ensure the environment remains secure.
 This is a simple and limited implementation, but it has issues due to the nature of how
 this could go in practice.
+
+Warning: Running untrusted code is never safe, sandboxing cannot change this.
+See https://wiki.archlinux.org/title/Firejail for sandboxing.
 """
 
+import shlex
 import subprocess
 
 
 def shell(command: str) -> str:
-    # Optionally: validate allowed commands
-    # Optionally: log for review, or block if not approved
-    # Optionally: sandbox (e.g. chroot, seccomp, firejail)
-
     allowed = ["ls", "cat", "head", "tail", "grep", "git"]
-    if command.split()[0] not in allowed:
-        return "Error: Command not allowed."
     try:
-        return subprocess.run(
-            command,
+        args = shlex.split(command)
+        if not args or args[0] not in allowed:
+            return "Error: Command not allowed."
+        result = subprocess.run(
+            args,
             capture_output=True,
             text=True,
             check=True,
-            shell=False,  # NOTE: Enabling this is dangerous!
+            shell=False,
         )
+        output = result.stdout.strip()
+        err = result.stderr.strip()
+        if err:
+            return f"StandardOutput:\n{output}\nStandardError:\n{err}"
+        return output or "(No output)"
     except subprocess.CalledProcessError as e:
-        result = f"CalledProcessError: ReturnCode: {e.returncode}\n"
+        result = f"Error: ReturnCode: {e.returncode}\n"
         if e.stderr:
-            result += f"StandardError:\n{e.stderr}\n"
+            result += f"StandardError:\n{e.stderr.strip()}\n"
         if e.stdout:
-            result += f"StandardOutput:\n{e.stdout}\n"
+            result += f"StandardOutput:\n{e.stdout.strip()}\n"
         return result
+    except Exception as e:
+        return f"Error: {str(e)}"
