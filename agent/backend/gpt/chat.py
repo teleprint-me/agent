@@ -17,8 +17,7 @@ import dotenv
 from openai import OpenAI
 
 from agent.tools import tools
-from agent.tools.weather import get_weather  # get_weather(location, units)
-from agent.utils.json import save_json
+from agent.tools.weather import weather  # weather(location, units)
 
 ESCAPE = "\x1b"
 RESET = ESCAPE + "[0m"
@@ -61,7 +60,7 @@ def call_tool(client, messages):
     func_args = json.loads(tool_call.function.arguments)
 
     # Actually call your tool
-    result = get_weather(**func_args)
+    result = weather(**func_args)
 
     # Add tool call and output to messages for follow-up
     messages.append(
@@ -108,6 +107,8 @@ def call_tool(client, messages):
 
 
 if __name__ == "__main__":
+    from pprint import pprint
+
     messages = [
         {"role": "system", "content": "You are a helpful assistant."},
         {"role": "user", "content": "What is the weather like in Paris today?"},
@@ -137,4 +138,4 @@ if __name__ == "__main__":
         }
     )
 
-    save_json(messages, "temp.json")
+    pprint(messages)
