@@ -60,6 +60,8 @@ llama-server \
     --ctx-size 16384 \
     --pooling mean \
     --slots --jinja -fa \
+    --reasoning-format none \
+    --reasoning-budget -1 \
     -m /path/to/ggml-model-f16.gguf
 ```
 
