@@ -65,16 +65,14 @@ def run_agent(
         value = event["value"]
 
         if event_type == "role":
-            continue  # Already handled by message["role"]
+            pass  # Already handled by message["role"]
 
         elif event_type == "reasoning.open":
-            print()
-            print(f"{UNDERLINE}{BOLD}Thinking:{RESET}")
+            print(f"\n{UNDERLINE}{BOLD}Thinking:{RESET}", end="")
             message["content"] += value
 
         elif event_type == "reasoning.close":
-            print()
-            print(f"\n{UNDERLINE}{BOLD}Completion:{RESET}")
+            print(f"\n{UNDERLINE}{BOLD}Completion:{RESET}", end="")
             message["content"] += value
 
         elif event_type == "content":
@@ -96,7 +94,6 @@ def run_agent(
 
             tool_call_pending = True
 
-            print()
             print(f"\n{UNDERLINE}{BOLD}Tool Call:{RESET}")
             print(f"{UNDERLINE}{BOLD}{tool_name}({tool_args}){RESET}:\n{tool_res}")
 
@@ -106,7 +103,7 @@ def run_agent(
         messages.append(message)
 
 
-def run_chat():
+def main():
     path = config.get_value("templates.messages.path")
     if path is None:
         raise RuntimeError(
@@ -143,13 +140,15 @@ def run_chat():
             print()
             messages.save_json()
 
-        except KeyboardInterrupt:
+        except EOFError:  # Pop the last message
+            print(f"\n{UNDERLINE}{BOLD}Popped:{RESET}")
+            last = messages.pop(messages.length - 1)
+            print(last)
+            messages.save_json()
+
+        except KeyboardInterrupt:  # Exit the program
             print("\nInterrupted.")
             break
-
-
-def main():
-    run_chat()
 
 
 if __name__ == "__main__":
