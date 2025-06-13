@@ -13,7 +13,7 @@ from typing import Any, Dict, List
 import requests
 
 from agent.backend.llama.requests import LlamaCppRequest
-from agent.utils.logger import get_logger
+from agent.config import config
 
 
 class LlamaCppAPI:
@@ -37,7 +37,9 @@ class LlamaCppAPI:
         # Setup logger and request object
         verbose = kwargs.get("verbose", False)
         log_level = logging.DEBUG if verbose else logging.INFO
-        self.logger = get_logger(self.__class__.__name__, level=log_level)
+        self.logger = config.get_logger(
+            "logger.general", self.__class__.__name__, log_level
+        )
         self.request = (
             llama_request if llama_request else LlamaCppRequest(verbose=verbose)
         )
@@ -204,8 +206,6 @@ if __name__ == "__main__":
     import argparse
     import sys  # Allow streaming to stdout
     from pathlib import Path
-
-    from rich import print  # Decorate output
 
     parser = argparse.ArgumentParser()
     parser.add_argument(

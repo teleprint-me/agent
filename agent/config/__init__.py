@@ -49,6 +49,13 @@ DEFAULT_CONF = {
             "type": "file",
         }
     },
+    "logger": {
+        "general": {
+            "path": ".agent/model.log",
+            "level": "DEBUG",
+            "type": "file",
+        },
+    },
     "cli": {},
     "gui": {
         "font": {
