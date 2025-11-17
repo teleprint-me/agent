@@ -4,7 +4,7 @@ Module: agent.tools.memory
 
 import json
 import sqlite3
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from agent.config import DEFAULT_PATH_MEM, config
 
@@ -38,7 +38,8 @@ def memory_create(content: str, tags: Optional[List[str]] = None) -> str:
             (content, ",".join(tags) if tags else None),
         )
         conn.commit()
-        return f"Memory Created: ID={cur.lastrowid}, Tags={','.join(tags)}"
+        tag_str = ",".join(tags) if tags else ""
+        return f"Memory Created: ID={cur.lastrowid}, Tags={tag_str}"
 
 
 def memory_search(query: str, limit: int = 5) -> str:
@@ -49,16 +50,15 @@ def memory_search(query: str, limit: int = 5) -> str:
             (f"%{query}%", limit),
         )
         rows = cur.fetchall()
-        return "\n".join(
-            json.dumps(
-                {
-                    "id": r[0],
-                    "content": r[1],
-                    "tags": r[2].split(",") if r[2] else [],
-                }
-            )
+        result = [
+            {
+                "id": r[0],
+                "content": r[1],
+                "tags": r[2].split(",") if r[2] else [],
+            }
             for r in rows
-        )
+        ]
+        return json.dumps(result, ensure_ascii=False)
 
 
 def memory_read(
@@ -83,17 +83,16 @@ def memory_read(
         rows = cur.fetchall()
         if not rows:
             return "No memories found."
-        return "\n".join(
-            json.dumps(
-                {
-                    "id": r[0],
-                    "timestamp": r[1],
-                    "content": r[2],
-                    "tags": r[3].split(",") if r[3] else [],
-                }
-            )
+        result = [
+            {
+                "id": r[0],
+                "timestamp": r[1],
+                "content": r[2],
+                "tags": r[3].split(",") if r[3] else [],
+            }
             for r in rows
-        )
+        ]
+        return json.dumps(result, ensure_ascii=False)
 
 
 def memory_update(
