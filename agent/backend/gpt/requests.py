@@ -71,19 +71,27 @@ class GPTRequest:
     def stream(self, **kwargs) -> Generator[Dict[str, Any], None, None]:
         kwargs["stream"] = True  # Coerce streaming
         response = self.client.chat.completions.create(**kwargs)
+        reasoning_active = False
         tool_buffer = {}
         args_fragments = []
 
         for chunk in response:
             delta: ChoiceDelta = chunk.choices[0].delta
+            reasoning = getattr(delta, "reasoning_content", None)
 
             # emit event role
             if delta.role:
                 yield self._emit_event("role", delta.role)
 
             # emit event reason
-            if getattr(delta, "reasoning_content", None):
+            if reasoning and reasoning_active:
                 yield self._emit_event("reasoning", delta.reasoning_content)
+            elif reasoning and not reasoning_active:
+                reasoning_active = True
+                yield self._emit_event("reasoning.open", reasoning)
+            elif not reasoning and reasoning_active:
+                reasoning_active = False
+                yield self._emit_event("reasoning.close", "")
 
             # emit event content
             if delta.content:
