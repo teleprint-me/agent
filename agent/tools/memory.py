@@ -41,6 +41,26 @@ def memory_create(content: str, tags: Optional[List[str]] = None) -> str:
         return f"Memory Created: ID={cur.lastrowid}, Tags={','.join(tags)}"
 
 
+def memory_search(query: str, limit: int = 5) -> str:
+    with memory_connect() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT id, content, tags FROM memories WHERE content LIKE ? LIMIT ?",
+            (f"%{query}%", limit),
+        )
+        rows = cur.fetchall()
+        return "\n".join(
+            json.dumps(
+                {
+                    "id": r[0],
+                    "content": r[1],
+                    "tags": r[2].split(",") if r[2] else [],
+                }
+            )
+            for r in rows
+        )
+
+
 def memory_read(
     id: Optional[int] = None,
     tags: Optional[List[str]] = None,

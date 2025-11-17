@@ -6,7 +6,13 @@ import json
 from typing import Any, Dict
 
 from agent.tools.file import file_read, file_write
-from agent.tools.memory import memory_create, memory_delete, memory_read, memory_update
+from agent.tools.memory import (
+    memory_create,
+    memory_delete,
+    memory_read,
+    memory_search,
+    memory_update,
+)
 from agent.tools.shell import shell
 from agent.tools.weather import weather
 
@@ -19,6 +25,7 @@ class ToolRegistry:
             "file_write": file_write,
             "memory_create": memory_create,
             "memory_read": memory_read,
+            "memory_search": memory_search,
             "memory_update": memory_update,
             "memory_delete": memory_delete,
             "shell": shell,  # Optional, gated/whitelisted

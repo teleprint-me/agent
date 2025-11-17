@@ -145,6 +145,23 @@ memories = [
     {
         "type": "function",
         "function": {
+            "name": "memory_search",
+            "description": "Search the memory database for a keyword.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string"},
+                    "limit": {"type": "integer", "default": 5},
+                },
+                "required": ["query"],
+                "additionalProperties": False,
+            },
+            "strict": True,
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "memory_read",
             "description": "Retrieve memories by ID or by tags. If neither is given, returns the latest memories.",
             "parameters": {
