@@ -53,6 +53,7 @@ def run_agent(
         frequency_penalty=config.get_value("openai.frequency_penalty"),
         stop=config.get_value("openai.stop"),
         logit_bias=config.get_value("openai.logit_bias"),
+        reasoning_effort=config.get_value("openai.reasoning_effort"),
         tools=config.get_value("templates.schemas.tools"),
     )
 
@@ -68,14 +69,16 @@ def run_agent(
             pass  # Already handled by message["role"]
 
         elif event_type == "reasoning.open":
-            print(f"\n{UNDERLINE}{BOLD}Thinking:{RESET}", end="")
+            print(f"\n{UNDERLINE}{BOLD}Thinking{RESET}\n", end="")
             message["content"] += value
+            print(value, end="")
 
         elif event_type == "reasoning.close":
-            print(f"\n{UNDERLINE}{BOLD}Completion:{RESET}", end="")
+            print(f"\n\n{UNDERLINE}{BOLD}Completion{RESET}", end="")
             message["content"] += value
+            print()
 
-        elif event_type == "content":
+        elif event_type == "content" or event_type == "reasoning":
             message["content"] += value
             print(value, end="")
 
@@ -94,8 +97,8 @@ def run_agent(
 
             tool_call_pending = True
 
-            print(f"\n{UNDERLINE}{BOLD}Tool Call:{RESET}")
-            print(f"{UNDERLINE}{BOLD}{tool_name}({tool_args}){RESET}:\n{tool_res}")
+            print(f"\n{UNDERLINE}{BOLD}Tool Call{RESET}")
+            print(f"{UNDERLINE}{BOLD}{tool_name}({tool_args}){RESET}\n{tool_res}")
 
         sys.stdout.flush()
 
