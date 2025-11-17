@@ -9,14 +9,11 @@ Module: agent.backend.gpt.requests
 
 import json
 import os
-import re
 from pprint import pprint
-from typing import Any, Dict, Generator, List, Optional, Union
+from typing import Any, Dict, Generator, List, Optional
 
-from openai import OpenAI, Stream
-from openai.types.chat.chat_completion import ChatCompletion
+from openai import OpenAI
 from openai.types.chat.chat_completion_chunk import (
-    ChatCompletionChunk,
     ChoiceDelta,
     ChoiceDeltaFunctionCall,
     ChoiceDeltaToolCall,
@@ -24,17 +21,9 @@ from openai.types.chat.chat_completion_chunk import (
 
 from agent.tools import tools
 
-REASON_TAGS = [
-    (re.compile(r"<think>"), "reasoning.open"),
-    (re.compile(r"</think>"), "reasoning.close"),
-]
-
 
 class GPTRequest:
     def __init__(self, base_url: str = None, api_key: str = None):
-        self.client = self._connect(base_url, api_key)
-
-    def _connect(self, base_url: str = None, api_key: str = None) -> OpenAI:
         if not base_url or not api_key:
             # Load .env if we need it
             from dotenv import load_dotenv
@@ -43,24 +32,11 @@ class GPTRequest:
 
         if not base_url:
             base_url = os.getenv("OPENAI_BASE_URL", "http://localhost:8080/v1")
+
         if not api_key:
             api_key = os.getenv("OPENAI_API_KEY", "sk-no-key-required")
 
-        return OpenAI(api_key=api_key, base_url=base_url)
-
-    def _think_token_heal(self, token: str) -> List[str]:
-        tags = [t.pattern for t, _ in REASON_TAGS]
-        if not any(t in token for t in tags):
-            return [token]
-        pattern = f"({'|'.join(re.escape(t) for t in tags)})"
-        parts = re.split(pattern, token)
-        return [part for part in parts if part]
-
-    def _classify_reasoning(self, text: str) -> Optional[str]:
-        for pattern, label in REASON_TAGS:
-            if pattern.search(text):
-                return label
-        return None
+        self.client = OpenAI(api_key=api_key, base_url=base_url)
 
     def _classify_tool(
         self,
@@ -89,38 +65,38 @@ class GPTRequest:
     def _dump_value(self, val):
         return val.model_dump() if hasattr(val, "model_dump") else val
 
-    def get(self, **kwargs) -> Union[ChatCompletion, Stream[ChatCompletionChunk]]:
-        return self.client.chat.completions.create(**kwargs)
+    def _emit_event(self, key, value) -> dict[str, any]:
+        return {"type": key, "value": value}
 
     def stream(self, **kwargs) -> Generator[Dict[str, Any], None, None]:
         kwargs["stream"] = True  # Coerce streaming
-        response = self.get(**kwargs)
+        response = self.client.chat.completions.create(**kwargs)
         tool_buffer = {}
         args_fragments = []
 
         for chunk in response:
             delta: ChoiceDelta = chunk.choices[0].delta
 
+            # emit event role
             if delta.role:
-                yield {"type": "role", "value": delta.role}
+                yield self._emit_event("role", delta.role)
 
+            # emit event reason
             if getattr(delta, "reasoning_content", None):
-                yield {
-                    "type": "reasoning",
-                    "value": self._dump_value(delta.reasoning_content),
-                }
+                yield self._emit_event("reasoning", delta.reasoning_content)
 
+            # emit event content
             if delta.content:
-                for token in self._think_token_heal(delta.content):
-                    reasoning_type = self._classify_reasoning(token)
-                    yield {"type": reasoning_type or "content", "value": token}
+                yield self._emit_event("content", delta.content)
 
+            # emit event tool call
             if delta.tool_calls:
                 for tool_call in delta.tool_calls:
                     result = self._classify_tool(tool_call, tool_buffer, args_fragments)
                     if result:
                         yield result
 
+            # emit event refusal
             if delta.refusal:
                 yield {"type": "refusal", "value": self._dump_value(delta.refusal)}
 
