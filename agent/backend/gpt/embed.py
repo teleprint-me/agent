@@ -29,9 +29,8 @@ llama-server \
   --port 8081 \
   --ctx-size 32768 \
   --n-gpu-layers 99 \
-  --pooling mean \
   --slots \
-  --jinja \
+  --pooling mean \
   --embeddings \
   -m /mnt/valerie/models/Qwen/Qwen3-Embedding-0.6B/ggml-model-q8_0.gguf
 ```
@@ -39,6 +38,7 @@ llama-server \
 Notes
 -----
 - **Embedding model** - A dedicated embedding model must be used.
+- **Embedding flag** - This flag is required.
 - **Port** - Ensure the port does not conflict with the chat model.
 - **Sequence length** - Qwen3-Embedding supports a maximum of 32768 tokens.
 - **VRAM usage**
@@ -54,7 +54,7 @@ The endpoint follows the OpenAI embeddings API specification.
 *Single string*
 
 ```bash
-curl http://localhost:8080/v1/embeddings \
+curl http://localhost:8081/v1/embeddings \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer no-key" \
   -d '{
@@ -67,7 +67,7 @@ curl http://localhost:8080/v1/embeddings \
 *Array of strings*
 
 ```bash
-curl http://localhost:8080/v1/embeddings \
+curl http://localhost:8081/v1/embeddings \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer no-key" \
   -d '{
@@ -103,7 +103,7 @@ def connect(base_url: str = None, api_key: str = None) -> OpenAI:
         load_dotenv(".env")
 
     if not base_url:
-        base_url = os.getenv("OPENAI_BASE_URL", "http://localhost:8080/v1")
+        base_url = os.getenv("OPENAI_BASE_URL", "http://localhost:8081/v1")
 
     if not api_key:
         api_key = os.getenv("OPENAI_API_KEY", "sk-no-key-required")
@@ -112,6 +112,6 @@ def connect(base_url: str = None, api_key: str = None) -> OpenAI:
 
 
 if __name__ == "__main__":
-    client = connect()
-    embeddings = client.embeddings.create(model="gpt-4o-mini", input="hello")
-    print(embeddings.data[0].embedding)
+    client = connect(base_url="http://localhost:8081/v1", api_key="sk-no-key-required")
+    response = client.embeddings.create(model="text-embedding-3-small", input="hello")
+    print(response.data[0].embedding)
