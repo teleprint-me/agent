@@ -85,14 +85,17 @@ Notes
 * The embeddings endpoint is normally disabled; enable it with
   ``--embedding`` or the corresponding environment variable.
 
-# --------------------------------------------------------------------
-# The module can expose the helper or any additional utilities.
-# --------------------------------------------------------------------
+--------------------------------------------------------------------
+The module can expose the helper or any additional utilities.
+--------------------------------------------------------------------
 """
 
 import os
 
 from openai import OpenAI
+
+from agent.backend.llama.api import LlamaCppAPI
+from agent.backend.llama.requests import LlamaCppRequest
 
 
 def connect(base_url: str = None, api_key: str = None) -> OpenAI:
@@ -112,6 +115,12 @@ def connect(base_url: str = None, api_key: str = None) -> OpenAI:
 
 
 if __name__ == "__main__":
+    llama_request = LlamaCppRequest(port=8081)
+    llama_api = LlamaCppAPI(
+        llama_request=llama_request, stream=False, cache_prompt=False
+    )
+    tokens = llama_api.tokenize("hello, world!")
+    print(len(tokens))
     client = connect(base_url="http://localhost:8081/v1", api_key="sk-no-key-required")
     response = client.embeddings.create(model="text-embedding-3-small", input="hello")
-    print(response.data[0].embedding)
+    # print(response.data[0].embedding)
