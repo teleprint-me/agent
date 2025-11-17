@@ -31,7 +31,7 @@ utilities = [
         "type": "function",
         "function": {
             "name": "shell",
-            "description": "Run a limited, safe shell command. Only specific commands are allowed (e.g., tree, ls, cat, head, tail, grep, git). Returns the output or an error message.",
+            "description": "Run a limited, safe shell command. Only specific commands are allowed (e.g., date, tree, ls, cat, head, tail, grep, git). Returns the output or an error message.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -39,7 +39,7 @@ utilities = [
                         "type": "string",
                         "description": (
                             "The full shell command to run, e.g., 'ls -l agent/'. "
-                            "Only the following commands are allowed: tree, ls, cat, head, tail, grep, git. "
+                            "Only the following commands are allowed: date, tree, ls, cat, head, tail, grep, git. "
                             "Arguments are supported, but pipes and shell features are not."
                         ),
                     },

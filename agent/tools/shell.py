@@ -20,7 +20,7 @@ import subprocess
 
 
 def shell(command: str) -> str:
-    allowed = ["tree", "ls", "cat", "head", "tail", "grep", "git"]
+    allowed = ["date", "tree", "ls", "cat", "head", "tail", "grep", "git"]
     try:
         args = shlex.split(command)
         if not args or args[0] not in allowed:
