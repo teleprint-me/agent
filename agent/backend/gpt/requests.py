@@ -13,7 +13,6 @@ import re
 from pprint import pprint
 from typing import Any, Dict, Generator, List, Optional, Union
 
-import dotenv
 from openai import OpenAI, Stream
 from openai.types.chat.chat_completion import ChatCompletion
 from openai.types.chat.chat_completion_chunk import (
@@ -37,16 +36,15 @@ class GPTRequest:
 
     def _connect(self, base_url: str = None, api_key: str = None) -> OpenAI:
         if not base_url or not api_key:
-            dotenv.load_dotenv(".env")
+            # Load .env if we need it
+            from dotenv import load_dotenv
 
-        base_url = base_url or os.getenv("OPENAI_BASE_URL", "")
-        api_key = api_key or os.getenv("OPENAI_API_KEY", "")
+            load_dotenv(".env")
 
+        if not base_url:
+            base_url = os.getenv("OPENAI_BASE_URL", "http://localhost:8080/v1")
         if not api_key:
-            raise ValueError("EnvironmentError: OPENAI_API_KEY not set in .env")
-
-        if api_key == "sk-no-key-required" and not base_url:
-            base_url = "http://localhost:8080/v1"
+            api_key = os.getenv("OPENAI_API_KEY", "sk-no-key-required")
 
         return OpenAI(api_key=api_key, base_url=base_url)
 
@@ -106,6 +104,12 @@ class GPTRequest:
             if delta.role:
                 yield {"type": "role", "value": delta.role}
 
+            if getattr(delta, "reasoning_content", None):
+                yield {
+                    "type": "reasoning",
+                    "value": self._dump_value(delta.reasoning_content),
+                }
+
             if delta.content:
                 for token in self._think_token_heal(delta.content):
                     reasoning_type = self._classify_reasoning(token)
@@ -119,10 +123,6 @@ class GPTRequest:
 
             if delta.refusal:
                 yield {"type": "refusal", "value": self._dump_value(delta.refusal)}
-
-            # Future-proofing: support for native reasoning deltas
-            if hasattr(delta, "reasoning") and delta.reasoning:
-                yield {"type": "reasoning", "value": self._dump_value(delta.reasoning)}
 
 
 def main():
