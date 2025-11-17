@@ -17,7 +17,7 @@ DEFAULT_PATH_MEM = ".agent/memory.sqlite3"
 
 DEFAULT_CONF = {
     "openai": {
-        "model": "gpt-3.5-turbo",
+        "model": "gpt-4o-mini",
         "stream": True,
         "seed": 1337,
         "max_tokens": -1,
@@ -28,6 +28,7 @@ DEFAULT_CONF = {
         "frequency_penalty": 0,
         "stop": [],
         "logit_bias": {},
+        "reasoning_effort": "low",
     },
     "templates": {
         "system": {
