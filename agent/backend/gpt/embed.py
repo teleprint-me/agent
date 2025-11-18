@@ -90,8 +90,10 @@ The module can expose the helper or any additional utilities.
 --------------------------------------------------------------------
 """
 
+import argparse
 import os
 import sqlite3
+from typing import Generator
 
 import numpy as np
 from openai import OpenAI
@@ -99,6 +101,64 @@ from openai import OpenAI
 from agent.backend.llama.api import LlamaCppAPI
 from agent.backend.llama.requests import LlamaCppRequest
 from agent.config import DEFAULT_PATH_MEM, config
+
+#
+# Embedding model
+#
+
+
+def openai_client(base_url: str = None, api_key: str = None) -> OpenAI:
+    if not base_url or not api_key:
+        # Load .env if we need it
+        from dotenv import load_dotenv
+
+        load_dotenv(".env")
+
+    if not base_url:
+        base_url = os.getenv("OPENAI_BASE_URL", "http://127.0.0.1:8081/v1")
+
+    if not api_key:
+        api_key = os.getenv("OPENAI_API_KEY", "sk-no-key-required")
+
+    return OpenAI(api_key=api_key, base_url=base_url)
+
+
+def embeddings(client: OpenAI, text: str) -> np.ndarray:
+    response = client.embeddings.create(model="text-embedding-3-small", input=text)
+    # the model is quantized already and the format is 8-bit
+    return np.asarray(response.data[0].embedding, dtype=np.float32)
+
+
+#
+# Tokenizer model
+#
+
+
+def llama_client(base_url: str = None, port: int = None):
+    llama_request = LlamaCppRequest(base_url=base_url, port=port)
+    return LlamaCppAPI(llama_request=llama_request, stream=False, cache_prompt=False)
+
+
+def tokenize(client: LlamaCppAPI, text: str) -> list[int]:
+    return client.tokenize(text, add_special=False)
+
+
+def detokenize(client: LlamaCppAPI, token_ids: list[int]) -> str:
+    return client.detokenize(token_ids=token_ids)
+
+
+def token_chunk(
+    token_ids: list[int], max_len: int = 512, overlap: int = 64
+) -> Generator:
+    start = 0
+    while start < len(token_ids):
+        yield token_ids[start : start + max_len]
+        start += max_len - overlap
+
+
+#
+# Database operations
+#
 
 DB_PATH = config.get_value("memory.db.path", default=DEFAULT_PATH_MEM)
 
@@ -124,59 +184,87 @@ def rag_initialize():
         conn.commit()
 
 
-def llama_client(base_url: str = None, port: int = None):
-    llama_request = LlamaCppRequest(base_url=base_url, port=port)
-    return LlamaCppAPI(llama_request=llama_request, stream=False, cache_prompt=False)
+def rag_entry(doc_id: int, chunk_id: int, content, vector: np.ndarray):
+    with rag_connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO embeddings (doc_id, chunk_id, content, embedding)
+            VALUES (?, ?, ?, ?)
+            """,
+            (doc_id, chunk_id, content, vector.tobytes()),
+        )
+        conn.commit()
 
 
-def openai_client(base_url: str = None, api_key: str = None) -> OpenAI:
-    if not base_url or not api_key:
-        # Load .env if we need it
-        from dotenv import load_dotenv
+def rag_file(embed_client: OpenAI, token_client: LlamaCppAPI, path: str) -> None:
+    """Chunk, embed, then store."""
 
-        load_dotenv(".env")
+    with open(path) as file:
+        text = file.read()
+        token_ids = tokenize(token_client, text)
 
-    if not base_url:
-        base_url = os.getenv("OPENAI_BASE_URL", "http://127.0.0.1:8081/v1")
-
-    if not api_key:
-        api_key = os.getenv("OPENAI_API_KEY", "sk-no-key-required")
-
-    return OpenAI(api_key=api_key, base_url=base_url)
+        for i, chunk in enumerate(token_chunk(token_ids)):
+            chunk_text = detokenize(token_client, chunk)
+            vector = embeddings(embed_client, chunk_text)
+            rag_entry(path, i, chunk_text, vector)
 
 
-def tokenize(llama_api: LlamaCppAPI, text: str) -> list[int]:
-    return llama_api.tokenize(text, add_special=False)
+def rag_load() -> Generator:
+    with rag_connect() as conn:
+        rows = conn.execute(
+            "SELECT doc_id, chunk_id, content, embedding FROM embeddings"
+        ).fetchall()
+        for doc_id, chunk_id, content, blob in rows:
+            vector = np.frombuffer(blob, dtype=np.float32)
+            yield (doc_id, chunk_id, content, vector)
 
 
-def detokenize(llama_api: LlamaCppAPI, token_ids: list[int]) -> str:
-    return llama_api.detokenize(token_ids=token_ids)
+#
+# Search
+#
 
 
-def chunk_tokens(token_ids: list[int], max_len: int = 512, overlap: int = 64):
-    start = 0
-    while start < len(token_ids):
-        yield token_ids[start : start + max_len]
-        start += max_len - overlap
+def cosine(a: np.ndarray, b: np.ndarray) -> float:
+    """cosine similarity"""
+    return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
+
+
+def search(client: OpenAI, query: str, top_k: int = 5) -> list[int]:
+    scores = []
+    q_vec = embeddings(client, query)
+
+    for doc_id, chunk_id, content, vector in rag_load():
+        score = cosine(q_vec, vector)
+        scores.append((score, doc_id, chunk_id, content))
+
+    scores.sort(reverse=True, key=lambda x: x[0])
+    return scores[:top_k]
 
 
 if __name__ == "__main__":
-    text_sample = "hello, world!"
-    llama_model = llama_client("http://127.0.0.1", 8081)
-    t = llama_model.tokenize("hello, world!")
-    t2 = llama_model.tokenize("hello, world!", add_special=True)
-    print(len(t), len(t2))
-
-    detok = llama_model.detokenize(t2)
-    print(detok)
-
     openai_model = openai_client(
         base_url="http://localhost:8081/v1", api_key="sk-no-key-required"
     )
-    response = openai_model.embeddings.create(
-        model="text-embedding-3-small", input=text_sample
-    )
 
-    # print(response.data[0].embedding)
-    print(f"prompt tokens: {response.usage.prompt_tokens}")
-    print(f"total tokens: {response.usage.total_tokens}")
+    labels = ["king", "queen", "man", "woman", "taco"]
+    vectors = [embeddings(openai_model, label) for label in labels]
+    comparisons = []
+
+    n = len(labels)
+    combinations = n * (n - 1)  # n elements * m comparisons
+    for i in range(combinations):
+        pos = i % (n - 1)
+        a = vectors[pos]
+        scores = []
+        for j in range(n):
+            if j == pos:
+                continue
+            b = vectors[j]
+            scores.append((labels[j], cosine(a, b)))
+        comparisons.append((labels[pos], scores))
+
+    for key, scores in comparisons:
+        print(key)
+        for value, score in scores:
+            print(value, score)
+        print()
