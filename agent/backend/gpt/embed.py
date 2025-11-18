@@ -91,14 +91,45 @@ The module can expose the helper or any additional utilities.
 """
 
 import os
+import sqlite3
 
+import numpy as np
 from openai import OpenAI
 
 from agent.backend.llama.api import LlamaCppAPI
 from agent.backend.llama.requests import LlamaCppRequest
+from agent.config import DEFAULT_PATH_MEM, config
+
+DB_PATH = config.get_value("memory.db.path", default=DEFAULT_PATH_MEM)
 
 
-def connect(base_url: str = None, api_key: str = None) -> OpenAI:
+def rag_connect() -> sqlite3.Connection:
+    return sqlite3.connect(DB_PATH)
+
+
+def rag_initialize():
+    with rag_connect() as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS embeddings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                doc_id TEXT NOT NULL,
+                chunk_id INTEGER NOT NULL,
+                content TEXT NOT NULL,
+                embedding BLOB NOT NULL,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        conn.commit()
+
+
+def llama_client(base_url: str = None, port: int = None):
+    llama_request = LlamaCppRequest(base_url=base_url, port=port)
+    return LlamaCppAPI(llama_request=llama_request, stream=False, cache_prompt=False)
+
+
+def openai_client(base_url: str = None, api_key: str = None) -> OpenAI:
     if not base_url or not api_key:
         # Load .env if we need it
         from dotenv import load_dotenv
@@ -106,7 +137,7 @@ def connect(base_url: str = None, api_key: str = None) -> OpenAI:
         load_dotenv(".env")
 
     if not base_url:
-        base_url = os.getenv("OPENAI_BASE_URL", "http://localhost:8081/v1")
+        base_url = os.getenv("OPENAI_BASE_URL", "http://127.0.0.1:8081/v1")
 
     if not api_key:
         api_key = os.getenv("OPENAI_API_KEY", "sk-no-key-required")
@@ -114,13 +145,38 @@ def connect(base_url: str = None, api_key: str = None) -> OpenAI:
     return OpenAI(api_key=api_key, base_url=base_url)
 
 
+def tokenize(llama_api: LlamaCppAPI, text: str) -> list[int]:
+    return llama_api.tokenize(text, add_special=False)
+
+
+def detokenize(llama_api: LlamaCppAPI, token_ids: list[int]) -> str:
+    return llama_api.detokenize(token_ids=token_ids)
+
+
+def chunk_tokens(token_ids: list[int], max_len: int = 512, overlap: int = 64):
+    start = 0
+    while start < len(token_ids):
+        yield token_ids[start : start + max_len]
+        start += max_len - overlap
+
+
 if __name__ == "__main__":
-    llama_request = LlamaCppRequest(port=8081)
-    llama_api = LlamaCppAPI(
-        llama_request=llama_request, stream=False, cache_prompt=False
+    text_sample = "hello, world!"
+    llama_model = llama_client("http://127.0.0.1", 8081)
+    t = llama_model.tokenize("hello, world!")
+    t2 = llama_model.tokenize("hello, world!", add_special=True)
+    print(len(t), len(t2))
+
+    detok = llama_model.detokenize(t2)
+    print(detok)
+
+    openai_model = openai_client(
+        base_url="http://localhost:8081/v1", api_key="sk-no-key-required"
     )
-    tokens = llama_api.tokenize("hello, world!")
-    print(len(tokens))
-    client = connect(base_url="http://localhost:8081/v1", api_key="sk-no-key-required")
-    response = client.embeddings.create(model="text-embedding-3-small", input="hello")
+    response = openai_model.embeddings.create(
+        model="text-embedding-3-small", input=text_sample
+    )
+
     # print(response.data[0].embedding)
+    print(f"prompt tokens: {response.usage.prompt_tokens}")
+    print(f"total tokens: {response.usage.total_tokens}")
