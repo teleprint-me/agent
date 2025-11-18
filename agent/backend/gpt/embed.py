@@ -126,7 +126,7 @@ def detokenize(client: LlamaCppAPI, token_ids: list[int]) -> str:
 
 
 def token_chunk(
-    token_ids: list[int], max_len: int = 512, overlap: int = 64
+    token_ids: list[int], max_len: int = 32, overlap: int = 16
 ) -> Generator:
     start = 0
     while start < len(token_ids):
@@ -145,7 +145,7 @@ def rag_connect() -> sqlite3.Connection:
     return sqlite3.connect(DB_PATH)
 
 
-def rag_initialize():
+def rag_initialize() -> None:
     with rag_connect() as conn:
         conn.execute(
             """
@@ -162,7 +162,7 @@ def rag_initialize():
         conn.commit()
 
 
-def rag_entry(doc_id: int, chunk_id: int, content, vector: np.ndarray):
+def rag_entry(doc_id: str, chunk_id: int, content: str, vector: np.ndarray) -> None:
     with rag_connect() as conn:
         conn.execute(
             """
@@ -207,7 +207,7 @@ def cosine(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
 
 
-def search(client: OpenAI, query: str, top_k: int = 5) -> list[int]:
+def search(client: OpenAI, query: str, top_k: int = 5) -> list[tuple]:
     scores = []
     q_vec = embeddings(client, query)
 
@@ -220,6 +220,12 @@ def search(client: OpenAI, query: str, top_k: int = 5) -> list[int]:
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("query", type=str)
+    parser.add_argument("--file", type=str, required=False)
+    parser.add_argument("--top-k", type=int, default=5)
+    args = parser.parse_args()
+
     port = 8081
     llama_client = LlamaCppAPI(
         llama_request=LlamaCppRequest(port=port),
@@ -231,45 +237,12 @@ if __name__ == "__main__":
         base_url=f"http://127.0.0.1:{port}/v1",
     )
 
-    labels = [
-        "king",
-        "queen",
-        "man",
-        "woman",
-        "taco",
-        "beautiful",
-        "strong",
-        "bird",
-        "cat",
-        "dog",
-        "tree",
-        "stick",
-        "sky",
-        "wizard",
-        "bard",
-        "She was a fairy",
-        "He was an ogre",
-        "They looked for the theif",
-        "The magician concealed the object",
-        "They said he was a vampire",
-        "The called her a witch",
-    ]
-    vectors = [embeddings(openai_client, label) for label in labels]
-    comparisons = []
+    rag_initialize()
 
-    n = len(labels)
-    for i in range(n):
-        a = vectors[i]
-        scores = []
-        for j in range(n):
-            if i == j:
-                continue
-            b = vectors[j]
-            scores.append((labels[j], cosine(a, b)))
-        comparisons.append((labels[i], scores))
+    if args.file:
+        rag_ingest(openai_client, llama_client, args.file)
 
-    for key, scores in comparisons:
-        print(key)
-        for value, score in scores:
-            print(value, score)
-        print()
+    results = search(openai_client, args.query, args.top_k)
+
+    for score, doc_id, idx, content in results:
+        print(f"{score:.3f} | {doc_id} [{idx}]:\n{content}\n")
