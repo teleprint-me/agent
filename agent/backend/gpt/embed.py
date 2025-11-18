@@ -107,36 +107,14 @@ from agent.config import DEFAULT_PATH_MEM, config
 #
 
 
-def openai_client(base_url: str = None, api_key: str = None) -> OpenAI:
-    if not base_url or not api_key:
-        # Load .env if we need it
-        from dotenv import load_dotenv
-
-        load_dotenv(".env")
-
-    if not base_url:
-        base_url = os.getenv("OPENAI_BASE_URL", "http://127.0.0.1:8081/v1")
-
-    if not api_key:
-        api_key = os.getenv("OPENAI_API_KEY", "sk-no-key-required")
-
-    return OpenAI(api_key=api_key, base_url=base_url)
-
-
 def embeddings(client: OpenAI, text: str) -> np.ndarray:
     response = client.embeddings.create(model="text-embedding-3-small", input=text)
-    # the model is quantized already and the format is 8-bit
     return np.asarray(response.data[0].embedding, dtype=np.float32)
 
 
 #
 # Tokenizer model
 #
-
-
-def llama_client(base_url: str = None, port: int = None):
-    llama_request = LlamaCppRequest(base_url=base_url, port=port)
-    return LlamaCppAPI(llama_request=llama_request, stream=False, cache_prompt=False)
 
 
 def tokenize(client: LlamaCppAPI, text: str) -> list[int]:
@@ -176,7 +154,7 @@ def rag_initialize():
                 doc_id TEXT NOT NULL,
                 chunk_id INTEGER NOT NULL,
                 content TEXT NOT NULL,
-                embedding BLOB NOT NULL,
+                vector BLOB NOT NULL,
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
             )
             """
@@ -188,7 +166,7 @@ def rag_entry(doc_id: int, chunk_id: int, content, vector: np.ndarray):
     with rag_connect() as conn:
         conn.execute(
             """
-            INSERT INTO embeddings (doc_id, chunk_id, content, embedding)
+            INSERT INTO embeddings (doc_id, chunk_id, content, vector)
             VALUES (?, ?, ?, ?)
             """,
             (doc_id, chunk_id, content, vector.tobytes()),
@@ -196,23 +174,23 @@ def rag_entry(doc_id: int, chunk_id: int, content, vector: np.ndarray):
         conn.commit()
 
 
-def rag_file(embed_client: OpenAI, token_client: LlamaCppAPI, path: str) -> None:
+def rag_ingest(openai_client: OpenAI, llama_client: LlamaCppAPI, path: str) -> None:
     """Chunk, embed, then store."""
 
     with open(path) as file:
         text = file.read()
-        token_ids = tokenize(token_client, text)
+        token_ids = tokenize(llama_client, text)
 
         for i, chunk in enumerate(token_chunk(token_ids)):
-            chunk_text = detokenize(token_client, chunk)
-            vector = embeddings(embed_client, chunk_text)
+            chunk_text = detokenize(llama_client, chunk)
+            vector = embeddings(openai_client, chunk_text)
             rag_entry(path, i, chunk_text, vector)
 
 
 def rag_load() -> Generator:
     with rag_connect() as conn:
         rows = conn.execute(
-            "SELECT doc_id, chunk_id, content, embedding FROM embeddings"
+            "SELECT doc_id, chunk_id, content, vector FROM embeddings"
         ).fetchall()
         for doc_id, chunk_id, content, blob in rows:
             vector = np.frombuffer(blob, dtype=np.float32)
@@ -242,26 +220,53 @@ def search(client: OpenAI, query: str, top_k: int = 5) -> list[int]:
 
 
 if __name__ == "__main__":
-    openai_model = openai_client(
-        base_url="http://localhost:8081/v1", api_key="sk-no-key-required"
+    port = 8081
+    llama_client = LlamaCppAPI(
+        llama_request=LlamaCppRequest(port=port),
+        stream=False,
+        cache_prompt=False,
+    )
+    openai_client = OpenAI(
+        api_key="sk-no-key-required",
+        base_url=f"http://127.0.0.1:{port}/v1",
     )
 
-    labels = ["king", "queen", "man", "woman", "taco"]
-    vectors = [embeddings(openai_model, label) for label in labels]
+    labels = [
+        "king",
+        "queen",
+        "man",
+        "woman",
+        "taco",
+        "beautiful",
+        "strong",
+        "bird",
+        "cat",
+        "dog",
+        "tree",
+        "stick",
+        "sky",
+        "wizard",
+        "bard",
+        "She was a fairy",
+        "He was an ogre",
+        "They looked for the theif",
+        "The magician concealed the object",
+        "They said he was a vampire",
+        "The called her a witch",
+    ]
+    vectors = [embeddings(openai_client, label) for label in labels]
     comparisons = []
 
     n = len(labels)
-    combinations = n * (n - 1)  # n elements * m comparisons
-    for i in range(combinations):
-        pos = i % (n - 1)
-        a = vectors[pos]
+    for i in range(n):
+        a = vectors[i]
         scores = []
         for j in range(n):
-            if j == pos:
+            if i == j:
                 continue
             b = vectors[j]
             scores.append((labels[j], cosine(a, b)))
-        comparisons.append((labels[pos], scores))
+        comparisons.append((labels[i], scores))
 
     for key, scores in comparisons:
         print(key)
