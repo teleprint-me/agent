@@ -8,12 +8,14 @@ Description: High-level Requests API for interacting with the LlamaCpp REST API.
 
 import html
 import logging
+from pathlib import Path
 from typing import Any, Dict, List
 
 import requests
 
 from agent.config import config
 from agent.llama.requests import LlamaCppRequest
+from agent.tools import tools
 
 
 class LlamaCppAPI:
@@ -23,7 +25,7 @@ class LlamaCppAPI:
         top_k: int = 50,
         top_p: float = 0.90,
         min_p: float = 0.1,
-        temperature: float = 0.7,
+        temperature: float = 0.8,
         presence_penalty: float = 0.0,
         frequency_penalty: float = 0.0,
         repeat_penalty: float = 1.1,
@@ -48,6 +50,7 @@ class LlamaCppAPI:
         self.data = {
             "prompt": "",
             "messages": [],
+            "tools": tools,
             "top_k": top_k,
             "top_p": top_p,
             "min_p": min_p,
@@ -95,28 +98,23 @@ class LlamaCppAPI:
         self.logger.debug("Fetching models list")
         return self.request.get("/v1/models")
 
-    def get_model_path(self, slot: int = 0) -> str:
-        return self.models["data"][slot]["id"]
+    def model_path(self, slot: int = 0) -> Path:
+        return Path(self.models["data"][slot]["id"])
 
-    def get_vocab_size(self, slot: int = 0) -> int:
+    def model_name(self, slot: int = 0) -> str:
+        return self.model_path(slot).parent.name
+
+    def vocab_size(self, slot: int = 0) -> int:
         """Get the language model's vocab size."""
         return self.models["data"][slot]["meta"]["n_vocab"]
 
-    def get_context_size(self, slot: int = 0) -> int:
+    def max_seq_len(self, slot: int = 0) -> int:
         """Get the language model's max context length."""
         return self.models["data"][slot]["meta"]["n_ctx_train"]
 
-    def get_embed_size(self, slot: int = 0) -> int:
+    def max_embed_len(self, slot: int = 0) -> int:
         """Get the language model's max positional embeddings."""
         return self.models["data"][slot]["meta"]["n_embd"]
-
-    def get_prompt(self, slot: int = 0) -> str:
-        """Get the system prompt for the language model in the given slot."""
-        try:
-            self.logger.debug(f"Fetching system prompt for slot: {slot}")
-            return self.slots[slot]["prompt"]
-        except KeyError:
-            return self.slots["error"]["message"]
 
     def tokenize(
         self,
@@ -182,63 +180,48 @@ class LlamaCppAPI:
             self.logger.debug("Sending non-streaming chat completion request")
             return self.request.post(endpoint=endpoint, data=self.data)
 
-    def sanitize(self, text: str) -> str:
-        """Escape special symbols in a given text."""
-        self.logger.debug(f"Sanitizing text: {text}")
-        sanitized_text = html.escape(text)
-        body = []
-
-        for symbol in sanitized_text:
-            symbol = {
-                "<": "\\<",
-                ">": "\\>",
-                "[": "\\[",
-                "]": "\\]",
-            }.get(symbol, symbol)
-            body.append(symbol)
-
-        final_sanitized_text = "".join(body)
-        self.logger.debug(f"Sanitized text: {final_sanitized_text}")
-        return final_sanitized_text
-
 
 if __name__ == "__main__":
     import argparse
+    import json
     import sys  # Allow streaming to stdout
-    from pathlib import Path
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-n", "--predict", help="Tokens generated.", default=128, type=int
+        "-n",
+        "--predict",
+        type=int,
+        default=128,
+        help="Tokens generated.",
     )
-    parser.add_argument("-d", "--debug", help="Enable debugging", action="store_true")
+    parser.add_argument(
+        "-d",
+        "--debug",
+        action="store_true",
+        help="Enable debugging",
+    )
     args = parser.parse_args()
 
-    log_level = logging.DEBUG if args.debug else logging.INFO
-
-    # Create an instance of LlamaCppAPI
-    # llama_api = LlamaCppAPI(n_predict=45, log_level=logging.DEBUG)
     # NOTE: Reasoning models require a larger context size and may fail to emit a closing
     # token (if any) if provided with insufficient space within a given window.
-    llama_api = LlamaCppAPI(n_predict=args.predict, log_level=log_level)
+
+    # Create an instance of LlamaCppAPI
+    llama_api = LlamaCppAPI(n_predict=args.predict, verbose=args.debug)
 
     if args.debug:
-        # Example: Get health status of the Llama.cpp server
-        print("Health Status:", llama_api.health)
-        # Example: Get slots processing state
-        print("Slots State:", llama_api.slots)  # this works fine
+        print("Health:", json.dumps(llama_api.health, indent=2))
+        print("Models:", json.dumps(llama_api.models, indent=2))
+        print("Slots:", json.dumps(llama_api.slots, indent=2))
 
-        # Example: Get model file path for a specific slot
-        slot_index = 0
-        model_path = Path(llama_api.get_model_path(slot=slot_index))
-        dir_path = model_path.parent
-        print(f"Model Path for Slot {slot_index}: {str(model_path)}")
-        print(f"Model Directory for Slot {slot_index}: {str(dir_path)}")
-
-        # Example: Get prompt for a specific slot
-        prompt = llama_api.get_prompt(slot=slot_index)
-        prompt = llama_api.sanitize(prompt)
-        print(f"Prompt for Slot {slot_index}: {prompt}")
+    # Example: Get model file path for a specific slot
+    slot_index = 0
+    print(f"Using slot {slot_index}")
+    print(f"Model Name {str(llama_api.model_name(slot_index))}")
+    print(f"Model Path {str(llama_api.model_path(slot_index))}")
+    print(f"Vocab Size {str(llama_api.vocab_size(slot_index))}")
+    print(f"Max Seq Len {str(llama_api.max_seq_len(slot_index))}")
+    print(f"Max Embed Len {str(llama_api.max_embed_len(slot_index))}")
+    print(f"Set to n token predictions {llama_api.data['n_predict']}")
 
     # ---
     print("Running completion...")
@@ -278,7 +261,7 @@ if __name__ == "__main__":
     content = ""
 
     reasoning_active = False
-    print("assistant: ", end="")
+    print("assistant:")
     for completed in chat_completions:
         delta = completed["choices"][0]["delta"]
 
