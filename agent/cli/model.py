@@ -84,12 +84,10 @@ def run_agent(
     messages: JSONListTemplate,
     registry: ToolRegistry,
 ) -> None:
-
-    message = {"role": "assistant", "content": ""}
     tool_call_pending = False
-    tool_name, tool_args = None, {}
-
+    message = {"role": "assistant", "content": ""}
     chat_completions = model.chat_completion(messages.data)
+
     for event in classify_event(chat_completions):
         if event.get("reasoning"):
             message["content"] += event["reasoning"]
@@ -105,11 +103,6 @@ def run_agent(
             message["content"] += event["content"]
             print(event["content"], end="")
         elif event.get("tool_call"):
-            print(event["tool_call"])
-
-            tool_name = event["tool_call"]["name"]
-            tool_args = event["tool_call"]["arguments"]
-
             if message["content"]:
                 messages.append(message)
 
@@ -120,6 +113,10 @@ def run_agent(
             messages.append(tool_res)
 
             tool_call_pending = True
+
+            # Temp: Debug tool calling
+            print(f"{UNDERLINE}{BOLD}{event['tool_call']}")
+            print(tool_res["content"])
 
         sys.stdout.flush()
 
