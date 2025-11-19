@@ -30,44 +30,39 @@ def classify_tool(
     return None
 
 
-def classify_reasoning(
-    content: str,
-    active: bool,
-) -> Optional[dict[str, any]]:
+def classify_reasoning(content: str, active: bool) -> tuple[Optional[dict], bool]:
     if content and active:
-        return {"reasoning": delta["reasoning_content"]}
+        return {"reasoning": content}, True
+
     elif content and not active:
-        reasoning_active = True
-        return {"reasoning.open": delta["reasoning_content"]}
+        return {"reasoning.open": content}, True
+
     elif not content and active:
-        reasoning_active = False
-        return {"reasoning.close": "\n"}
-    return None
+        return {"reasoning.close": "\n"}, False
+
+    return None, active
 
 
-def stream(chat_completions):
+def classify_event(chat_completions):
     tool_buffer = {}
     args_fragments = []
     reasoning_active = False
+
     for completed in chat_completions:
         delta = completed["choices"][0]["delta"]
 
-        if delta.get("content", None):
+        if delta.get("content"):
             yield {"content": delta["content"]}
 
-        reasoning = delta.get("reasoning_content", None)
-        if reasoning and reasoning_active:
-            yield {"reasoning": delta["reasoning_content"]}
-        elif reasoning and not reasoning_active:
-            reasoning_active = True
-            yield {"reasoning.open": delta["reasoning_content"]}
-        elif not reasoning and reasoning_active:
-            reasoning_active = False
-            yield {"reasoning.close": "\n"}
+        reasoning, reasoning_active = classify_reasoning(
+            delta.get("reasoning_content"),
+            reasoning_active,
+        )
+        if reasoning:
+            yield reasoning
 
-        if delta.get("tool_calls", None):
+        if delta.get("tool_calls"):
             for tool_call in delta["tool_calls"]:
-                # print(tool_call)
                 result = classify_tool(tool_call, tool_buffer, args_fragments)
                 if result:
                     yield result
@@ -103,34 +98,31 @@ if __name__ == "__main__":
 
     for message in messages:
         print(f'{message["role"]}\n{message["content"]}')
+    print()
 
     chat_completions = llama_api.chat_completion(messages)
 
     # Handle the models generated response
     content = ""
-    for delta in stream(chat_completions):
-        if delta.get("reasoning"):
-            content += delta["reasoning"]
-            print(delta["reasoning"], end="")
-        elif delta.get("reasoning.open"):
-            reasoning_active = True
-            content += delta["reasoning.open"]
-            print(delta["reasoning.open"], end="")
-        elif delta.get("reasoning.close"):
-            reasoning_active = False
-            content += delta["reasoning.close"]
-            print("\n")
+    for event in classify_event(chat_completions):
+        if event.get("reasoning"):
+            content += event["reasoning"]
+            print(event["reasoning"], end="")
+        elif event.get("reasoning.open"):
+            print("thinking")
+            content += event["reasoning.open"]
+            print(event["reasoning.open"], end="")
+        elif event.get("reasoning.close"):
+            content += event["reasoning.close"]
+            print("\n\ncompletion")
 
-        if delta.get("content"):
-            token = delta["content"]
+        if event.get("content"):
+            token = event["content"]
             content += token
             print(token, end="")
 
-        if delta.get("tool_call"):
-            print(delta["tool_call"])
+        if event.get("tool_call"):
+            print(event["tool_call"])
 
         sys.stdout.flush()
     print()  # add padding to models output
-
-    # sanity check
-    print(content)
