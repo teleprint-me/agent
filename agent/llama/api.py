@@ -12,8 +12,8 @@ from typing import Any, Dict, List
 
 import requests
 
-from agent.backend.llama.requests import LlamaCppRequest
 from agent.config import config
+from agent.llama.requests import LlamaCppRequest
 
 
 class LlamaCppAPI:
@@ -276,14 +276,35 @@ if __name__ == "__main__":
     chat_completions = llama_api.chat_completion(messages)
     # Handle the models generated response
     content = ""
+
+    reasoning_active = False
     print("assistant: ", end="")
     for completed in chat_completions:
         delta = completed["choices"][0]["delta"]
+
+        reasoning = delta.get("reasoning_content", None)
+        if reasoning and reasoning_active:
+            # model is reasoning
+            print(reasoning, end="")
+            content += reasoning
+        elif reasoning and not reasoning_active:
+            # reasoning open
+            reasoning_active = True
+            print("Thinking")
+            print(reasoning, end="")
+            content += reasoning
+        elif not reasoning and reasoning_active:
+            # reasoning close
+            print("\n\nCompletion")
+            reasoning_active = False
+
         if delta.get("content", None):
             # extract the token from the completed
-            token = completed["choices"][0]["delta"]["content"]
+            token = delta["content"]
             # append each chunk to the completed
             content += token
             print(token, end="")  # print the chunk out to the user
-            sys.stdout.flush()  # flush the output to standard output
+
+        sys.stdout.flush()
+
     print()  # add padding to models output
