@@ -1,18 +1,25 @@
 # Development Tools
 bpython
-isort
+flake8
 black
+isort
 
 # Dependencies
-numpy
-requests
 python-dotenv
+python-magic
+regex
+tqdm
+numpy
 jsonpycraft
-
-# Core Libraries
+requests
+markdown-it-py
+html2text
+bs4
+selenium
+opencv-python
+pytesseract
 tiktoken
 openai
-gguf
 
 # UI Libraries
 pygments
