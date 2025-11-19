@@ -91,7 +91,6 @@ def run_agent(
 
     chat_completions = model.chat_completion(messages.data)
     for event in classify_event(chat_completions):
-        print(event)
         if event.get("reasoning"):
             message["content"] += event["reasoning"]
             print(event["reasoning"], end="")
