@@ -8,7 +8,7 @@ from typing import List, Optional
 
 from agent.config import DEFAULT_PATH_MEM, config
 
-DB_PATH = config.get_value("memory.db.path", default=DEFAULT_PATH_MEM)
+DB_PATH = config.get_value("database.path", default=DEFAULT_PATH_MEM)
 
 
 def memory_connect() -> sqlite3.Connection:

@@ -13,9 +13,20 @@ from agent.tools import tools
 
 DEFAULT_PATH_CONF = ".agent/settings.json"
 DEFAULT_PATH_MSGS = ".agent/messages.json"
-DEFAULT_PATH_MEM = ".agent/memory.sqlite3"
+DEFAULT_PATH_MEM = ".agent/storage.sqlite3"
 
 DEFAULT_CONF = {
+    "logger": {
+        "general": {
+            "path": ".agent/model.log",
+            "level": "DEBUG",
+            "type": "file",
+        },
+    },
+    "database": {
+        "path": DEFAULT_PATH_MEM,
+        "type": "file",
+    },
     "openai": {
         "model": "gpt-4o-mini",
         "stream": True,
@@ -42,19 +53,6 @@ DEFAULT_CONF = {
         "schemas": {
             "tools": tools,
             "type": "list",
-        },
-    },
-    "memory": {
-        "db": {
-            "path": DEFAULT_PATH_MEM,
-            "type": "file",
-        }
-    },
-    "logger": {
-        "general": {
-            "path": ".agent/model.log",
-            "level": "DEBUG",
-            "type": "file",
         },
     },
     "cli": {},

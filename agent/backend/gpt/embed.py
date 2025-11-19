@@ -138,7 +138,7 @@ def token_chunk(
 # Database operations
 #
 
-DB_PATH = config.get_value("memory.db.path", default=DEFAULT_PATH_MEM)
+DB_PATH = config.get_value("database.path", default=DEFAULT_PATH_MEM)
 
 
 def rag_connect() -> sqlite3.Connection:
