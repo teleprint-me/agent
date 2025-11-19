@@ -19,8 +19,8 @@ import html2text
 import tqdm
 from bs4 import BeautifulSoup
 
-from agent.logger import TextLogger
 from agent.text.file import TextFile
+from agent.text.logger import TextLogger
 
 
 def clean_code_blocks(html: str) -> str:
