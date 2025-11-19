@@ -37,16 +37,6 @@ class TextPattern:
     SENTENCE = r"(?<!\b(?:Dr|Mr|Ms|etc|vs|p|a)\.)([.!?])(\s+|$)"
     WORD = rf"\w+(?:'\w+)?|\d+(?:\.\d+)?|[{re.escape(string.punctuation)}]+"
 
-    QUOTE = r"(['\"])(?:(?=(\\?))\2.)*?\1"
-    APOSTROPHE = r"^(?!')[A-Za-z]+(?:'[A-Za-z]+)+$"
-    ABBREVIATION = r"\b(?:Dr|Mr|Ms|Mrs|St|etc|e\.g|i\.e|vs|p\.m|a\.m)\.\b"
-
-    PARENTHESIS = r"\(([^)]+)\)|\[[^\]]+\]"
-
-    NUMBER = r"(?<!\w)(?:\d{1,3}(?:,\d{3})*|\d+\.\d+|\$\d+)(?!\w)"
-    ROMAN = r"(?i)\b[IVXLCDM]+\b"
-    PAGE = r"^\s*\S+\s+(\d+|[ivxlcdm]+)\s*$"
-
     # Enable compiling reusable expressions
     def __call__(self, attr: str) -> re.Pattern:
         try:
@@ -55,14 +45,14 @@ class TextPattern:
             print(f"TextPattern has no attribute named {attr}.")
 
     @staticmethod
-    def normalize_newlines(text: str) -> str:
+    def _normalize_newlines(text: str) -> str:
         """Normalize newlines while preserving paragraph breaks."""
         text = text.replace("\r\n", "\n").replace("\r", "\n")
         text = re.sub(r"(?<!\n)\n(?!\n)", " ", text)
         return text.lstrip("\ufeff")  # Remove BOM if present
 
     @staticmethod
-    def normalize_unicode(text: str) -> str:
+    def _normalize_unicode(text: str) -> str:
         """Apply Unicode normalization and replace fancy punctuation with ASCII."""
         quotes = {"‘": "'", "’": "'", "“": '"', "”": '"'}
         text = unicodedata.normalize("NFKC", text)
@@ -70,14 +60,40 @@ class TextPattern:
             text = text.replace(old, new)
         return text
 
-    @classmethod
-    def read_and_normalize(cls, file: str) -> str:
+    def normalize_read(self, file: str) -> str:
         # === Read and Parse the File ===
         with open(file, "r", encoding="utf-8") as file:
             text = file.read().strip()
-        text = cls.normalize_unicode(text)
-        text = cls.normalize_newlines(text)
+        text = self._normalize_unicode(text)
+        text = self._normalize_newlines(text)
         return text
+
+    def tokenize(self, text: str, mode: str) -> list[str]:
+        if mode == "paragraph":
+            return [p.strip() for p in self("paragraph").split(text) if p.strip()]
+
+        if mode == "sentence":
+            sent_re = self("sentence")
+            out = []
+            start = 0
+
+            for m in sent_re.finditer(text):
+                end = m.end(1)  # include terminator
+                chunk = text[start:end].strip()
+                if chunk:
+                    out.append(chunk)
+                start = m.end()
+
+            # trailing fragment?
+            tail = text[start:].strip()
+            if tail:
+                out.append(tail)
+            return out
+
+        if mode == "word":
+            return self("word").findall(text)
+
+        raise ValueError(f"Invalid mode given: {mode}")
 
 
 # Example usage in main script
@@ -88,7 +104,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--file",
         type=str,
-        default="data/owl.md",
+        required=True,
         help="The plain text corpus to be parsed.",
     )
     parser.add_argument(
@@ -106,12 +122,8 @@ if __name__ == "__main__":
 
     pattern = TextPattern()
 
-    def get_split(text: str) -> list[str]:
-        """Splits text into based on mode of operation."""
-        return [p.strip() for p in pattern(args.mode).split(text) if p.strip()]
-
-    text = pattern.read_and_normalize(args.file)
-    paragraphs = get_split(text)
+    text = pattern.normalize_read(args.file)
+    paragraphs = pattern.tokenize(text, args.mode)
 
     # Debug Output
     for i, split in enumerate(paragraphs[: args.top_n]):
