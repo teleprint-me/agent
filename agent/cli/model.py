@@ -41,14 +41,14 @@ def classify_tool(
 
 
 def classify_reasoning(content: str, active: bool) -> tuple[Optional[dict], bool]:
-    if content and active:
-        return {"reasoning": content}, True
-
-    elif content and not active:
+    if content and not active:
         return {"reasoning.open": content}, True
 
+    elif content and active:
+        return {"reasoning": content}, True
+
     elif not content and active:
-        return {"reasoning.close": "\n"}, False
+        return {"reasoning.close": content if content else "\n"}, False
 
     return None, active
 
@@ -61,15 +61,16 @@ def classify_event(chat_completions):
     for completed in chat_completions:
         delta = completed["choices"][0]["delta"]
 
-        if delta.get("content"):
-            yield {"content": delta["content"]}
-
         reasoning, reasoning_active = classify_reasoning(
             delta.get("reasoning_content"),
             reasoning_active,
         )
         if reasoning:
             yield reasoning
+
+        # Note: Only yield content **after** reasoning
+        if delta.get("content"):
+            yield {"content": delta["content"]}
 
         if delta.get("tool_calls"):
             for tool_call in delta["tool_calls"]:
@@ -90,23 +91,21 @@ def run_agent(
 
     chat_completions = model.chat_completion(messages.data)
     for event in classify_event(chat_completions):
+        print(event)
         if event.get("reasoning"):
             message["content"] += event["reasoning"]
             print(event["reasoning"], end="")
         elif event.get("reasoning.open"):
-            print("thinking")
             message["content"] += event["reasoning.open"]
+            print("thinking")
             print(event["reasoning.open"], end="")
         elif event.get("reasoning.close"):
             message["content"] += event["reasoning.close"]
-            print("\n\ncompletion")
-
-        if event.get("content"):
-            token = event["content"]
-            message["content"] += token
-            print(token, end="")
-
-        if event.get("tool_call"):
+            print("\ncompletion")
+        elif event.get("content"):
+            message["content"] += event["content"]
+            print(event["content"], end="")
+        elif event.get("tool_call"):
             print(event["tool_call"])
 
             tool_name = event["tool_call"]["name"]
