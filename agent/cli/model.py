@@ -4,8 +4,18 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+from jsonpycraft import JSONListTemplate
+from prompt_toolkit import PromptSession
+
 from agent.config import config
 from agent.llama.api import LlamaCppAPI
+from agent.tools.memory import memory_initialize
+from agent.tools.registry import ToolRegistry
+
+ESCAPE = "\x1b"
+RESET = ESCAPE + "[0m"
+BOLD = ESCAPE + "[1m"
+UNDERLINE = ESCAPE + "[4m"
 
 
 def classify_tool(
@@ -68,61 +78,107 @@ def classify_event(chat_completions):
                     yield result
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-n",
-        "--predict",
-        type=int,
-        default=128,
-        help="Tokens generated.",
-    )
-    parser.add_argument(
-        "-d",
-        "--debug",
-        action="store_true",
-        help="Enable debugging",
-    )
-    args = parser.parse_args()
+def run_agent(
+    model: LlamaCppAPI,
+    messages: JSONListTemplate,
+    registry: ToolRegistry,
+) -> None:
 
-    # NOTE: Reasoning models require a larger context size and may fail to emit a closing
-    # token (if any) if provided with insufficient space within a given window.
-    # Create an instance of LlamaCppAPI
-    llama_api = LlamaCppAPI(n_predict=args.predict, log_level=args.debug)
+    message = {"role": "assistant", "content": ""}
+    tool_call_pending = False
+    tool_name, tool_args = None, {}
 
-    # Example: Generate chat completion given a sequence of messages
-    messages = [
-        {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": "What is the weather like in Paris today?"},
-    ]
-
-    for message in messages:
-        print(f'{message["role"]}\n{message["content"]}')
-    print()
-
-    chat_completions = llama_api.chat_completion(messages)
-
-    # Handle the models generated response
-    content = ""
+    chat_completions = model.chat_completion(messages.data)
     for event in classify_event(chat_completions):
         if event.get("reasoning"):
-            content += event["reasoning"]
+            message["content"] += event["reasoning"]
             print(event["reasoning"], end="")
         elif event.get("reasoning.open"):
             print("thinking")
-            content += event["reasoning.open"]
+            message["content"] += event["reasoning.open"]
             print(event["reasoning.open"], end="")
         elif event.get("reasoning.close"):
-            content += event["reasoning.close"]
+            message["content"] += event["reasoning.close"]
             print("\n\ncompletion")
 
         if event.get("content"):
             token = event["content"]
-            content += token
+            message["content"] += token
             print(token, end="")
 
         if event.get("tool_call"):
             print(event["tool_call"])
 
+            tool_name = event["tool_call"]["name"]
+            tool_args = event["tool_call"]["arguments"]
+
+            if message["content"]:
+                messages.append(message)
+
+            tool_req = registry.request(event)
+            messages.append(tool_req)
+
+            tool_res = registry.dispatch(event)
+            messages.append(tool_res)
+
+            tool_call_pending = True
+
         sys.stdout.flush()
-    print()  # add padding to models output
+
+    if message["content"] and not tool_call_pending:
+        messages.append(message)
+
+
+if __name__ == "__main__":
+    path = config.get_value("templates.messages.path")
+    if path is None:
+        raise RuntimeError(
+            "Missing config: templates.messages.path is required. Please check your config."
+        )
+
+    messages = JSONListTemplate(
+        path,
+        initial_data=[
+            {
+                "role": "system",
+                "content": config.get_value("templates.system.content"),
+            },
+        ],
+    )
+    messages.mkdir()
+
+    session = PromptSession()
+    registry = ToolRegistry()
+    memory_initialize()
+
+    model = LlamaCppAPI()
+
+    for message in messages.data:
+        print(f'{message["role"]}\n{message["content"]}')
+    print()
+
+    while True:
+        try:
+            if messages.data[-1]["role"] != "tool":
+                if messages.data[-1]["role"] != "system":
+                    print()
+                user_input = session.prompt("> ", multiline=True)
+                if user_input.lower() in ("exit", "quit"):
+                    print("Exiting.")
+                    break
+                messages.append({"role": "user", "content": user_input})
+                messages.save_json()
+
+            run_agent(model, messages, registry)
+            print()
+            messages.save_json()
+
+        except EOFError:  # Pop the last message
+            print(f"\n{UNDERLINE}{BOLD}Popped:{RESET}")
+            last = messages.pop(messages.length - 1)
+            print(last)
+            messages.save_json()
+
+        except KeyboardInterrupt:  # Exit the program
+            print("\nInterrupted.")
+            break
