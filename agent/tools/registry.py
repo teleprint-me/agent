@@ -43,8 +43,8 @@ class ToolRegistry:
             return f"Error: Tool raised exception: {e}"
 
     def request(self, event: Dict[str, Any]) -> Dict[str, Any]:
-        tool_name = event["value"]["name"]
-        tool_args = event["value"]["arguments"]
+        tool_name = event["tool_call"]["name"]
+        tool_args = event["tool_call"].get("arguments", {})
         return {
             "role": "assistant",
             "tool_calls": [
@@ -59,8 +59,8 @@ class ToolRegistry:
         }
 
     def dispatch(self, event: Dict[str, Any]) -> Dict[str, str]:
-        tool_name = event["value"]["name"]
-        tool_args = event["value"].get("arguments", {})
+        tool_name = event["tool_call"]["name"]
+        tool_args = event["tool_call"].get("arguments", {})
         result = self.call(tool_name, **tool_args)
         return {
             "role": "tool",
