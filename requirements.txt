@@ -26,3 +26,7 @@ pygments
 prompt-toolkit
 ttkbootstrap
 jedi-language-server
+
+# Temporary fix for python-poppler issue #93
+# https://github.com/cbrunet/python-poppler/issues/93
+python-poppler @ git+https://github.com/opale-ai/python-poppler.git@ca6678d
