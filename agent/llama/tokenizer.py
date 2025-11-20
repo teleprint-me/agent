@@ -9,8 +9,8 @@ It includes methods for encoding and decoding text to and from token IDs.
 import logging
 from typing import Dict, List, Union
 
-from llama_cpp_client.common.logger import get_logger
-from llama_cpp_client.llama.api import LlamaCppAPI
+from agent.config import config
+from agent.llama.api import LlamaCppAPI
 
 
 class LlamaCppTokenizer:
@@ -21,14 +21,16 @@ class LlamaCppTokenizer:
     def __init__(self, llama_api: LlamaCppAPI = None, verbose: bool = False):
         self.llama_api = llama_api if llama_api else LlamaCppAPI(verbose=verbose)
         log_level = logging.DEBUG if verbose else logging.INFO
-        self.logger = get_logger(self.__class__.__name__, log_level)
+        self.logger = config.get_logger(
+            "logger.general", self.__class__.__name__, log_level
+        )
         self.logger.debug("Tokenizer initialized")
 
     def max_sequence_length(self) -> int:
         """
         Returns the maximum sequence length supported by the model.
         """
-        length = self.llama_api.get_context_size()
+        length = self.llama_api.max_seq_len()
         self.logger.debug(f"Maximum sequence length: {length}")
         return length
 
@@ -36,7 +38,7 @@ class LlamaCppTokenizer:
         """
         Returns the maximum embedding length supported by the model.
         """
-        length = self.llama_api.get_embed_size()
+        length = self.llama_api.max_embed_len()
         self.logger.debug(f"Maximum embedding length: {length}")
         return length
 
