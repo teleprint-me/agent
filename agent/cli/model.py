@@ -4,11 +4,13 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 from typing import Optional
 
 from jsonpycraft import JSONFileErrorHandler, JSONListTemplate
 from prompt_toolkit import PromptSession
 from prompt_toolkit import print_formatted_text as print
+from requests.exceptions import HTTPError
 
 from agent.config import config
 from agent.llama.api import LlamaCppAPI
@@ -19,6 +21,22 @@ ESCAPE = "\x1b"
 RESET = ESCAPE + "[0m"
 BOLD = ESCAPE + "[1m"
 UNDERLINE = ESCAPE + "[4m"
+
+
+def wait_for_server(port: int, timeout: float = 30.0):
+    start = time.time()
+    api = LlamaCppAPI(port=port, stream=False)
+
+    while time.time() - start < timeout:
+        try:
+            health = api.health
+        except HTTPError:
+            pass  # polling server
+        if "error" not in health:
+            return True
+        time.sleep(0.25)
+
+    return False
 
 
 def classify_tool(
@@ -190,6 +208,13 @@ def build_parser():
         help="Enable embedding pooling. Default: none.",
     )
 
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=30.0,
+        help="Time to wait for the server to spawn.",
+    )
+
     return parser
 
 
@@ -227,12 +252,24 @@ if __name__ == "__main__":
         cmd.extend(["--pooling", args.pooling])
 
     # Non-blocking, background process
-    proc = subprocess.Popen(cmd)
+    proc = subprocess.Popen(
+        cmd,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        stdin=subprocess.DEVNULL,
+        start_new_session=True,  # important
+    )
+
+    if not wait_for_server(args.port, args.timeout):
+        print("Server failed to become ready.")
+        proc.kill()
+        exit(1)
 
     model = LlamaCppAPI()
     if "error" in model.health:
         error_code = model.health["error"]["code"]
         error_msg = model.health["error"]["message"]
+        proc.kill()
         print(f"Error ({error_code}): {error_msg}")
         exit(1)
 
