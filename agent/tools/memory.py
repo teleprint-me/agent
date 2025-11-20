@@ -23,125 +23,69 @@ def memory_initialize() -> sqlite3.Cursor:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 timestamp DATETIME DEFAULT (datetime('now', 'localtime')),
                 content TEXT NOT NULL,
-                tags TEXT,
-                user TEXT
             );
         """
         )
 
 
-def memory_create(content: str, tags: Optional[List[str]] = None) -> str:
+def memory_create(content: str) -> str:
     with memory_connect() as conn:
         cur = conn.cursor()
         cur.execute(
-            "INSERT INTO memories (content, tags) VALUES (?, ?)",
-            (content, ",".join(tags) if tags else None),
+            "INSERT INTO memories (content) VALUES (?)",
+            (content,),
         )
         conn.commit()
-        tag_str = ",".join(tags) if tags else ""
-        return f"Memory Created: ID={cur.lastrowid}, Tags={tag_str}"
+        return f"Memory created (ID={cur.lastrowid})"
 
 
 def memory_search(query: str, limit: int = 5) -> str:
     with memory_connect() as conn:
         cur = conn.cursor()
         cur.execute(
-            "SELECT id, content, tags FROM memories WHERE content LIKE ? LIMIT ?",
+            "SELECT id, content FROM memories WHERE content LIKE ? LIMIT ?",
             (f"%{query}%", limit),
         )
         rows = cur.fetchall()
-        result = [
-            {
-                "id": r[0],
-                "content": r[1],
-                "tags": r[2].split(",") if r[2] else [],
-            }
-            for r in rows
-        ]
+        result = [{"id": r[0], "content": r[1]} for r in rows]
         return json.dumps(result, ensure_ascii=False)
 
 
-def memory_read(
-    id: Optional[int] = None,
-    tags: Optional[List[str]] = None,
-    limit: int = 10,
-    offset: int = 0,
-) -> str:
+def memory_update(query: str, new_content: str) -> str:
+    """
+    Updates the most relevant memory based on a simple LIKE search.
+    If no result exists, creates a new memory.
+    """
+    results = json.loads(memory_search(query, limit=1))
+
+    if not results:
+        # No match → create new
+        return memory_create(new_content)
+
+    mem = results[0]
+    mem_id = mem["id"]
+
     with memory_connect() as conn:
         cur = conn.cursor()
-        query = "SELECT id, timestamp, content, tags FROM memories"
-        params = []
-        if id:
-            query += " WHERE id = ?"
-            params.append(id)
-        elif tags:
-            query += " WHERE " + " OR ".join(["tags LIKE ?"] * len(tags))
-            params += [f"%{tag}%" for tag in tags]
-        query += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
-        params += [limit, offset]
-        cur.execute(query, params)
-        rows = cur.fetchall()
-        if not rows:
-            return "No memories found."
-        result = [
-            {
-                "id": r[0],
-                "timestamp": r[1],
-                "content": r[2],
-                "tags": r[3].split(",") if r[3] else [],
-            }
-            for r in rows
-        ]
-        return json.dumps(result, ensure_ascii=False)
-
-
-def memory_update(
-    id: int,
-    content: Optional[str] = None,
-    tags: Optional[List[str]] = None,
-) -> str:
-    with memory_connect() as conn:
-        cur = conn.cursor()
-        fields = []
-        params = []
-        if content is not None:
-            fields.append("content = ?")
-            params.append(content)
-        if tags is not None:
-            fields.append("tags = ?")
-            params.append(",".join(tags))
-        if not fields:
-            return "No update fields provided. Please specify content and/or tags to update."
-        params.append(id)
-        query = f"UPDATE memories SET {', '.join(fields)}, timestamp = CURRENT_TIMESTAMP WHERE id = ?"
-        cur.execute(query, params)
+        cur.execute(
+            "UPDATE memories SET content = ?, timestamp = CURRENT_TIMESTAMP WHERE id = ?",
+            (new_content, mem_id),
+        )
         conn.commit()
-        if cur.rowcount > 0:
-            tag_str = ",".join(tags) if tags else "(unchanged)"
-            return f"Memory Updated: ID={id}, Tags={tag_str}"
-        return "No memories were modified."
+        return f"Memory updated (ID={mem_id})"
 
 
-def memory_delete(id: Optional[int] = None, tags: Optional[List[str]] = None) -> str:
+def memory_delete(query: str) -> str:
+    results = json.loads(memory_search(query, limit=1))
+
+    if not results:
+        return "No matching memory found."
+
+    mem_id = results[0]["id"]
+
     with memory_connect() as conn:
         cur = conn.cursor()
-        if id is not None:
-            cur.execute("DELETE FROM memories WHERE id = ?", (id,))
-            conn.commit()
-            if cur.rowcount > 0:
-                return f"Memory Deleted: ID={id}"
-            else:
-                return f"No memory found with ID={id}."
-        elif tags:
-            query = "DELETE FROM memories WHERE " + " OR ".join(
-                ["tags LIKE ?"] * len(tags)
-            )
-            cur.execute(query, [f"%{tag}%" for tag in tags])
-            conn.commit()
-            if cur.rowcount > 0:
-                tag_str = ", ".join(tags)
-                return f"Memories Deleted: {cur.rowcount} entries with tags matching [{tag_str}]"
-            else:
-                return f"No memories found with tags matching [{', '.join(tags)}]."
-        else:
-            return "No memories were deleted. Specify an ID or tags."
+        cur.execute("DELETE FROM memories WHERE id = ?", (mem_id,))
+        conn.commit()
+
+    return f"Memory deleted (ID={mem_id})"
