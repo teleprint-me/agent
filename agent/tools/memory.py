@@ -4,9 +4,12 @@ Module: agent.tools.memory
 
 import json
 import sqlite3
-from typing import List, Optional
 
 from agent.config import DEFAULT_PATH_MEM, config
+
+#
+# Database operations
+#
 
 DB_PATH = config.get_value("database.path", default=DEFAULT_PATH_MEM)
 
@@ -26,6 +29,11 @@ def memory_initialize() -> sqlite3.Cursor:
             );
         """
         )
+
+
+#
+# CRUD operations
+#
 
 
 def memory_create(content: str) -> str:
@@ -58,21 +66,21 @@ def memory_update(query: str, new_content: str) -> str:
     """
     results = json.loads(memory_search(query, limit=1))
 
-    if not results:
-        # No match → create new
-        return memory_create(new_content)
+    if results:
+        mem = results[0]
+        mem_id = mem["id"]
 
-    mem = results[0]
-    mem_id = mem["id"]
+        with memory_connect() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "UPDATE memories SET content = ?, timestamp = CURRENT_TIMESTAMP WHERE id = ?",
+                (new_content, mem_id),
+            )
+            conn.commit()
+            return f"Memory updated (ID={mem_id})"
 
-    with memory_connect() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            "UPDATE memories SET content = ?, timestamp = CURRENT_TIMESTAMP WHERE id = ?",
-            (new_content, mem_id),
-        )
-        conn.commit()
-        return f"Memory updated (ID={mem_id})"
+    # No match, create new
+    return memory_create(new_content)
 
 
 def memory_delete(query: str) -> str:
@@ -89,3 +97,20 @@ def memory_delete(query: str) -> str:
         conn.commit()
 
     return f"Memory deleted (ID={mem_id})"
+
+
+#
+# Agent tools
+#
+
+
+def memory_store(fact: str) -> str:
+    return memory_update(fact, fact)
+
+
+def memory_recall(query: str, limit: int = 5) -> str:
+    return memory_search(query, limit)
+
+
+def memory_forget(query: str) -> str:
+    return memory_delete(query)
