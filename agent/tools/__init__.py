@@ -121,22 +121,17 @@ memories = [
     {
         "type": "function",
         "function": {
-            "name": "memory_create",
-            "description": "Create a new memory with optional tags.",
+            "name": "memory_store",
+            "description": "Store a memory. If a similar memory already exists, update it.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "content": {
+                    "fact": {
                         "type": "string",
-                        "description": "The memory or information to store.",
-                    },
-                    "tags": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Optional list of tags for searching or filtering.",
-                    },
+                        "description": "The memory to store or update.",
+                    }
                 },
-                "required": ["content"],
+                "required": ["fact"],
                 "additionalProperties": False,
             },
             "strict": True,
@@ -145,13 +140,20 @@ memories = [
     {
         "type": "function",
         "function": {
-            "name": "memory_search",
-            "description": "Search the memory database for a keyword.",
+            "name": "memory_recall",
+            "description": "Retrieve memories that match a query.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "query": {"type": "string"},
-                    "limit": {"type": "integer", "default": 5},
+                    "query": {
+                        "type": "string",
+                        "description": "The query used to search memory contents.",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of results to return.",
+                        "default": 5,
+                    },
                 },
                 "required": ["query"],
                 "additionalProperties": False,
@@ -162,86 +164,17 @@ memories = [
     {
         "type": "function",
         "function": {
-            "name": "memory_read",
-            "description": "Retrieve memories by ID or by tags. If neither is given, returns the latest memories.",
+            "name": "memory_forget",
+            "description": "Delete the memory that best matches the given query.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "id": {
-                        "type": ["integer", "null"],
-                        "description": "Optional memory ID. If given, retrieves only that memory.",
-                    },
-                    "tags": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Optional list of tags to filter by.",
-                    },
-                    "limit": {
-                        "type": "integer",
-                        "description": "Maximum number of memories to retrieve.",
-                        "default": 10,
-                        "minimum": 1,
-                    },
-                    "offset": {
-                        "type": "integer",
-                        "description": "Number of memories to skip (for pagination).",
-                        "default": 0,
-                        "minimum": 0,
-                    },
-                },
-                "required": [],
-                "additionalProperties": False,
-            },
-            "strict": True,
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "memory_update",
-            "description": "Update the content and/or tags of an existing memory by ID.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "id": {
-                        "type": "integer",
-                        "description": "ID of the memory to update.",
-                    },
-                    "content": {
+                    "query": {
                         "type": "string",
-                        "description": "New content for the memory (optional if just updating tags).",
-                    },
-                    "tags": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "New list of tags for the memory (optional).",
-                    },
+                        "description": "A query describing the memory to delete. The top match will be removed.",
+                    }
                 },
-                "required": ["id"],
-                "additionalProperties": False,
-            },
-            "strict": True,
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "memory_delete",
-            "description": "Delete a memory by ID, or multiple memories by tags.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "id": {
-                        "type": ["integer", "null"],
-                        "description": "Optional ID of the memory to delete.",
-                    },
-                    "tags": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Optional list of tags. If set, deletes all matching memories.",
-                    },
-                },
-                "required": [],
+                "required": ["query"],
                 "additionalProperties": False,
             },
             "strict": True,

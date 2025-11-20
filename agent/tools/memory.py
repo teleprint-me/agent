@@ -18,6 +18,7 @@ def memory_connect() -> sqlite3.Connection:
     return sqlite3.connect(DB_PATH)
 
 
+# this must be called by the user, not the agent
 def memory_initialize() -> sqlite3.Cursor:
     with memory_connect() as conn:
         return conn.execute(
@@ -25,14 +26,14 @@ def memory_initialize() -> sqlite3.Cursor:
             CREATE TABLE IF NOT EXISTS memories (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 timestamp DATETIME DEFAULT (datetime('now', 'localtime')),
-                content TEXT NOT NULL,
-            );
-        """
+                content TEXT NOT NULL
+            )
+            """
         )
 
 
 #
-# CRUD operations
+# CRUD operations (internal)
 #
 
 
@@ -100,7 +101,7 @@ def memory_delete(query: str) -> str:
 
 
 #
-# Agent tools
+# Agent tools (external)
 #
 
 
