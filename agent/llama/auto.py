@@ -14,7 +14,7 @@ import sys
 
 import numpy as np
 
-from llama_cpp_client.llama.api import LlamaCppAPI
+from agent.llama.api import LlamaCppAPI
 
 
 class LlamaCppAuto:
@@ -36,7 +36,7 @@ class LlamaCppAuto:
         return "".join(body)
 
     def max_tokens(self) -> int:
-        return self.llama_api.get_context_size()
+        return self.llama_api.max_seq_len()
 
     def max_prompt(self, limit: int = 4) -> int:
         # NOTE: Prompt should not consume more than 25% of the context window.
