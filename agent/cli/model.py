@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Optional
@@ -115,7 +116,7 @@ def run_agent(
             tool_call_pending = True
 
             # Temp: Debug tool calling
-            print(f"{UNDERLINE}{BOLD}{event['tool_call']}")
+            print(f"{UNDERLINE}{BOLD}{event['tool_call']}{RESET}")
             print(tool_res["content"])
 
         sys.stdout.flush()
