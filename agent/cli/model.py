@@ -1,12 +1,14 @@
 import argparse
 import json
 import os
+import shutil
+import subprocess
 import sys
-from pathlib import Path
 from typing import Optional
 
-from jsonpycraft import JSONListTemplate
+from jsonpycraft import JSONFileErrorHandler, JSONListTemplate
 from prompt_toolkit import PromptSession
+from prompt_toolkit import print_formatted_text as print
 
 from agent.config import config
 from agent.llama.api import LlamaCppAPI
@@ -125,7 +127,115 @@ def run_agent(
         messages.append(message)
 
 
+def build_parser():
+    parser = argparse.ArgumentParser(
+        description="Start a llama.cpp server with optional features."
+    )
+
+    # Required: model path
+    parser.add_argument(
+        "--model",
+        type=str,
+        required=True,
+        help="Path to the GGUF model file.",
+    )
+
+    # Basic server settings
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8080,
+        help="Server port (default: 8080).",
+    )
+
+    parser.add_argument(
+        "--ctx-size",
+        type=int,
+        default=8192,
+        help="Context size to allocate (default: 8192).",
+    )
+
+    parser.add_argument(
+        "--n-gpu-layers",
+        type=int,
+        default=99,
+        help="Number of layers to offload to GPU (default: 99).",
+    )
+
+    # Feature toggles (boolean flags)
+    parser.add_argument(
+        "--slots",
+        action="store_true",
+        help="Enable server statistics (required for some API features).",
+    )
+
+    parser.add_argument(
+        "--jinja",
+        action="store_true",
+        help="Enable Jinja prompt templating (required for chat/instruct models).",
+    )
+
+    parser.add_argument(
+        "--embeddings",
+        action="store_true",
+        help="Enable embedding mode.",
+    )
+
+    # Pooling
+    parser.add_argument(
+        "--pooling",
+        type=str,
+        default="none",
+        choices=["none", "mean", "cls", "sum"],
+        help="Enable embedding pooling. Default: none.",
+    )
+
+    return parser
+
+
 if __name__ == "__main__":
+    parser = build_parser()
+    args = parser.parse_args()
+
+    llama_server = shutil.which("llama-server")
+    if not llama_server:
+        print("llama-server is not PATH")
+        exit(1)
+
+    cmd = [
+        llama_server,
+        "--port",
+        str(args.port),
+        "--ctx-size",
+        str(args.ctx_size),
+        "--n-gpu-layers",
+        str(args.n_gpu_layers),
+        "-m",
+        args.model,
+    ]
+
+    if args.slots:
+        cmd.append("--slots")
+
+    if args.jinja:
+        cmd.append("--jinja")
+
+    if args.embeddings:
+        cmd.append("--embeddings")
+
+    if args.pooling != "none":
+        cmd.extend(["--pooling", args.pooling])
+
+    # Non-blocking, background process
+    proc = subprocess.Popen(cmd)
+
+    model = LlamaCppAPI()
+    if "error" in model.health:
+        error_code = model.health["error"]["code"]
+        error_msg = model.health["error"]["message"]
+        print(f"Error ({error_code}): {error_msg}")
+        exit(1)
+
     path = config.get_value("templates.messages.path")
     if path is None:
         raise RuntimeError(
@@ -143,11 +253,14 @@ if __name__ == "__main__":
     )
     messages.mkdir()
 
+    try:
+        messages.load_json()
+    except JSONFileErrorHandler:
+        print(f"Creating new cache: {messages.file_path}")
+
     session = PromptSession()
     registry = ToolRegistry()
     memory_initialize()
-
-    model = LlamaCppAPI()
 
     for message in messages.data:
         print(f'{message["role"]}\n{message["content"]}')
@@ -178,3 +291,5 @@ if __name__ == "__main__":
         except KeyboardInterrupt:  # Exit the program
             print("\nInterrupted.")
             break
+
+    proc.kill()
