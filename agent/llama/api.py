@@ -7,7 +7,7 @@ Description: High-level Requests API for interacting with the LlamaCpp REST API.
 """
 
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
 import requests
 
@@ -95,10 +95,16 @@ class LlamaCppAPI:
         response = self.request.post("/tokenize", data=data)
         return response.get("tokens", [])
 
-    def detokenize(self, token_ids: List[int]) -> str:
+    def detokenize(
+        self, pieces: Union[List[int], List[Dict[str, Union[int, str]]]]
+    ) -> str:
         """Detokenizes a given sequence of token IDs using the server's detokenize endpoint."""
-        self.logger.debug(f"Detokenizing: {token_ids}")
-        data = {"tokens": token_ids}
+        self.logger.debug(f"Detokenizing: {pieces}")
+        if isinstance(pieces, list) and isinstance(pieces[0], dict):
+            self.logger.debug("Decoding pieces with 'id' and 'piece' keys")
+            # If pieces is a list of dictionaries, extract the 'id' values
+            pieces = [piece["id"] for piece in pieces]
+        data = {"tokens": pieces}
         response = self.request.post("/detokenize", data=data)
         return response.get("content", "")
 
