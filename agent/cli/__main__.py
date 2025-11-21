@@ -1,33 +1,19 @@
-"""
-Script: agent.cli.__main__
-
-Adapted client for OpenAI and local llama.cpp servers.
-Supports streaming completions and environment-based endpoint switching.
-
-Qwen3 models support internal "thinking" behavior, which is wrapped in <think>...</think> blocks.
-This behavior is controlled via special user prompt suffixes, as interpreted by the model's chat template.
-
-Usage notes for Qwen3 (when chat templates support reasoning):
-
-- Default behavior: reflection is enabled, and the model emits <think>...</think> with internal reasoning.
-- To explicitly disable reflection, append `/no_think` to the user prompt.
-- To explicitly enable reflection (optional), append `/think`.
-
-Example:
-    {"role": "user", "content": "What is the capital of France? /no_think"}
-
-Important:
-- `/no_think` disables reflection content but not the presence of <think> tags.
-- To suppress <think> tags entirely, the chat template must be modified.
-"""
-
+import argparse
+import json
+import os
+import shutil
+import subprocess
 import sys
+import time
+from typing import Optional
 
-from jsonpycraft import JSONListTemplate
+from jsonpycraft import JSONFileErrorHandler, JSONListTemplate
 from prompt_toolkit import PromptSession
+from prompt_toolkit import print_formatted_text as print
+from requests.exceptions import HTTPError
 
-from agent.backend.gpt.requests import GPTRequest
 from agent.config import config
+from agent.llama.api import LlamaCppAPI
 from agent.tools.memory import memory_initialize
 from agent.tools.registry import ToolRegistry
 
@@ -37,55 +23,107 @@ BOLD = ESCAPE + "[1m"
 UNDERLINE = ESCAPE + "[4m"
 
 
+def wait_for_server(port: int, timeout: float = 30.0):
+    start = time.time()
+    api = LlamaCppAPI(port=port, stream=False)
+
+    while time.time() - start < timeout:
+        try:
+            health = api.health
+        except HTTPError:
+            pass  # polling server
+        if "error" not in health:
+            return True
+        time.sleep(0.25)
+
+    return False
+
+
+def classify_tool(
+    tool_call: dict[str, any],
+    buffer: dict[str, any],
+    args_fragments: list[str],
+) -> Optional[dict[str, any]]:
+    fn = tool_call["function"]
+    if fn.get("name"):
+        buffer["name"] = fn["name"]
+    if fn.get("arguments"):
+        args_fragments.append(fn["arguments"])
+    if fn.get("arguments") and fn["arguments"].strip().endswith("}"):
+        try:
+            args = "".join(args_fragments)
+            buffer["arguments"] = json.loads(args)
+            args_fragments.clear()
+            return {"tool_call": buffer.copy()}
+        except json.JSONDecodeError as e:
+            if os.getenv("DEBUG_TOOL_JSON"):
+                print(f"[warn] tool_call args error: {e} :: {''.join(args_fragments)}")
+    return None
+
+
+def classify_reasoning(content: str, active: bool) -> tuple[Optional[dict], bool]:
+    if content and not active:
+        return {"reasoning.open": content}, True
+
+    elif content and active:
+        return {"reasoning": content}, True
+
+    elif not content and active:
+        return {"reasoning.close": content if content else "\n"}, False
+
+    return None, active
+
+
+def classify_event(chat_completions):
+    tool_buffer = {}
+    args_fragments = []
+    reasoning_active = False
+
+    for completed in chat_completions:
+        delta = completed["choices"][0]["delta"]
+
+        reasoning, reasoning_active = classify_reasoning(
+            delta.get("reasoning_content"),
+            reasoning_active,
+        )
+        if reasoning:
+            yield reasoning
+
+        # Note: Only yield content **after** reasoning
+        if delta.get("content"):
+            yield {"content": delta["content"]}
+
+        if delta.get("tool_calls"):
+            for tool_call in delta["tool_calls"]:
+                result = classify_tool(tool_call, tool_buffer, args_fragments)
+                if result:
+                    yield result
+
+
 def run_agent(
-    model: GPTRequest, messages: JSONListTemplate, registry: ToolRegistry
+    model: LlamaCppAPI,
+    messages: JSONListTemplate,
+    registry: ToolRegistry,
 ) -> None:
-    stream = model.stream(
-        messages=messages.data,
-        model=config.get_value("openai.model"),
-        stream=config.get_value("openai.stream"),
-        seed=config.get_value("openai.seed"),
-        max_tokens=config.get_value("openai.max_tokens"),
-        temperature=config.get_value("openai.temperature"),
-        n=config.get_value("openai.n"),
-        top_p=config.get_value("openai.top_p"),
-        presence_penalty=config.get_value("openai.presence_penalty"),
-        frequency_penalty=config.get_value("openai.frequency_penalty"),
-        stop=config.get_value("openai.stop"),
-        logit_bias=config.get_value("openai.logit_bias"),
-        reasoning_effort=config.get_value("openai.reasoning_effort"),
-        tools=config.get_value("templates.schemas.tools"),
-    )
-
-    message = {"role": "assistant", "content": ""}
     tool_call_pending = False
-    tool_name, tool_args = None, {}
+    message = {"role": "assistant", "content": ""}
+    chat_completions = model.chat_completion(messages.data)
 
-    for event in stream:
-        event_type = event["type"]
-        value = event["value"]
-
-        if event_type == "role":
-            pass  # Already handled by message["role"]
-
-        elif event_type == "reasoning.open":
-            print(f"\n{UNDERLINE}{BOLD}Thinking{RESET}\n", end="")
-            message["content"] += value
-            print(value, end="")
-
-        elif event_type == "reasoning.close":
-            print(f"\n\n{UNDERLINE}{BOLD}Completion{RESET}", end="")
-            message["content"] += value
-            print()
-
-        elif event_type == "content" or event_type == "reasoning":
-            message["content"] += value
-            print(value, end="")
-
-        elif event_type == "tool_call":
-            tool_name = value["name"]
-            tool_args = value["arguments"]
-
+    for event in classify_event(chat_completions):
+        if event.get("reasoning"):
+            message["content"] += event["reasoning"]
+            print(event["reasoning"], end="")
+        elif event.get("reasoning.open"):
+            message["content"] += event["reasoning.open"]
+            print("thinking")
+            print(event["reasoning.open"], end="")
+        elif event.get("reasoning.close"):
+            message["content"] += event["reasoning.close"]
+            print("\ncompletion")
+        elif event.get("content"):
+            message["content"] += event["content"]
+            print(event["content"], end="")
+        elif event.get("tool_call"):
             if message["content"]:
                 messages.append(message)
 
@@ -97,8 +135,9 @@ def run_agent(
 
             tool_call_pending = True
 
-            print(f"\n{UNDERLINE}{BOLD}Tool Call{RESET}")
-            print(f"{UNDERLINE}{BOLD}{tool_name}({tool_args}){RESET}\n{tool_res}")
+            # Temp: Debug tool calling
+            print(f"{UNDERLINE}{BOLD}{event['tool_call']}{RESET}")
+            print(tool_res["content"])
 
         sys.stdout.flush()
 
@@ -106,12 +145,140 @@ def run_agent(
         messages.append(message)
 
 
-def main():
+def build_parser():
+    parser = argparse.ArgumentParser(
+        description="Start a llama.cpp server with optional features."
+    )
+
+    # Required: model path
+    parser.add_argument(
+        "--model",
+        type=str,
+        required=True,
+        help="Path to the GGUF model file.",
+    )
+
+    # Basic server settings
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8080,
+        help="Server port (default: 8080).",
+    )
+
+    parser.add_argument(
+        "--ctx-size",
+        type=int,
+        default=8192,
+        help="Context size to allocate (default: 8192).",
+    )
+
+    parser.add_argument(
+        "--n-gpu-layers",
+        type=int,
+        default=99,
+        help="Number of layers to offload to GPU (default: 99).",
+    )
+
+    # Feature toggles (boolean flags)
+    parser.add_argument(
+        "--slots",
+        action="store_true",
+        help="Enable server statistics (required for some API features).",
+    )
+
+    parser.add_argument(
+        "--jinja",
+        action="store_true",
+        help="Enable Jinja prompt templating (required for chat/instruct models).",
+    )
+
+    parser.add_argument(
+        "--embeddings",
+        action="store_true",
+        help="Enable embedding mode.",
+    )
+
+    # Pooling
+    parser.add_argument(
+        "--pooling",
+        type=str,
+        default="none",
+        choices=["none", "mean", "cls", "sum"],
+        help="Enable embedding pooling. Default: none.",
+    )
+
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=30.0,
+        help="Time to wait for the server to spawn.",
+    )
+
+    return parser
+
+
+if __name__ == "__main__":
+    parser = build_parser()
+    args = parser.parse_args()
+
+    llama_server = shutil.which("llama-server")
+    if not llama_server:
+        print("llama-server is not PATH")
+        exit(1)
+
+    cmd = [
+        llama_server,
+        "--port",
+        str(args.port),
+        "--ctx-size",
+        str(args.ctx_size),
+        "--n-gpu-layers",
+        str(args.n_gpu_layers),
+        "-m",
+        args.model,
+    ]
+
+    if args.slots:
+        cmd.append("--slots")
+
+    if args.jinja:
+        cmd.append("--jinja")
+
+    if args.embeddings:
+        cmd.append("--embeddings")
+
+    if args.pooling != "none":
+        cmd.extend(["--pooling", args.pooling])
+
+    # Non-blocking, background process
+    proc = subprocess.Popen(
+        cmd,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        stdin=subprocess.DEVNULL,
+        start_new_session=True,  # important
+    )
+
+    if not wait_for_server(args.port, args.timeout):
+        print("Server failed to become ready.")
+        proc.kill()
+        exit(1)
+
+    model = LlamaCppAPI()
+    if "error" in model.health:
+        error_code = model.health["error"]["code"]
+        error_msg = model.health["error"]["message"]
+        proc.kill()
+        print(f"Error ({error_code}): {error_msg}")
+        exit(1)
+
     path = config.get_value("templates.messages.path")
     if path is None:
         raise RuntimeError(
             "Missing config: templates.messages.path is required. Please check your config."
         )
+
     messages = JSONListTemplate(
         path,
         initial_data=[
@@ -122,10 +289,19 @@ def main():
         ],
     )
     messages.mkdir()
+
+    try:
+        messages.load_json()
+    except JSONFileErrorHandler:
+        print(f"Creating new cache: {messages.file_path}")
+
     session = PromptSession()
     registry = ToolRegistry()
-    model = GPTRequest()
-    memory_initialize()  # Initialize the models memories
+    memory_initialize()
+
+    for message in messages.data:
+        print(f'{message["role"]}\n{message["content"]}')
+    print()
 
     while True:
         try:
@@ -153,6 +329,4 @@ def main():
             print("\nInterrupted.")
             break
 
-
-if __name__ == "__main__":
-    main()
+    proc.kill()
