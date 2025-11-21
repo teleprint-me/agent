@@ -7,7 +7,6 @@ Description: Module for handling low-level requests to the LlamaCpp REST API.
 """
 
 import json
-import logging
 from typing import Any, Dict, Generator
 
 import requests
@@ -28,7 +27,6 @@ class LlamaCppRequest:
         base_url: str = "http://127.0.0.1",
         port: str = "8080",
         headers: Dict[str, str] = None,
-        verbose: bool = False,
     ):
         """
         Initialize the LlamaCppRequest instance.
@@ -36,14 +34,10 @@ class LlamaCppRequest:
         :param base_url: The base URL of the server.
         :param port: The port number to use.
         :param headers: Optional headers to include in requests.
-        :param log_level: The log level for this instance (e.g., logging.DEBUG).
         """
         self.base_url = f"{base_url}:{port}"
         self.headers = headers or {"Content-Type": "application/json"}
-        log_level = logging.DEBUG if verbose else logging.INFO
-        self.logger = config.get_logger(
-            "logger.general", self.__class__.__name__, log_level
-        )
+        self.logger = config.get_logger("logger", self.__class__.__name__)
         self.logger.debug("Initialized LlamaCppRequest instance.")
 
     def _handle_response(self, response: requests.Response) -> Any:
@@ -130,21 +124,23 @@ if __name__ == "__main__":
     import sys
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-d", "--debug", help="Enable debugging", action="store_true")
     parser.add_argument(
-        "-p", "--prompt", help="Model input.", default="Once upon a time"
+        "-p",
+        "--prompt",
+        help="Model input.",
+        default="Once upon a time",
     )
     parser.add_argument(
-        "-n", "--predict", help="Tokens generated.", default=-1, type=int
+        "-n",
+        "--predict",
+        help="Tokens generated.",
+        default=-1,
+        type=int,
     )
     args = parser.parse_args()
 
     # Initialize the LlamaCppRequest instance
-    llama_requests = LlamaCppRequest(
-        base_url="http://127.0.0.1",
-        port="8080",
-        verbose=args.debug,
-    )
+    llama_requests = LlamaCppRequest(base_url="http://127.0.0.1", port="8080")
 
     # Define the prompt for the model
     print(args.prompt, end="")
