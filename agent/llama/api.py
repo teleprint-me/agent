@@ -6,8 +6,6 @@ Module: agent.backend.llama.api
 Description: High-level Requests API for interacting with the LlamaCpp REST API.
 """
 
-import html
-import logging
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -15,57 +13,22 @@ import requests
 
 from agent.config import config
 from agent.llama.requests import LlamaCppRequest
-from agent.tools import tools
 
 
+# See agent.config.__init__ for details
 class LlamaCppAPI:
-    def __init__(
-        self,
-        llama_request: LlamaCppRequest = None,
-        top_k: int = 50,
-        top_p: float = 0.90,
-        min_p: float = 0.1,
-        temperature: float = 0.8,
-        presence_penalty: float = 0.0,
-        frequency_penalty: float = 0.0,
-        repeat_penalty: float = 1.1,
-        n_predict: int = -1,
-        seed: int = 1337,
-        stream: bool = True,
-        cache_prompt: bool = True,
-        **kwargs: Any,  # Additional optional parameters
-    ) -> None:
+    def __init__(self, llama_request: LlamaCppRequest = None, **kwargs: Any):
         """Initialize the API with default model parameters and request handler."""
-        # Setup logger and request object
-        verbose = kwargs.get("verbose", False)
-        log_level = logging.DEBUG if verbose else logging.INFO
-        self.logger = config.get_logger(
-            "logger.general", self.__class__.__name__, log_level
-        )
-        self.request = (
-            llama_request if llama_request else LlamaCppRequest(verbose=verbose)
-        )
+        # Setup request object
+        self.request = llama_request if llama_request else LlamaCppRequest()
 
-        # Set model hyperparameters
-        self.data = {
-            "prompt": "",
-            "messages": [],
-            "tools": tools,
-            "top_k": top_k,
-            "top_p": top_p,
-            "min_p": min_p,
-            "temperature": temperature,
-            "presence_penalty": presence_penalty,
-            "frequency_penalty": frequency_penalty,
-            "repeat_penalty": repeat_penalty,
-            "n_predict": n_predict,
-            "seed": seed,
-            "stream": stream,
-            "cache_prompt": cache_prompt,
-        }
-
+        # Set model hyperparameters dict[str, any]
+        self.data = config.get_value("model")
         # Update self.data with any additional parameters from kwargs
         self.data.update(kwargs)
+
+        # Setup logger
+        self.logger = config.get_logger("logger", self.__class__.__name__)
         self.logger.debug("Initialized LlamaCppAPI instance.")
 
     def error(self, code: int, message: str, type: str) -> dict[str, Any]:
@@ -139,11 +102,15 @@ class LlamaCppAPI:
         response = self.request.post("/detokenize", data=data)
         return response.get("content", "")
 
-    def embedding(self, content: str) -> Any:
+    def embeddings(self, content: str) -> Any:
         """Get the embedding for the given input."""
         self.logger.debug(f"Fetching embedding for input: {content}")
-        endpoint = "/embedding"
-        data = {"input": content, "encoding_format": "float"}
+        endpoint = "/v1/embeddings"
+        data = {
+            "input": content,
+            "model": "text-embedding-3-small",
+            "encoding_format": "float",
+        }
         return self.request.post(endpoint, data)
 
     def completion(self, prompt: str) -> Any:
@@ -152,14 +119,7 @@ class LlamaCppAPI:
         self.data["prompt"] = prompt
         self.logger.debug(f"Completion request payload: {self.data}")
 
-        # LlamaCpp docs say /v1/completions, but does not work
-        # /completion is the original LlamaCpp endpoint, which does work
-        # NOTE: Investigate why /v1/completions fails to produce logits
-        # /completion, /completions, and /v1/completions all call `handle_completions_impl`
-        # An enum handles which endpoint type to handle, e.g. `oaicompat_type`.
-        # Enums support None, Chat, Completion, and Embedding
-        # When compat is set to OAI, it triggers a multimodal context, which need not be enabled.
-        endpoint = "/completions"
+        endpoint = "/v1/completions"
         if self.data.get("stream"):
             self.logger.debug("Streaming completion request")
             return self.request.stream(endpoint=endpoint, data=self.data)
@@ -195,20 +155,17 @@ if __name__ == "__main__":
         help="Tokens generated.",
     )
     parser.add_argument(
-        "-d",
-        "--debug",
+        "-s",
+        "--slots",
         action="store_true",
         help="Enable debugging",
     )
     args = parser.parse_args()
 
-    # NOTE: Reasoning models require a larger context size and may fail to emit a closing
-    # token (if any) if provided with insufficient space within a given window.
-
     # Create an instance of LlamaCppAPI
-    llama_api = LlamaCppAPI(n_predict=args.predict, verbose=args.debug)
+    llama_api = LlamaCppAPI(n_predict=args.predict)
 
-    if args.debug:
+    if args.slots:
         print("Health:", json.dumps(llama_api.health, indent=2))
         print("Models:", json.dumps(llama_api.models, indent=2))
         print("Slots:", json.dumps(llama_api.slots, indent=2))
@@ -231,12 +188,12 @@ if __name__ == "__main__":
     prompt = "Once upon a time"
     print(prompt, end="")
 
-    predictions = llama_api.completion(prompt)
+    completions = llama_api.completion(prompt)
     # Handle the model's generated response
     content = ""
-    for predicted in predictions:
-        if "content" in predicted:
-            token = predicted["content"]
+    for completed in completions:
+        token = completed["choices"][0]["text"]
+        if token:
             content += token
             # Print each token to the user
             print(token, end="")
