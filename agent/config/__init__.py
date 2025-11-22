@@ -63,10 +63,6 @@ DEFAULT_CONF = {
             "path": DEFAULT_PATH_MSGS,
             "type": "file",
         },
-        "schemas": {
-            "tools": tools,
-            "type": "list",
-        },
     },
     "cli": {},
     "gui": {
