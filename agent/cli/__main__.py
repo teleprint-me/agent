@@ -201,7 +201,7 @@ def build_parser():
         "--pooling",
         type=str,
         default="none",
-        choices=["none", "mean", "cls", "sum"],
+        choices=["none", "mean", "cls", "last", "rank"],
         help="Enable embedding pooling. Default: none.",
     )
 
@@ -270,6 +270,16 @@ if __name__ == "__main__":
         proc.kill()
         print(f"Error ({error_code}): {error_msg}")
         exit(1)
+
+    slot_index = 0
+    print(f"Process id {proc.pid}")
+    print(f"Using slot {slot_index}")
+    print(f"Model Name {str(model.model_name(slot_index))}")
+    print(f"Model Path {str(model.model_path(slot_index))}")
+    print(f"Vocab Size {str(model.vocab_size(slot_index))}")
+    print(f"Seq Len {args.ctx_size}/{str(model.max_seq_len(slot_index))}")
+    print(f"Max Embed Len {str(model.max_embed_len(slot_index))}")
+    print(f"Set to n token predictions {model.data['n_predict']}")
 
     path = config.get_value("templates.messages.path")
     if path is None:
