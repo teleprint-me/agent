@@ -29,9 +29,6 @@ parser.add_argument("path", help="Python source file")
 parser.add_argument("--debug", action="store_true", help="Print tokens to stdout")
 args = parser.parse_args()
 
-with open(args.path) as file:
-    source = file.read()
-
 terminal_dark = {
     # base
     "": "#d0d0d0",
@@ -63,11 +60,14 @@ terminal_dark = {
     "pygments.name.decorator": "#cf8dd3",  # __attribute__
 }
 
-lexer = detect_lexer(args.path, source)
-tokens = list(pygments.lex(source, lexer=lexer))
+with open(args.path) as file:
+    source = file.read()
+    lexer = detect_lexer(args.path, source)
+    tokens_list = list(pygments.lex(source, lexer=lexer))
+
 if args.debug:
-    for tok in tokens:
+    for tok in tokens_list:
         print(tok)
 
 style = Style.from_dict(terminal_dark)
-print(PygmentsTokens(token_list=tokens), style=style)
+print(PygmentsTokens(token_list=tokens_list), style=style)
