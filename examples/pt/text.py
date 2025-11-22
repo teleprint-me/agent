@@ -41,6 +41,7 @@ terminal_dark = {
     # strings / numbers
     "pygments.literal.string": "#ce9178",
     "pygments.literal.string.doc": "#ce9178",
+    "pygments.literal.string.interpol": "#ce9178",
     "pygments.literal.number": "#9ad5ff",
     # keywords
     "pygments.keyword": "#cf8dd3",
@@ -51,6 +52,7 @@ terminal_dark = {
     "pygments.operator.word": "#cf8dd3",
     # names
     "pygments.name": "#d0d0d0",
+    "pygments.name.variable": "#cea987",
     "pygments.name.function": "#dcdcaa",
     "pygments.name.class": "#4ec9b0",
     "pygments.name.namespace": "#d0d0d0",
