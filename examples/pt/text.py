@@ -38,6 +38,7 @@ terminal_dark = {
     "pygments.text": "#d0d0d0",
     # comments
     "pygments.comment": "italic #5a8e52",
+    "pygments.comment.preproc": "#5aa4b2",  # slightly brighter cyan
     # strings / numbers
     "pygments.literal.string": "#ce9178",
     "pygments.literal.string.doc": "#ce9178",
@@ -45,6 +46,7 @@ terminal_dark = {
     # keywords
     "pygments.keyword": "#cf8dd3",
     "pygments.keyword.namespace": "#71c4ff",
+    "pygments.keyword.type": "#4ec9b0",  # C types (int, char, void)
     # operators
     "pygments.operator": "#d4d4d4",
     "pygments.operator.word": "#cf8dd3",
@@ -54,6 +56,9 @@ terminal_dark = {
     "pygments.name.class": "#4ec9b0",
     "pygments.name.namespace": "#d0d0d0",
     "pygments.name.builtin": "#4ec9b0",
+    "pygments.name.constant": "#dcdcaa",  # uppercase constants / macros
+    "pygments.name.label": "#cf8dd3",  # goto labels
+    "pygments.name.decorator": "#cf8dd3",  # __attribute__
 }
 
 lexer = detect_lexer(args.path, source)
