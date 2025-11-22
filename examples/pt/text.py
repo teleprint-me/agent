@@ -26,6 +26,7 @@ def detect_lexer(path, source):
 
 parser = argparse.ArgumentParser()
 parser.add_argument("path", help="Python source file")
+parser.add_argument("--debug", action="store_true", help="Print tokens to stdout")
 args = parser.parse_args()
 
 with open(args.path) as file:
@@ -37,8 +38,9 @@ terminal_dark = {
     "pygments.background": "#1e1e1e",
     "pygments.text": "#d0d0d0",
     # comments
-    "pygments.comment": "italic #5a8e52",
-    "pygments.comment.preproc": "#5aa4b2",  # slightly brighter cyan
+    "pygments.comment": "#5a8e52 italic",
+    "pygments.comment.preproc": "#5aa4b2",
+    "pygments.comment.preprocfile": "#5afadf underline",
     # strings / numbers
     "pygments.literal.string": "#ce9178",
     "pygments.literal.string.doc": "#ce9178",
@@ -63,8 +65,9 @@ terminal_dark = {
 
 lexer = detect_lexer(args.path, source)
 tokens = list(pygments.lex(source, lexer=lexer))
-# for tok in tokens:
-#     print(tok)
+if args.debug:
+    for tok in tokens:
+        print(tok)
 
 style = Style.from_dict(terminal_dark)
 print(PygmentsTokens(token_list=tokens), style=style)
