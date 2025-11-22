@@ -9,7 +9,6 @@ from typing import Optional
 
 from jsonpycraft import JSONFileErrorHandler, JSONListTemplate
 from prompt_toolkit import PromptSession
-from prompt_toolkit import print_formatted_text as print
 from requests.exceptions import HTTPError
 
 from agent.config import config
@@ -23,17 +22,15 @@ BOLD = ESCAPE + "[1m"
 UNDERLINE = ESCAPE + "[4m"
 
 
-def wait_for_server(port: int, timeout: float = 30.0):
+def wait_for_server(model: LlamaCppAPI, port: int, timeout: float = 30.0):
     start = time.time()
-    api = LlamaCppAPI(port=port, stream=False)
-
     while time.time() - start < timeout:
         try:
-            health = api.health
+            if model.health.get("status") == "ok":
+                return True
         except HTTPError:
             pass  # polling server
-        if "error" not in health:
-            return True
+
         time.sleep(0.25)
 
     return False
@@ -260,13 +257,14 @@ if __name__ == "__main__":
         start_new_session=True,  # important
     )
 
-    if not wait_for_server(args.port, args.timeout):
+    model = LlamaCppAPI()
+
+    if not wait_for_server(model, args.port, args.timeout):
         print("Server failed to become ready.")
         proc.kill()
         exit(1)
 
-    model = LlamaCppAPI()
-    if "error" in model.health:
+    if model.health.get("error"):
         error_code = model.health["error"]["code"]
         error_msg = model.health["error"]["message"]
         proc.kill()
