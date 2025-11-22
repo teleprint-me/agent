@@ -4,7 +4,25 @@ import pygments
 from prompt_toolkit import print_formatted_text as print
 from prompt_toolkit.formatted_text import PygmentsTokens
 from prompt_toolkit.styles import Style
-from pygments.lexers.python import PythonLexer
+from pygments.lexers import guess_lexer, guess_lexer_for_filename
+from pygments.lexers.special import TextLexer
+from pygments.util import ClassNotFound
+
+
+def detect_lexer(path, source):
+    try:
+        return guess_lexer_for_filename(path, source)
+    except ClassNotFound:
+        pass
+
+    try:
+        return guess_lexer(source)
+    except ClassNotFound:
+        pass
+
+    # last resort: plain text
+    return TextLexer()
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("path", help="Python source file")
@@ -13,34 +31,35 @@ args = parser.parse_args()
 with open(args.path) as file:
     source = file.read()
 
-style = Style.from_dict(
-    {
-        # base text / background
-        "": "#d0d0d0",  # default foreground
-        "pygments.background": "#1e1e1e",  # dark warm base
-        "pygments.text": "#d0d0d0",
-        # comments
-        "pygments.comment": "italic #6a9955",  # soft green comment
-        # strings / numbers
-        "pygments.literal.string": "#ce9178",  # warm/desaturated orange
-        "pygments.literal.string.doc": "#ce9178",
-        "pygments.literal.number": "#b5cea8",  # greenish numeric
-        # keywords
-        "pygments.keyword": "#c586c0",  # purple keywords
-        "pygments.keyword.namespace": "#569cd6",  # blue imports/namespace
-        # operators
-        "pygments.operator": "#d4d4d4",
-        "pygments.operator.word": "#c586c0",
-        # names
-        "pygments.name": "#d0d0d0",
-        "pygments.name.function": "#dcdcaa",  # yellowish for defs
-        "pygments.name.class": "#4ec9b0",  # teal class names
-        "pygments.name.namespace": "#d0d0d0",
-        "pygments.name.builtin": "#4ec9b0",  # builtin functions
-    }
-)
+terminal_dark = {
+    # base
+    "": "#d0d0d0",
+    "pygments.background": "#1e1e1e",
+    "pygments.text": "#d0d0d0",
+    # comments
+    "pygments.comment": "italic #5a8e52",
+    # strings / numbers
+    "pygments.literal.string": "#ce9178",
+    "pygments.literal.string.doc": "#ce9178",
+    "pygments.literal.number": "#9ad5ff",
+    # keywords
+    "pygments.keyword": "#cf8dd3",
+    "pygments.keyword.namespace": "#71c4ff",
+    # operators
+    "pygments.operator": "#d4d4d4",
+    "pygments.operator.word": "#cf8dd3",
+    # names
+    "pygments.name": "#d0d0d0",
+    "pygments.name.function": "#dcdcaa",
+    "pygments.name.class": "#4ec9b0",
+    "pygments.name.namespace": "#d0d0d0",
+    "pygments.name.builtin": "#4ec9b0",
+}
 
-tokens = list(pygments.lex(source, lexer=PythonLexer()))
+lexer = detect_lexer(args.path, source)
+tokens = list(pygments.lex(source, lexer=lexer))
 # for tok in tokens:
 #     print(tok)
+
+style = Style.from_dict(terminal_dark)
 print(PygmentsTokens(token_list=tokens), style=style)
