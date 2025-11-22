@@ -24,7 +24,6 @@ openai
 # UI Libraries
 pygments
 prompt-toolkit
-ttkbootstrap
 jedi-language-server
 
 # Temporary fix for python-poppler issue #93
