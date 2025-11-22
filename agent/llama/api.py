@@ -24,6 +24,8 @@ class LlamaCppAPI:
 
         # Set model hyperparameters dict[str, any]
         self.data = config.get_value("model")
+        # Sanity check hyperparameters
+        assert self.data is not None
         # Update self.data with any additional parameters from kwargs
         self.data.update(kwargs)
 
