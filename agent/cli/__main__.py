@@ -248,6 +248,11 @@ if __name__ == "__main__":
     if args.pooling != "none":
         cmd.extend(["--pooling", args.pooling])
 
+    for token in cmd:
+        print(token, end=" ")
+        sys.stdout.flush()
+    print()
+
     # Non-blocking, background process
     proc = subprocess.Popen(
         cmd,
@@ -259,26 +264,22 @@ if __name__ == "__main__":
 
     model = LlamaCppAPI()
 
+    print("waiting for server")
     if not wait_for_server(model, args.port, args.timeout):
+        if model.health.get("error"):
+            error_code = model.health["error"]["code"]
+            error_msg = model.health["error"]["message"]
+            print(f"Error ({error_code}): {error_msg}")
         print("Server failed to become ready.")
         proc.kill()
         exit(1)
 
-    if model.health.get("error"):
-        error_code = model.health["error"]["code"]
-        error_msg = model.health["error"]["message"]
-        proc.kill()
-        print(f"Error ({error_code}): {error_msg}")
-        exit(1)
-
-    slot_index = 0
     print(f"Process id {proc.pid}")
-    print(f"Using slot {slot_index}")
-    print(f"Model Name {str(model.model_name(slot_index))}")
-    print(f"Model Path {str(model.model_path(slot_index))}")
-    print(f"Vocab Size {str(model.vocab_size(slot_index))}")
-    print(f"Seq Len {args.ctx_size}/{str(model.max_seq_len(slot_index))}")
-    print(f"Max Embed Len {str(model.max_embed_len(slot_index))}")
+    print(f"Model Name {str(model.model_name())}")
+    print(f"Model Path {str(model.model_path())}")
+    print(f"Vocab Size {str(model.vocab_size())}")
+    print(f"Seq Len {args.ctx_size}/{str(model.max_seq_len())}")
+    print(f"Max Embed Len {str(model.max_embed_len())}")
     print(f"Set to n token predictions {model.data['n_predict']}")
 
     path = config.get_value("templates.messages.path")
