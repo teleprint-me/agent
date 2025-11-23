@@ -2,120 +2,97 @@
 
 ## About
 
-**Agent** is a simple wrapper for enabling agentic systems using the OpenAI and Llama.Cpp REST APIs.
+**Agent** is a frontend CLI client for the llama.cpp REST API.
 
-> **Note:** This is an experimental, personal toy project. Not intended for production use—expect rough edges!
+> **Note:** This is an personal toy project. I'm not expecting this to go anywhere special.
+
+## llama.cpp
+
+Agent depends on the llama.cpp backend. You'll need to install it to enable an agentic workflow.
+
+ggml-org releases pre-built binaries for end users. Some linux distributions support a package for llama.cpp, e.g. Arch Linux from the AUR. llama.cpp supports a wide variety of backends from CUDA to ROCm and more. 
+
+You'll need to follow the instructions in the llama.cpp README.md for building.
+
+Agent primarily depends upon the `llama-server` binary.
+
+Create a local working environment.
+
+```sh
+mkdir ~/.bin/cpp
+cd ~/.bin/cpp
+git clone https://github.com/ggml-org/llama.cpp llama.cpp
+cd llama.cpp
+cmake -B build -DCMAKE_BUILD_TYPE=Debug -DGGML_DEBUG=0 -DBUILD_SHARED_LIBS=1 -DGGML_VULKAN=1
+cmake --build build -j $(nproc)
+```
+
+Add `llama-server` and related binaries to the environment:
+
+```sh
+cd # go home
+echo export PATH=${PATH}:/path/to/build/bin >> ~.bashrc
+```
+
+If you use `zsh` or some other shell, you can add it similarily.
+
+```sh
+echo export PATH=${PATH}:/path/to/build/bin >> .zshrc
+```
 
 ## Setup
 
-You’ll need to clone the project for now:
+Agent is not ready to be installed locally, but you can do so if you desire. Note that I do not currently recommend doing this for a lot of very valid reasons. 
+
+Agents are not restricted and may be able to run amock continuously unless interrupted.
+
+Currently, the recommended way is to treat this as a development package.
 
 ```sh
-git clone https://github.com/teleprint-me/agent.git agent
-cd agent
-```
-
-You can also use `pip` to install the package locally:
-
-```sh
-pip install git+https://github.com/teleprint-me/agent
-```
-
-Python **3.12.x** is recommended for stability and compatibility with most ML tooling.
-This lets other tools catch up to Python 3.13+ while keeping your environment reliable.
-
-```sh
-python3.12 -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
+mkdir /mnt/source/python
+git clone https://github.com/teleprint-me/agent /mnt/source/python/agent
+cd /mnt/source/python/agent
+python -m venv .venv
+pip install -U pip
 pip install -r requirements.txt
 ```
 
-- _Tip:_
+## Running
 
-  - Avoid pinning dependencies during early development.
-  - For a stable setup, freeze requirements with:
-    `pip freeze > requirements.lock.txt`
+The program is in its infancy (and has been for some time). Only the basics are currently implemented.
 
-## Dependencies
-
-Dependencies are intentionally minimal:
-
-- **Python 3.12+** — Stable baseline
-- **OpenAI** and **gguf** — Model compatibility (OpenAI + local LLMs)
-- **Prompt Toolkit** and **Pygments** — CLI and theming for the console
-- **Tkinter** and **ttkbootstrap** — GUI and theming for the editor
-- **jsonpycraft**, **dotenv**, **peewee**, etc. — Planned config and utility tools
-
-Other utilities are included but not fully integrated yet.
-
-## Usage
-
-If using the llama.cpp server backend, ensure you start it with the correct flags to enable templates, functions, and pooling:
+To get help, run:
 
 ```sh
-llama-server \
-    --port 8080 \
-    --n-gpu-layers 32 \
-    --ctx-size 16384 \
-    --pooling mean \
-    --slots --jinja -fa \
-    --reasoning-format none \
-    --reasoning-budget -1 \
-    -m /path/to/ggml-model-f16.gguf
+python -m agent.cli -h
 ```
 
-Set up a `.env` file for your API connection:
+The server is automatically executed at runtime. There's no need to run an instance in the background.
 
 ```sh
-touch .env
+python -m agent.cli --jinja --model /mnt/models/openai/gpt-oss-20b/ggml-model-q8_0.gguf
 ```
 
-Add the following environment variables:
+Assuming no errors occur, the server process id is registered, then killed at program exit. If an error occurs, its likely that a zombie process exists. Its recommended that you kill that process before executing the program again.
 
-```env
-OPENAI_API_KEY=sk-no-key-required
-OPENAI_BASE_URL=http://localhost:8080/v1
-```
+This is not a bug. It's just a limitation of the current implementation.
 
-### Launch
+## Future Plans
 
-- **CLI:**
+- Refining support for tool-calling.
+- Add basic chat support.
+- Add a basic text editor.
+- Add dynamic syntax high-lighting.
+- Create a basic text-editor.
+- Add retrieval augmented generation.
+- Enable hot-swapping models for memory constrained environments.
+- And more.
 
-  ```sh
-  python -m agent.cli
-  ```
+I have a lot of ideas, but I have no idea how I'm going to go about it. I'm just experimenting as I go.
 
-The text user interface should appear.
+## Contributions
 
-- **GUI:**
-
-  ```sh
-  python -m agent.gui
-  ```
-
-The editor window should appear.
-
-- **Config:**
-
-A simple CLI tool is included for customizing agent and model settings. For help:
-
-```sh
-python -m agent.config -h
-```
-
-Configuration is managed via `jsonpycraft` for clean, editable JSON-based settings.
-
-## Implementation Notes
-
-- The **GUI** is currently minimal—just a styled window with basic file actions (open, close, new, save, save as) and simple tabs.
-  No real “agent” features yet; it’s a skeleton to build on.
-- The **CLI** is getting most of the early development attention.
-  Once the CLI matures, focus will shift to the GUI.
-- The priority is to make the core API as _agnostic_ as possible, so both the CLI and GUI can share the same backend logic.
-- Current work is focused on the basics: streaming, tool calling, reasoning, configuration, chat loop cycle, and simple input.
-
-It’s a moving target. Expect frequent changes, bugs, and some questionable design decisions (at least until it all clicks together).
+I'm open to ideas and contributions. Feel free to open an issue or pull request.
 
 ## Resources
 
@@ -128,5 +105,4 @@ It’s a moving target. Expect frequent changes, bugs, and some questionable des
 
 ## License
 
-Licensed under the **AGPL** to ensure the code remains free and publicly available.
-This guarantees user freedom while protecting against closed-source forks.
+AGPL to ensure end-user freedom.
