@@ -4,7 +4,7 @@
 
 **Agent** is a frontend CLI client for the llama.cpp REST API.
 
-**Note:** This is an personal toy project.
+**Note:** This is a personal toy project.
 I'm not expecting this to go anywhere special.
 
 ## Layout
