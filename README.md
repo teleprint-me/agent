@@ -55,7 +55,8 @@ Note that there is no benefit to quantizing models on the GPU. Use the CPU to ut
 python -m venv .venv
 source .venv/bin/activate
 pip install -U pip
-install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+pip install -r requirements.txt
 ```
 
 From here, you'll need to download the model weights from the vendor. Once you've done that, you can convert the model wieghts.
