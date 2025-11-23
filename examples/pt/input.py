@@ -5,10 +5,11 @@ https://python-prompt-toolkit.readthedocs.io/en/master/pages/asking_for_input.ht
 from prompt_toolkit import PromptSession
 from prompt_toolkit import print_formatted_text as print
 from prompt_toolkit.formatted_text import PygmentsTokens
+from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.styles import Style
 from pygments import lex
-from pygments.lexer import Lexer
 from pygments.lexers import guess_lexer
+from pygments.lexers.python import PythonLexer
 from pygments.lexers.special import TextLexer
 from pygments.util import ClassNotFound
 
@@ -90,17 +91,24 @@ valerie_dark = {
 }
 
 
-def lex_source(text: str) -> list[Lexer]:
+def lex_source(text: str) -> PygmentsTokens:
     try:
         lexer = guess_lexer(text)
-        print(lexer)
     except ClassNotFound:
         lexer = TextLexer()
 
     return PygmentsTokens(list(lex(text, lexer=lexer)))
 
 
-session = PromptSession()
+session = PromptSession(multiline=True)
 
-text = session.prompt("> ")
-print(lex_source(text), style=Style.from_dict(valerie_dark))
+style = Style.from_dict(valerie_dark)
+text = session.prompt(
+    "> ",
+    lexer=PygmentsLexer(PythonLexer),
+    style=style,
+    include_default_pygments_style=False,
+)
+
+print("\ncaptured input:")
+print(lex_source(text), style=style)
