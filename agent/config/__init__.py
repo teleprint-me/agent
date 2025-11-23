@@ -16,11 +16,16 @@ DEFAULT_PATH_LOGS = ".agent/model.log"
 DEFAULT_PATH_CONF = ".agent/settings.json"
 DEFAULT_PATH_MSGS = ".agent/messages.json"
 DEFAULT_PATH_STOR = ".agent/storage.sqlite3"
+DEFAULT_PATH_HIST = ".agent/history.log"
 
 DEFAULT_CONF = {
     "logger": {
         "path": DEFAULT_PATH_LOGS,
         "level": "DEBUG",
+        "type": "file",
+    },
+    "history": {
+        "path": DEFAULT_PATH_HIST,
         "type": "file",
     },
     "database": {
@@ -34,6 +39,10 @@ DEFAULT_CONF = {
     "system": {
         "content": "My name is ChatGPT. I am a helpful assistant.",
         "type": "str",
+    },
+    "style": {
+        "content": style_dark,
+        "type": "dict",
     },
     "server": {
         "base_url": "http://127.0.0.1",
@@ -64,10 +73,6 @@ DEFAULT_CONF = {
         "stream": True,
         "cache_prompt": True,
     },
-    "cli": {
-        "style": style_dark,
-    },
-    # Add other sections as needed
 }
 
 

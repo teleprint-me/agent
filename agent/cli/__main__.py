@@ -10,6 +10,7 @@ from typing import Optional
 
 from jsonpycraft import JSONFileErrorHandler, JSONListTemplate
 from prompt_toolkit import PromptSession
+from prompt_toolkit.history import FileHistory
 from requests.exceptions import HTTPError
 
 from agent.config import config
@@ -305,7 +306,7 @@ if __name__ == "__main__":
     except JSONFileErrorHandler:
         print(f"Creating new cache: {messages.file_path}")
 
-    session = PromptSession()
+    session = PromptSession(history=FileHistory(config.get_value("history.path")))
     registry = ToolRegistry()
     memory_initialize()
 
