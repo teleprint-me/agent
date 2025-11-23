@@ -116,7 +116,12 @@ The conversion process is simple assuming you installed the required dependencie
 python convert_hf_to_gguf.py /mnt/models/openai/gpt-oss-20b --outtype q8_0 --outfile /mnt/models/openai/gpt-oss-20b/ggml-model-q8_0.gguf
 ```
 
-Once you have the model weights, you're all set to go.
+Once you have the model weights, just deactivate the virtual environment, and you're all set to go.
+
+```sh
+deactivate
+cd # go home
+```
 
 Recommended models are:
 
