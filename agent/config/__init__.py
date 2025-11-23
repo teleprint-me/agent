@@ -11,18 +11,19 @@ from jsonpycraft import (
 
 from agent.tools import tools
 
+DEFAULT_PATH_LOGS = ".agent/model.log"
 DEFAULT_PATH_CONF = ".agent/settings.json"
 DEFAULT_PATH_MSGS = ".agent/messages.json"
-DEFAULT_PATH_MEM = ".agent/storage.sqlite3"
+DEFAULT_PATH_STOR = ".agent/storage.sqlite3"
 
 DEFAULT_CONF = {
     "logger": {
-        "path": ".agent/model.log",
+        "path": DEFAULT_PATH_LOGS,
         "level": "DEBUG",
         "type": "file",
     },
     "database": {
-        "path": DEFAULT_PATH_MEM,
+        "path": DEFAULT_PATH_STOR,
         "type": "file",
     },
     "messages": {

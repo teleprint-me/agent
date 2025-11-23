@@ -100,7 +100,7 @@ from openai import OpenAI
 
 from agent.backend.llama.api import LlamaCppAPI
 from agent.backend.llama.requests import LlamaCppRequest
-from agent.config import DEFAULT_PATH_MEM, config
+from agent.config import DEFAULT_PATH_STOR, config
 
 #
 # Embedding model
@@ -138,7 +138,7 @@ def token_chunk(
 # Database operations
 #
 
-DB_PATH = config.get_value("database.path", default=DEFAULT_PATH_MEM)
+DB_PATH = config.get_value("database.path", default=DEFAULT_PATH_STOR)
 
 
 def rag_connect() -> sqlite3.Connection:

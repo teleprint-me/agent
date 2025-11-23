@@ -5,13 +5,13 @@ Module: agent.tools.memory
 import json
 import sqlite3
 
-from agent.config import DEFAULT_PATH_MEM, config
+from agent.config import DEFAULT_PATH_STOR, config
 
 #
 # Database operations
 #
 
-DB_PATH = config.get_value("database.path", default=DEFAULT_PATH_MEM)
+DB_PATH = config.get_value("database.path", default=DEFAULT_PATH_STOR)
 
 
 def memory_connect() -> sqlite3.Connection:
