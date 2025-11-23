@@ -52,10 +52,18 @@ Currently, the recommended way is to treat this as a development package.
 mkdir /mnt/source/python
 git clone https://github.com/teleprint-me/agent /mnt/source/python/agent
 cd /mnt/source/python/agent
+```
+
+Create and activate a virtual environment to isolate python packages.
+
+```sh
 python -m venv .venv
+source .venv/bin/activate
 pip install -U pip
 pip install -r requirements.txt
 ```
+
+I don't plan on using anything special for managing packages. Using `venv` keeps things simple.
 
 ## Running
 
@@ -89,6 +97,22 @@ This is not a bug. It's just a limitation of the current implementation.
 - And more.
 
 I have a lot of ideas, but I have no idea how I'm going to go about it. I'm just experimenting as I go.
+
+## Layout
+
+I'm currently in the process of merging older projects together directly into this one. Some modules may be entirely or partially broken. Some dependencies have issues.
+
+The primary sub-packages are:
+
+- cli: The main program
+- config: Automated configuration.
+- llama: Core llama-server wrapper.
+- text: Text extraction utilities.
+- tools: Tools available to models.
+
+## Examples
+
+Look out for examples as that's usually where I prototype modules. 
 
 ## Contributions
 
