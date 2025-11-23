@@ -232,7 +232,7 @@ On that note, I actually enjoy programming, so I pick apart every line until I u
 
 ## Contributions
 
-I'm open to ideas and contributions. Feel free to open an issue or pull request. Authors of PRs must understand the code. If they do not understand the code, the PR will be closed with no further dileberation.
+I'm open to ideas and contributions. Feel free to open an issue or pull request. Authors of PRs must understand the code. If they do not understand the code, the PR will be closed with no further deliberation.
 
 ## Resources
 
