@@ -91,7 +91,6 @@ This is not a bug. It's just a limitation of the current implementation.
 - Add basic chat support.
 - Add a basic text editor.
 - Add dynamic syntax high-lighting.
-- Create a basic text-editor.
 - Add retrieval augmented generation.
 - Enable hot-swapping models for memory constrained environments.
 - And more.
