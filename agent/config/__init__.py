@@ -65,13 +65,6 @@ DEFAULT_CONF = {
         },
     },
     "cli": {},
-    "gui": {
-        "font": {
-            "size": 12,
-            "name": "Noto Sans Mono",
-        },
-        "theme": "darkly",
-    },
     # Add other sections as needed
 }
 
