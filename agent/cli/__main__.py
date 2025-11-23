@@ -10,6 +10,7 @@ from typing import Optional
 
 from jsonpycraft import JSONFileErrorHandler, JSONListTemplate
 from prompt_toolkit import PromptSession
+from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.history import FileHistory
 from requests.exceptions import HTTPError
 
@@ -331,7 +332,11 @@ if __name__ == "__main__":
             if messages.data[-1]["role"] != "tool":
                 if messages.data[-1]["role"] != "system":
                     print()
-                user_input = session.prompt("> ", multiline=True)
+                user_input = session.prompt(
+                    "> ",
+                    multiline=True,
+                    auto_suggest=AutoSuggestFromHistory(),
+                )
                 if user_input.lower() in ("exit", "quit"):
                     print("Exiting.")
                     break
