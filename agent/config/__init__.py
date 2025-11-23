@@ -8,9 +8,8 @@ from jsonpycraft import (
     JSONFileErrorHandler,
     JSONMap,
 )
-from prompt_toolkit.styles import style_from_pygments_cls
-from pygments.styles.monokai import MonokaiStyle
 
+from agent.config.style import style_dark
 from agent.tools import tools
 
 DEFAULT_PATH_LOGS = ".agent/model.log"
@@ -66,7 +65,7 @@ DEFAULT_CONF = {
         "cache_prompt": True,
     },
     "cli": {
-        "style": style_from_pygments_cls(MonokaiStyle),
+        "style": style_dark,
     },
     # Add other sections as needed
 }
