@@ -330,8 +330,6 @@ if __name__ == "__main__":
     while True:
         try:
             if messages.data[-1]["role"] != "tool":
-                if messages.data[-1]["role"] != "system":
-                    print()
                 user_input = session.prompt(
                     "> ",
                     multiline=True,
