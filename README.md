@@ -183,11 +183,11 @@ I'm open to ideas and contributions. Feel free to open an issue or pull request.
 ## Resources
 
 - [llama.cpp](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md)
-- [OpenAI API](https://platform.openai.com/docs/api-reference/introduction)
 - [jsonpycraft](https://github.com/teleprint-me/json-py-craft/tree/main/docs)
+- [Pygments](https://pygments.org/docs/)
 - [prompt-toolkit](https://python-prompt-toolkit.readthedocs.io/en/stable/index.html)
-- [Tkinter](https://docs.python.org/3/library/tkinter.html)
-- [ttkbootstrap](https://ttkbootstrap.readthedocs.io/en/latest/)
+
+Note that there is no need for fancy tools like Rich. Pygments and prompt-toolkit should be sufficient for most of the desired features.
 
 ## License
 
