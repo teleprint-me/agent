@@ -6,6 +6,7 @@ from prompt_toolkit import PromptSession
 from prompt_toolkit import print_formatted_text as print
 from prompt_toolkit.formatted_text import PygmentsTokens
 from prompt_toolkit.lexers import PygmentsLexer
+from prompt_toolkit.styles import Style
 from pygments import lex
 from pygments.lexers import guess_lexer
 from pygments.lexers.python import PythonLexer
@@ -29,7 +30,7 @@ session = PromptSession(multiline=True)
 text = session.prompt(
     "> ",
     lexer=PygmentsLexer(PythonLexer),
-    style=style_dark,
+    style=Style.from_dict(style_dark),
     include_default_pygments_style=False,
 )
 

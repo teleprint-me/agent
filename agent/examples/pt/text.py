@@ -7,6 +7,7 @@ import argparse
 import pygments
 from prompt_toolkit import print_formatted_text as print
 from prompt_toolkit.formatted_text import PygmentsTokens
+from prompt_toolkit.styles import Style
 from pygments.lexers import guess_lexer, guess_lexer_for_filename
 from pygments.lexers.special import TextLexer
 from pygments.util import ClassNotFound
@@ -44,4 +45,4 @@ if args.debug:
     for tok in tokens_list:
         print(tok)
 
-print(PygmentsTokens(token_list=tokens_list), style=style_dark)
+print(PygmentsTokens(token_list=tokens_list), style=Style.from_dict(style_dark))
