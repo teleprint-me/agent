@@ -222,7 +222,7 @@ python -m agent.cli --jinja --model /mnt/models/openai/gpt-oss-20b/ggml-model-q8
 
 Assuming no errors occur, the server process id is registered, then killed at program exit. If an error occurs, its likely that a zombie process exists. Its recommended that you kill that process before executing the program again. This is not a bug. It's just a limitation of the current implementation.
 
-Existing commands are:
+Existing keyboard shortcuts are:
 
 - `enter`: Add a newline to the input.
 - `backspace`: Retains expected behavior.
