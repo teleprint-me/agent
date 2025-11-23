@@ -40,6 +40,46 @@ If you use `zsh` or some other shell, you can add it similarily.
 echo "export PATH=${PATH}:/path/to/build/bin" >> .zshrc
 ```
 
+ggml-org hosts their own quantized weights on huggingface. You can toggle flags to auto-download the target weights. I do not recommend doing this. It's easy to lose track of where the weights are and downloading models eats up disk space fast. I have 10TB of local storage and it's already consumed half of that.
+
+neither huggingface nor ggml-org allow you to pick a path to download. they both create a cache path which then stores the model weights in some arbitrarily chosen path which is usually local to the users home path.
+
+I have a package that I plan on merging into agent that allows users to specify exactly where they want the weights to be stored. It's not very user friendly, but it gets the job done. You can then reference the model from **any** chosen storage path which is a huge deal considering how big the weights are.
+
+It's best practice to download the original model weights from the vendor directly, then quantize the model weights locally. It's not difficult, but it can be bandwidth intensive.
+
+Note that there is no benefit to quantizing models on the GPU. Use the CPU to utilize system memory more effectively. It's common that the CPU will have more memory avaiable than the GPU itself.
+
+```sh
+~/.bin/cpp/llama.cpp
+python -m venv .venv
+source .venv/bin/activate
+pip install -U pip
+install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+```
+
+From here, you'll need to download the model weights from the vendor. Once you've done that, you can convert the model wieghts.
+
+```sh
+python convert_hf_to_gguf.py -h
+```
+
+The conversion process is rather simple in use (the implementation is quite involved).
+
+```sh
+python convert_hf_to_gguf.py /mnt/models/openai/gpt-oss-20b --outtype q8_0 --outfile /mnt/models/openai/gpt-oss-20b/ggml-model-q8_0.gguf
+```
+
+Once you have the model weights, you're all set to go.
+
+Recommended models are:
+
+- Qwen2.5 and Qwen3 coder models for FIM
+- GPT-OSS and Qwen3 for Agentic abilities.
+- Gemini, Jinaai, or Qwen3 for Embeddings
+
+Feel free to use any model you prefer. The model shoudld support the features for the provided task at hand. Otherwise, it will perform poorly.
+
 ## Setup
 
 Agent is not ready to be installed locally, but you can do so if you desire. Note that I do not currently recommend doing this for a lot of very valid reasons. 
