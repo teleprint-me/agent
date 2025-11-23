@@ -176,6 +176,39 @@ Assuming no errors occur, the server process id is registered, then killed at pr
 
 This is not a bug. It's just a limitation of the current implementation.
 
+### config
+
+Agent will auto-magically generate a cache path locally. There's no way to specify the path for the cache at the moment, but I plan on allowing users to define the path if they'd like.
+
+The configuration sets up the agent with sane defaults. You can modify the settings however you'd like.
+
+For help, use the following command:
+
+```sh
+python -m agent.config -h
+```
+
+You can view, set, list, or reset the configuration. Doing so will create the `.agent` path which contains logs, settings, a database for the agents storage, and a cache of the most recent chat history.
+
+```sh
+tree .agent   
+.agent
+├── messages.json
+├── model.log
+├── settings.json
+└── storage.sqlite3
+
+1 directory, 4 files
+```
+
+You will need to wipe this directory every so often between development cycles.
+
+```sh
+rm -rf .agent
+```
+
+This way, there are no conflicts between releases. If you run into any issues, the first thing you should do is reset the cache. I've found this to be a common source of issues I've run into while developing this software.
+
 ## Contributions
 
 I'm open to ideas and contributions. Feel free to open an issue or pull request.
