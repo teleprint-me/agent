@@ -314,15 +314,14 @@ if __name__ == "__main__":
         content = message.get("content")
         tool_calls = message.get("tool_calls")
         if role:
-            print(role)
+            print(f"{BOLD}{role}{RESET}")
         if content:
-            print(content)
+            print(f"{content.strip()}\n")
         if tool_calls:
             for call in tool_calls:
                 name = call["function"]["name"]
                 arguments = call["function"]["arguments"]
-                print(f"{name}({arguments})")
-    print()
+                print(f"{BOLD}{name}({arguments}){RESET}\n")
 
     while True:
         try:
@@ -356,13 +355,13 @@ if __name__ == "__main__":
                         token_count += len(model.tokenize(name + arguments))
             print(f"\nTokens consumed -> {token_count}/{args.ctx_size}")
         except EOFError:  # Pop the last message
-            print(f"\n{UNDERLINE}{BOLD}Popped:{RESET}")
+            print(f"\n{BOLD}Popped:{RESET}")
             last = messages.pop(messages.length - 1)
             print(last)
             messages.save_json()
 
         except KeyboardInterrupt:  # Exit the program
-            print("\nInterrupted.")
+            print("\nQuit.")
             proc.kill()
             exit(0)
 
