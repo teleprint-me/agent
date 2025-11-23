@@ -1,3 +1,7 @@
+"""
+https://python-prompt-toolkit.readthedocs.io/en/master/pages/printing_text.html
+"""
+
 import argparse
 
 import pygments
