@@ -4,7 +4,8 @@
 
 **Agent** is a frontend CLI client for the llama.cpp REST API.
 
-> **Note:** This is an personal toy project. I'm not expecting this to go anywhere special.
+**Note:** This is an personal toy project.
+I'm not expecting this to go anywhere special.
 
 ## llama.cpp
 
@@ -19,39 +20,49 @@ Agent primarily depends upon the `llama-server` binary.
 Create a local working environment.
 
 ```sh
-mkdir ~/.bin/cpp
-cd ~/.bin/cpp
-git clone https://github.com/ggml-org/llama.cpp llama.cpp
-cd llama.cpp
+mkdir -p ~/.bin/cpp
+git clone https://github.com/ggml-org/llama.cpp ~/.bin/cpp/llama.cpp
+cd ~/.bin/cpp/llama.cpp
+```
+
+Then build:
+
+```
 cmake -B build -DCMAKE_BUILD_TYPE=Debug -DGGML_DEBUG=0 -DBUILD_SHARED_LIBS=1 -DGGML_VULKAN=1
 cmake --build build -j $(nproc)
 ```
 
-Add `llama-server` and related binaries to the environment:
+Vulkan has the widest range for support and supports Nvidia, AMD, and Intel. This includes older cards like the RX 580.
+
+We need to add `llama-server` and related binaries to the environment:
 
 ```sh
 cd # go home
-echo "export PATH=${PATH}:/path/to/build/bin" >> ~.bashrc
+echo "export PATH=${PATH}:/path/to/build/bin" >> ~/.bashrc # or ~/.zshrc
 ```
 
-If you use `zsh` or some other shell, you can add it similarily.
+If you use `zsh` or some other shell, you can add it similarily. Restart the shell and make sure the binary is available.
 
 ```sh
-echo "export PATH=${PATH}:/path/to/build/bin" >> .zshrc
+which llama-server
 ```
 
-ggml-org hosts their own quantized weights on huggingface. You can toggle flags to auto-download the target weights. I do not recommend doing this. It's easy to lose track of where the weights are and downloading models eats up disk space fast. I have 10TB of local storage and it's already consumed half of that.
+It should output the absolute path to the binary.
 
-neither huggingface nor ggml-org allow you to pick a path to download. they both create a cache path which then stores the model weights in some arbitrarily chosen path which is usually local to the users home path.
+Neither huggingface nor ggml-org allow you to pick a path to download. They both create a cache path which then stores the model weights in some arbitrarily chosen path - which is usually local to the users home path. Huggingface creates symbolic links which are hashed entries and obfuscate the model files.
 
-I have a package that I plan on merging into agent that allows users to specify exactly where they want the weights to be stored. It's not very user friendly, but it gets the job done. You can then reference the model from **any** chosen storage path which is a huge deal considering how big the weights are.
+ggml-org hosts their own quantized weights on huggingface. You can toggle flags to auto-download the target weights, but I do not recommend doing this. It's easy to lose track of where the weights are and downloading models eats up disk space fast. I have 10TB of local storage and it's already consumed half of that.
+
+If you download the model from ggml-org (which is safe), get the model directly and then store the weights in the desired path. That way, you know where the weights are.
 
 It's best practice to download the original model weights from the vendor directly, then quantize the model weights locally. It's not difficult, but it can be bandwidth intensive.
 
-Note that there is no benefit to quantizing models on the GPU. Use the CPU to utilize system memory more effectively. It's common that the CPU will have more memory avaiable than the GPU itself.
+I have a package that I plan on merging into agent that allows users to specify exactly where they want the weights to be stored. It's not very user friendly, but it gets the job done. You can then reference the model from **any** chosen storage path - which is a huge deal considering how big the weights are.
+
+llama.cpp has a utility for converting model weights which is written in python.
 
 ```sh
-~/.bin/cpp/llama.cpp
+cd ~/.bin/cpp/llama.cpp
 python -m venv .venv
 source .venv/bin/activate
 pip install -U pip
@@ -59,13 +70,17 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements.txt
 ```
 
+Note that there is no benefit to quantizing models on the GPU. Use the CPU to utilize system memory more effectively. It's common that the CPU will have more memory available than the GPU itself.
+
 From here, you'll need to download the model weights from the vendor. Once you've done that, you can convert the model wieghts.
+
+For help, just use the following command.
 
 ```sh
 python convert_hf_to_gguf.py -h
 ```
 
-The conversion process is rather simple in use (the implementation is quite involved).
+The conversion process is simple assuming you installed the required dependencies.
 
 ```sh
 python convert_hf_to_gguf.py /mnt/models/openai/gpt-oss-20b --outtype q8_0 --outfile /mnt/models/openai/gpt-oss-20b/ggml-model-q8_0.gguf
@@ -79,7 +94,7 @@ Recommended models are:
 - GPT-OSS and Qwen3 for Agentic abilities.
 - Gemini, Jinaai, or Qwen3 for Embeddings
 
-Feel free to use any model you prefer. The model shoudld support the features for the provided task at hand. Otherwise, it will perform poorly.
+Feel free to use any model you prefer. The model should support the features for the provided task at hand. Otherwise, it will perform poorly.
 
 ## Setup
 
