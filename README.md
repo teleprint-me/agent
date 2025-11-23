@@ -159,15 +159,12 @@ I'm currently in the process of merging older projects together directly into th
 
 The primary sub-packages are:
 
-- cli: The main program
+- cli: The main program.
 - config: Automated configuration.
 - llama: Core llama-server wrapper.
 - text: Text extraction utilities.
 - tools: Tools available to models.
-
-## Examples
-
-Look out for examples as that's usually where I prototype modules. 
+- examples: Usually where I prototype modules. 
 
 ## Contributions
 
