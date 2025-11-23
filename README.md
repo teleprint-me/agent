@@ -227,8 +227,15 @@ Existing commands are:
 - `enter`: Add a newline to the input.
 - `backspace`: Retains expected behavior.
 - `alt+enter`: Submit a message to the agent.
+- `alt+f`: Autocomplete current token.
+- `alt+e`: Autocomplete to end of line.
 - `ctrl+d`: Pop a message from the sequence.
 - `ctrl+c`: Quit the application and kill the `llama-server` process.
+- `ctrl+a`: Move cursor to start of line.
+- `ctrl+e`: Move cursor to end of line.
+- `ctrl+k`: Cut from cursor start to end of line.
+- `ctrl+u`: Cut from cursor end to start of line.
+- `ctrl+y`: Paste cut content to cursor position.
 
 You can command the model directly, but its best to not assume the model understands your instructions correctly. The models operate best with a human operating as a partner alongside them. They'll build confidence and align themselves naturally with the most probable output.
 
