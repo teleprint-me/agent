@@ -232,7 +232,7 @@ Existing commands are:
 
 You can command the model directly, but its best to not assume the model understands your instructions correctly. The models operate best with a human operating as a partner alongside them. They'll build confidence and align themselves naturally with the most probable output.
 
-Some models are heavily conditioned (the llama community calls this censoring, but there's a lot more than that going on under the hood) and this may affect their behavior.
+Some models are heavily conditioned and this may affect their behavior - the llama community calls this censoring, but there's a lot more than that going on under the hood.
 
 It's best to start a project from scratch while slowly ramping up. The more you engage with the process, the better off the project will be as a result. This means actively reading documentation and code, making architectural and design choices, and more. This is the antithesis of vibe coding.
 
