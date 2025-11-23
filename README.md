@@ -143,11 +143,14 @@ This is not a bug. It's just a limitation of the current implementation.
 
 ## Future Plans
 
-- Refining support for tool-calling.
-- Add basic chat support.
-- Add a basic text editor.
+- Automate llama.cpp setup and installation.
+- Automate model download and quantization.
+- Enable easy modification of application settings.
+- Refine support for tool-calling.
+- Add a basic vim-like text editor.
 - Add dynamic syntax high-lighting.
-- Add retrieval augmented generation.
+- Add basic auto-complete, fim, and chat support.
+- Add dynamic retrieval augmented generation.
 - Enable hot-swapping models for memory constrained environments.
 - And more.
 
