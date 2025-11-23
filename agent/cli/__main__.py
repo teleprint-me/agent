@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import sys
 import time
+import traceback
 from typing import Optional
 
 from jsonpycraft import JSONFileErrorHandler, JSONListTemplate
@@ -112,11 +113,11 @@ def run_agent(
             print(event["reasoning"], end="")
         elif event.get("reasoning.open"):
             message["content"] += event["reasoning.open"]
-            print("thinking")
+            print(f"\n{BOLD}thinking{RESET}")
             print(event["reasoning.open"], end="")
         elif event.get("reasoning.close"):
             message["content"] += event["reasoning.close"]
-            print("\ncompletion")
+            print(f"\n\n{BOLD}completion{RESET}")
         elif event.get("content"):
             message["content"] += event["content"]
             print(event["content"], end="")
@@ -280,7 +281,7 @@ if __name__ == "__main__":
     print(f"Vocab Size {str(model.vocab_size())}")
     print(f"Seq Len {args.ctx_size}/{str(model.max_seq_len())}")
     print(f"Max Embed Len {str(model.max_embed_len())}")
-    print(f"Set to n token predictions {model.data['n_predict']}")
+    print(f"Prediction limit {model.data['n_predict']}")
 
     path = config.get_value("messages.path")
     if path is None:
@@ -309,7 +310,18 @@ if __name__ == "__main__":
     memory_initialize()
 
     for message in messages.data:
-        print(f'{message["role"]}\n{message["content"]}')
+        role = message.get("role")
+        content = message.get("content")
+        tool_calls = message.get("tool_calls")
+        if role:
+            print(role)
+        if content:
+            print(content)
+        if tool_calls:
+            for call in tool_calls:
+                name = call["function"]["name"]
+                arguments = call["function"]["arguments"]
+                print(f"{name}({arguments})")
     print()
 
     while True:
@@ -328,6 +340,21 @@ if __name__ == "__main__":
             print()
             messages.save_json()
 
+            # This is a really crappy way to go about this.
+            # llama-server has an endpoint for getting this information.
+            # should request token count from there instead.
+            token_count = 0
+            for message in messages.data:
+                content = message.get("content")
+                tool_calls = message.get("tool_calls")
+                if content:
+                    token_count += len(model.tokenize(content))
+                if tool_calls:
+                    for call in tool_calls:
+                        name = call["function"]["name"]
+                        arguments = call["function"]["arguments"]
+                        token_count += len(model.tokenize(name + arguments))
+            print(f"\nTokens consumed -> {token_count}/{args.ctx_size}")
         except EOFError:  # Pop the last message
             print(f"\n{UNDERLINE}{BOLD}Popped:{RESET}")
             last = messages.pop(messages.length - 1)
@@ -336,6 +363,11 @@ if __name__ == "__main__":
 
         except KeyboardInterrupt:  # Exit the program
             print("\nInterrupted.")
-            break
+            proc.kill()
+            exit(0)
 
-    proc.kill()
+        # Trap unhandled exceptions and output the traceback
+        except Exception as e:
+            proc.kill()
+            traceback.print_exception(e)
+            exit(1)
