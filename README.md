@@ -102,7 +102,7 @@ pip install -r requirements.txt
 
 Note that there is no benefit to quantizing models on the GPU. Use the CPU to utilize system memory more effectively. It's common that the CPU will have more memory available than the GPU itself.
 
-From here, you'll need to download the model weights from the vendor. Once you've done that, you can convert the model wieghts.
+From here, you'll need to download the model weights from the vendor. Once you've done that, you can convert the model weights.
 
 For help, just use the following command.
 
