@@ -303,8 +303,10 @@ if __name__ == "__main__":
 
     try:
         messages.load_json()
+        print(f"Loaded cache: {messages.file_path}\n")
     except JSONFileErrorHandler:
-        print(f"Creating new cache: {messages.file_path}")
+        messages.save_json()
+        print(f"Created cache: {messages.file_path}\n")
 
     session = PromptSession(history=FileHistory(config.get_value("history.path")))
     registry = ToolRegistry()
