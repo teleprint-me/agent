@@ -25,6 +25,14 @@ DEFAULT_CONF = {
         "path": DEFAULT_PATH_MEM,
         "type": "file",
     },
+    "messages": {
+        "path": DEFAULT_PATH_MSGS,
+        "type": "file",
+    },
+    "system": {
+        "content": "My name is ChatGPT. I am a helpful assistant.",
+        "type": "str",
+    },
     "server": {
         "base_url": "http://127.0.0.1",
         "port": 8080,
@@ -53,16 +61,6 @@ DEFAULT_CONF = {
         "seed": 1337,
         "stream": True,
         "cache_prompt": True,
-    },
-    "templates": {
-        "system": {
-            "content": "My name is ChatGPT. I am a helpful assistant.",
-            "type": "str",
-        },
-        "messages": {
-            "path": DEFAULT_PATH_MSGS,
-            "type": "file",
-        },
     },
     "cli": {},
     # Add other sections as needed

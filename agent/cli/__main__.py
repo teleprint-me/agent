@@ -282,10 +282,10 @@ if __name__ == "__main__":
     print(f"Max Embed Len {str(model.max_embed_len())}")
     print(f"Set to n token predictions {model.data['n_predict']}")
 
-    path = config.get_value("templates.messages.path")
+    path = config.get_value("messages.path")
     if path is None:
         raise RuntimeError(
-            "Missing config: templates.messages.path is required. Please check your config."
+            "Missing config: messages.path is required. Please check your config."
         )
 
     messages = JSONListTemplate(
@@ -293,7 +293,7 @@ if __name__ == "__main__":
         initial_data=[
             {
                 "role": "system",
-                "content": config.get_value("templates.system.content"),
+                "content": config.get_value("system.content"),
             },
         ],
     )
