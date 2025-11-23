@@ -31,13 +31,13 @@ Add `llama-server` and related binaries to the environment:
 
 ```sh
 cd # go home
-echo export PATH=${PATH}:/path/to/build/bin >> ~.bashrc
+echo "export PATH=${PATH}:/path/to/build/bin" >> ~.bashrc
 ```
 
 If you use `zsh` or some other shell, you can add it similarily.
 
 ```sh
-echo export PATH=${PATH}:/path/to/build/bin >> .zshrc
+echo "export PATH=${PATH}:/path/to/build/bin" >> .zshrc
 ```
 
 ## Setup
