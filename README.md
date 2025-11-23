@@ -222,11 +222,19 @@ python -m agent.cli --jinja --model /mnt/models/openai/gpt-oss-20b/ggml-model-q8
 
 Assuming no errors occur, the server process id is registered, then killed at program exit. If an error occurs, its likely that a zombie process exists. Its recommended that you kill that process before executing the program again. This is not a bug. It's just a limitation of the current implementation.
 
-You can use `ctrl+d` to pop messages within the sequence. `ctrl+c` to exit the interface and kill the server process.
+Existing commands are:
+
+- `enter`: Add a newline to the input.
+- `backspace`: Retains expected behavior.
+- `alt+enter`: Submit a message to the agent.
+- `ctrl+d`: Pop a message from the sequence.
+- `ctrl+c`: Quit the application and kill the `llama-server` process.
 
 You can command the model directly, but its best to not assume the model understands your instructions correctly. The models operate best with a human operating as a partner alongside them. They'll build confidence and align themselves naturally with the most probable output.
 
-Some models are heavily conditioned (the llama community calls this censoring, but there's a lot more than that going on under the hood) and this may affect their behavior. It's best to start a project from scratch while slowly ramping up. The more you are a part of the decision and action process, the better off the project will be as a result. This is the antithesis of vibe coding.
+Some models are heavily conditioned (the llama community calls this censoring, but there's a lot more than that going on under the hood) and this may affect their behavior.
+
+It's best to start a project from scratch while slowly ramping up. The more you engage with the process, the better off the project will be as a result. This means actively reading documentation and code, making architectural and design choices, and more. This is the antithesis of vibe coding.
 
 On that note, I actually enjoy programming, so I pick apart every line until I understand how the code behaves.
 
