@@ -8,6 +8,8 @@ from jsonpycraft import (
     JSONFileErrorHandler,
     JSONMap,
 )
+from prompt_toolkit.styles import style_from_pygments_cls
+from pygments.styles.monokai import MonokaiStyle
 
 from agent.tools import tools
 
@@ -63,7 +65,9 @@ DEFAULT_CONF = {
         "stream": True,
         "cache_prompt": True,
     },
-    "cli": {},
+    "cli": {
+        "style": style_from_pygments_cls(MonokaiStyle),
+    },
     # Add other sections as needed
 }
 
