@@ -156,26 +156,6 @@ pip install -r requirements.txt
 
 I don't plan on using anything special for managing packages. Using `venv` keeps things simple.
 
-### usage
-
-The program is in its infancy (and has been for some time). Only the basics are currently implemented.
-
-To get help, run:
-
-```sh
-python -m agent.cli -h
-```
-
-The server is automatically executed at runtime. There's no need to run an instance in the background.
-
-```sh
-python -m agent.cli --jinja --model /mnt/models/openai/gpt-oss-20b/ggml-model-q8_0.gguf
-```
-
-Assuming no errors occur, the server process id is registered, then killed at program exit. If an error occurs, its likely that a zombie process exists. Its recommended that you kill that process before executing the program again.
-
-This is not a bug. It's just a limitation of the current implementation.
-
 ### config
 
 Agent will auto-magically generate a cache path locally. There's no way to specify the path for the cache at the moment, but I plan on allowing users to define the path if they'd like.
@@ -209,9 +189,50 @@ rm -rf .agent
 
 This way, there are no conflicts between releases. If you run into any issues, the first thing you should do is reset the cache. I've found this to be a common source of issues I've run into while developing this software.
 
+### tools
+
+The agent has limited access and functionality. This is intentional and by design.
+
+The agent has the following tools:
+
+- shell: An allow list restricting available commands.
+- read: Read any part of a file.
+- write: Write any part of a file.
+- memories: Store (create, update), recall (read), and forget (delete) memories.
+
+The model can chain tool calls between each action. This means once given an objective, it will continue to operate independently on its own until that objective has been completed.
+
+Once an objective has been completed, you will regain control of the prompt.
+
+### usage
+
+The program is in its infancy (and has been for some time). Only the basics are currently implemented.
+
+To get help, run:
+
+```sh
+python -m agent.cli -h
+```
+
+The server is automatically executed at runtime. There's no need to run an instance in the background.
+
+```sh
+python -m agent.cli --jinja --model /mnt/models/openai/gpt-oss-20b/ggml-model-q8_0.gguf
+```
+
+Assuming no errors occur, the server process id is registered, then killed at program exit. If an error occurs, its likely that a zombie process exists. Its recommended that you kill that process before executing the program again. This is not a bug. It's just a limitation of the current implementation.
+
+You can use `ctrl+d` to pop messages within the sequence. `ctrl+c` to exit the interface and kill the server process.
+
+You can command the model directly, but its best to not assume the model understands your instructions correctly. The models operate best with a human operating as a partner alongside them. They'll build confidence and align themselves naturally with the most probable output.
+
+Some models are heavily conditioned (the llama community calls this censoring, but there's a lot more than that going on under the hood) and this may affect their behavior. It's best to start a project from scratch while slowly ramping up. The more you are a part of the decision and action process, the better off the project will be as a result. This is the antithesis of vibe coding.
+
+On that note, I actually enjoy programming, so I pick apart every line until I understand how the code behaves.
+
 ## Contributions
 
-I'm open to ideas and contributions. Feel free to open an issue or pull request.
+I'm open to ideas and contributions. Feel free to open an issue or pull request. Authors of PRs must understand the code. If they do not understand the code, the PR will be closed with no further dileberation.
 
 ## Resources
 
