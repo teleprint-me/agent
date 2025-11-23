@@ -7,7 +7,37 @@
 **Note:** This is an personal toy project.
 I'm not expecting this to go anywhere special.
 
-## llama.cpp
+## Layout
+
+I'm currently in the process of merging older projects together directly into this one. Some modules may be entirely or partially broken. Some dependencies have issues.
+
+The primary sub-packages are:
+
+- cli: The main program.
+- config: Automated configuration.
+- llama: Core llama-server wrapper.
+- text: Text extraction utilities.
+- tools: Tools available to models.
+- examples: Usually where I prototype modules. 
+
+## Future Plans
+
+- Automate llama.cpp setup and installation.
+- Automate model download and quantization.
+- Enable easy modification of application settings.
+- Refine support for tool-calling.
+- Add a basic vim-like text editor.
+- Add dynamic syntax highlighting.
+- Add basic auto-complete, fim, and chat support.
+- Add dynamic retrieval augmented generation.
+- Enable hot-swapping models for memory constrained environments.
+- And more.
+
+I have a lot of ideas, but I have no idea how I'm going to go about it. I'm just experimenting as I go.
+
+## Setup
+
+### llama.cpp
 
 Agent depends on the llama.cpp backend. You'll need to install it to enable an agentic workflow.
 
@@ -96,7 +126,7 @@ Recommended models are:
 
 Feel free to use any model you prefer. The model should support the features for the provided task at hand. Otherwise, it will perform poorly.
 
-## Setup
+### agent
 
 Agent is not ready to be installed locally, but you can do so if you desire. Note that I do not currently recommend doing this for a lot of very valid reasons. 
 
@@ -121,7 +151,7 @@ pip install -r requirements.txt
 
 I don't plan on using anything special for managing packages. Using `venv` keeps things simple.
 
-## Running
+### usage
 
 The program is in its infancy (and has been for some time). Only the basics are currently implemented.
 
@@ -140,34 +170,6 @@ python -m agent.cli --jinja --model /mnt/models/openai/gpt-oss-20b/ggml-model-q8
 Assuming no errors occur, the server process id is registered, then killed at program exit. If an error occurs, its likely that a zombie process exists. Its recommended that you kill that process before executing the program again.
 
 This is not a bug. It's just a limitation of the current implementation.
-
-## Future Plans
-
-- Automate llama.cpp setup and installation.
-- Automate model download and quantization.
-- Enable easy modification of application settings.
-- Refine support for tool-calling.
-- Add a basic vim-like text editor.
-- Add dynamic syntax high-lighting.
-- Add basic auto-complete, fim, and chat support.
-- Add dynamic retrieval augmented generation.
-- Enable hot-swapping models for memory constrained environments.
-- And more.
-
-I have a lot of ideas, but I have no idea how I'm going to go about it. I'm just experimenting as I go.
-
-## Layout
-
-I'm currently in the process of merging older projects together directly into this one. Some modules may be entirely or partially broken. Some dependencies have issues.
-
-The primary sub-packages are:
-
-- cli: The main program.
-- config: Automated configuration.
-- llama: Core llama-server wrapper.
-- text: Text extraction utilities.
-- tools: Tools available to models.
-- examples: Usually where I prototype modules. 
 
 ## Contributions
 
