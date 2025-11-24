@@ -8,6 +8,7 @@ from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.layout.containers import HSplit, Window
 from prompt_toolkit.layout.controls import BufferControl, FormattedTextControl
 from prompt_toolkit.layout.layout import Layout
+from prompt_toolkit.lexers import PygmentsLexer
 from pygments.lexers import guess_lexer, guess_lexer_for_filename
 from pygments.lexers.special import TextLexer
 from pygments.util import ClassNotFound
@@ -23,19 +24,20 @@ def quit(event):
     event.app.exit()
 
 
-def detect_lexer(text: str, path: str = None):
+def detect_lexer(text: str, path: str = None) -> PygmentsLexer:
+    lexer = None
     if path:
         try:
-            return guess_lexer_for_filename(path, text)
+            lexer = guess_lexer_for_filename(path, text)
         except ClassNotFound:
             pass
 
     try:
-        # try source content
-        return guess_lexer(text)
+        lexer = guess_lexer(text)
     except ClassNotFound:
-        # last resort: plain text
-        return TextLexer()
+        lexer = TextLexer()
+
+    return PygmentsLexer(lexer)
 
 
 layout = Layout(root_container)
