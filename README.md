@@ -40,15 +40,15 @@ I have a lot of ideas, but I have no idea how I'm going to go about it. I'm just
 
 ### llama.cpp
 
-Agent depends on the llama.cpp backend. You'll need to install it to enable an agentic workflow.
+Agent depends on the **llama.cpp** backend. You must install it to enable the agentic workflow.
 
-ggml-org releases pre-built binaries for end users. Some linux distributions support a package for llama.cpp, e.g. Arch Linux from the AUR. llama.cpp supports a wide variety of backends from CUDA to ROCm and more. 
+`ggml-org` provides prebuilt binaries for common platforms, and some Linux distributions (e.g., Arch Linux) offer packages through their package managers. However, building from source is straightforward and gives you full control over backend support (CUDA, ROCm, Vulkan, etc.).
 
-You'll need to follow the instructions in the llama.cpp README.md for building.
+Agent specifically relies on the **`llama-server`** binary.
 
-Agent primarily depends upon the `llama-server` binary.
+### Install from source
 
-Create a local working environment.
+Create a local workspace:
 
 ```sh
 mkdir -p ~/.bin/cpp
@@ -56,90 +56,113 @@ git clone https://github.com/ggml-org/llama.cpp ~/.bin/cpp/llama.cpp
 cd ~/.bin/cpp/llama.cpp
 ```
 
-Then build:
+Then build from source:
 
-```
-cmake -B build -DCMAKE_BUILD_TYPE=Debug -DGGML_DEBUG=0 -DBUILD_SHARED_LIBS=1 -DGGML_VULKAN=1
+```sh
+cmake -B build -DCMAKE_BUILD_TYPE=Debug \
+      -DGGML_DEBUG=0 \
+      -DBUILD_SHARED_LIBS=1 \
+      -DGGML_VULKAN=1
+
 cmake --build build -j $(nproc)
 ```
 
-Vulkan has the widest range for support and supports Nvidia, AMD, and Intel. This includes older cards like the RX 580.
+Vulkan is recommended because it works across **NVIDIA, AMD, and Intel**, including older cards such as the RX 580.
 
-We need to add `llama-server` and related binaries to the environment:
+### Add `llama-server` to your PATH
 
 ```sh
-cd # go home
-echo "export PATH=${PATH}:/path/to/build/bin" >> ~/.bashrc # or ~/.zshrc
+cd ~
+echo "export PATH=${PATH}:/home/${USER}/.bin/cpp/llama.cpp/build/bin" >> ~/.bashrc
 ```
 
-If you use `zsh` or some other shell, you can add it similarily. Restart the shell and make sure the binary is available.
+If you use `zsh` or another shell, add the same line to the appropriate rc file.
+Restart your shell and verify:
 
 ```sh
 which llama-server
 ```
 
-It should output the absolute path to the binary.
+You should see the absolute path to the binary.
 
-### quantization
+### Quantization
 
-llama.cpp has a utility for converting model weights which is written in python.
+llama.cpp includes a Python-based utility for converting vendor-released model weights into GGUF format and applying quantization. This step is required before Agent can run any model locally.
+
+Because the conversion script lives inside the llama.cpp repository, you must have llama.cpp installed **before** performing these steps.
+
+### Setup the conversion environment
+
+The conversion utilities require a small Python environment:
 
 ```sh
 cd ~/.bin/cpp/llama.cpp
 python -m venv .venv
 source .venv/bin/activate
+
 pip install -U pip
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements.txt
 ```
 
-Note that there is no benefit to quantizing models on the GPU. Use the CPU to utilize system memory more effectively. It's common that the CPU will have more memory available than the GPU itself.
+Quantization runs entirely on the **CPU**.
+There is **no benefit** to quantizing on a GPU - system memory is usually larger than VRAM and avoids out-of-memory issues.
 
-From here, you'll need to download the model weights from the vendor (see huggingface-hub section below). Once you've done that, you can convert the model weights.
+### Convert vendor weights to GGUF
 
-For help, just use the following command.
+Before converting, download the raw vendor weights (see the Hugging Face section). Once you have the model directory, you can invoke the converter.
+
+Help:
 
 ```sh
 python convert_hf_to_gguf.py -h
 ```
 
-The conversion process is simple assuming you installed the required dependencies.
+Example conversion:
 
 ```sh
-python convert_hf_to_gguf.py /mnt/models/openai/gpt-oss-20b --outtype q8_0 --outfile /mnt/models/openai/gpt-oss-20b/ggml-model-q8_0.gguf
+python convert_hf_to_gguf.py \
+    /mnt/models/openai/gpt-oss-20b \
+    --outtype q8_0 \
+    --outfile /mnt/models/openai/gpt-oss-20b/ggml-model-q8_0.gguf
 ```
 
-Once you have the model weights, just deactivate the virtual environment, and you're all set to go.
+Once the conversion completes, you can leave the virtual environment:
 
 ```sh
 deactivate
-cd # go home
+cd ~
 ```
+
+Your GGUF weights are now ready for use with `llama-server`.
 
 ### agent
 
-Agent is not ready to be installed locally, but you can do so if you desire. Note that I do not currently recommend doing this for a lot of very valid reasons. 
+Agent is still under active development and is **not** intended for general installation yet. While it is possible to use it locally, this is not recommended at the moment.
 
-Agents are not restricted and may be able to run amock continuously unless interrupted.
+Agents are autonomous and may continue running actions until interrupted. Treat this project as a development tool, not a production-ready package.
 
-Currently, the recommended way is to treat this as a development package.
+### Clone the repository
 
 ```sh
-mkdir /mnt/source/python
+mkdir -p /mnt/source/python
 git clone https://github.com/teleprint-me/agent /mnt/source/python/agent
 cd /mnt/source/python/agent
 ```
 
-Create and activate a virtual environment to isolate python packages.
+### Create a Python environment
+
+Use a dedicated virtual environment to isolate the agent’s dependencies:
 
 ```sh
 python -m venv .venv
 source .venv/bin/activate
+
 pip install -U pip
 pip install -r requirements.txt
 ```
 
-I don't plan on using anything special for managing packages. Using `venv` keeps things simple.
+No special package manager or environment tooling is required - `venv` keeps the setup simple and predictable.
 
 ### model downloads
 
@@ -206,7 +229,7 @@ python -m agent.hf download \
     -p /mnt/models/openai/gpt-oss-20b
 ```
 
-Grab a coffee — some models are large.
+Grab a coffee - some models are large.
 
 #### Recommended Sources
 
@@ -242,7 +265,7 @@ Choose weights based on bandwidth, VRAM, and whether you prefer to quantize loca
 * [google/embeddinggemma](https://huggingface.co/collections/google/embeddinggemma)
 * [jinaai/collections](https://huggingface.co/jinaai/collections)
 
-Pick a model that supports the features required by your task — otherwise you’ll see degraded performance.
+Pick a model that supports the features required by your task - otherwise you’ll see degraded performance.
 
 ### config
 
