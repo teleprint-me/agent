@@ -339,58 +339,129 @@ After the task is finished, control is returned to you.
 
 ### usage
 
-The program is in its infancy (and has been for some time). Only the basics are currently implemented.
+Agent is still in its early stages, and only the core functionality is implemented. The interface is simple, and the workflow revolves around the CLI utility.
 
-To get help, run:
+#### Getting help
 
 ```sh
 python -m agent.cli -h
 ```
 
-The server is automatically executed at runtime. There's no need to run an instance in the background.
+This displays all available runtime options: model path, backend flags, context size, metrics, Jinja templating, embedding mode, pooling modes, and more.
+
+#### Running the program
+
+Agent automatically launches and manages a `llama-server` instance.
+You do **not** need to start the server manually.
+
+Example:
 
 ```sh
 python -m agent.cli --jinja --model /mnt/models/openai/gpt-oss-20b/ggml-model-q8_0.gguf
 ```
 
-Assuming no errors occur, the server process id is registered, then killed at program exit. If an error occurs, its likely that a zombie process exists. Its recommended that you kill that process before executing the program again. This is not a bug. It's just a limitation of the current implementation.
+On startup:
 
-To kill the zombie process, you'll first need to identify it:
+1. The CLI spawns `llama-server` with your selected features
+2. It waits for the server to become ready
+3. It registers the server PID
+4. It launches the interactive agent interface
+5. On exit, it attempts to terminate the server process
+
+If an internal error interrupts this workflow, a zombie `llama-server` process may remain. This is a known limitation in the current implementation.
+
+#### Cleaning up zombie processes
+
+Identify:
 
 ```sh
 ps aux | grep ${USER} | grep llama-server
 ```
 
-Identify the process id, then kill it:
+Kill:
 
 ```sh
-kill <pid-goes-here>
+kill <pid>
 ```
 
-Note that I plan on eventually adding a detection mecahnism for tracking, running, and stopping llama-server processes automatically. For now, it's done manually.
+A future version will automatically track and stop orphaned processes, but this is currently manual.
 
-Existing keyboard shortcuts are:
+#### Keyboard shortcuts
 
-- `enter`: Add a newline to the input.
-- `backspace`: Retains expected behavior.
-- `alt+enter`: Submit a message to the agent.
-- `alt+f`: Autocomplete current token.
-- `alt+e`: Autocomplete to end of line.
-- `ctrl+d`: Pop a message from the sequence.
-- `ctrl+c`: Quit the application and kill the `llama-server` process.
-- `ctrl+a`: Move cursor to start of line.
-- `ctrl+e`: Move cursor to end of line.
-- `ctrl+k`: Cut from cursor start to end of line.
-- `ctrl+u`: Cut from cursor end to start of line.
-- `ctrl+y`: Paste cut content to cursor position.
+These keybindings control the interactive prompt:
 
-You can command the model directly, but its best to not assume the model understands your instructions correctly. The models operate best with a human operating as a partner alongside them. They'll build confidence and align themselves naturally with the most probable output.
+* `enter` – Insert a newline
+* `alt+enter` – Submit the message
+* `backspace` – Standard behavior
+* `alt+f` – Autocomplete current token
+* `alt+e` – Autocomplete to end of line
+* `ctrl+d` – Pop a message from the sequence
+* `ctrl+c` – Quit and kill the server
+* `ctrl+a` – Move cursor to start of line
+* `ctrl+e` – Move cursor to end of line
+* `ctrl+k` – Cut from cursor to end
+* `ctrl+u` – Cut from cursor to start
+* `ctrl+y` – Paste the last cut text
 
-Some models are heavily conditioned and this may affect their behavior - the llama community calls this censoring, but there's a lot more than that going on under the hood.
+These provide a lightweight REPL-like editing experience.
 
-It's best to start a project from scratch while slowly ramping up. The more you engage with the process, the better off the project will be as a result. This means actively reading documentation and code, making architectural and design choices, and more. This is the antithesis of vibe coding.
+#### Using the model effectively
 
-On that note, I actually enjoy programming, so I pick apart every line until I understand how the code behaves.
+You can command the model directly, but don’t assume it always interprets instructions correctly. The best results come from treating the agent as a collaborative partner, not a fully autonomous worker.
+
+Models differ in alignment, conditioning, and safety tuning. Some heavily steer output while others behave more freely. Adjust your prompting style to match the model you’re using.
+
+The most reliable workflow is:
+
+1. Start small
+2. Inspect model output
+3. Gradually introduce structure
+4. Iterate with the agent as you build the project
+
+This avoids "vibe coding" and keeps the process grounded in real design decisions.
+
+#### Example workflow
+
+Below is a typical startup sequence showing cache creation, model loading, and an initial interaction:
+
+```sh
+rm -rf .agent
+
+python -m agent.cli \
+    --metrics \
+    --jinja \
+    --model /mnt/models/openai/gpt-oss-20b/ggml-model-q8_0.gguf \
+    --ctx-size 16384
+```
+
+Sample output (truncated):
+
+```
+llama-server --port 8080 --ctx-size 16384 --n-gpu-layers 99 ...
+waiting for server
+Process id 158156
+Model Name gpt-oss-20b
+Model Path /mnt/models/openai/gpt-oss-20b/ggml-model-q8_0.gguf
+Vocab Size 201088
+Seq Len 16384/131072
+Created cache: .agent/messages.json
+
+system
+My name is ChatGPT. I am a helpful assistant.
+
+> Hello! My name is Austin. What is your name?
+```
+
+Once running, the model can:
+
+* **reason**
+* **use tools**
+* **read/write files**
+* **store/retrieve memories**
+* **operate in autonomous chains**
+
+That’s the full loop:
+start server -> start agent -> think -> act -> respond -> exit cleanly.
 
 ## Contributions
 
