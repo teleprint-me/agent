@@ -9,7 +9,7 @@ Description: High-level Requests API for interacting with the LlamaCpp REST API.
 from pathlib import Path
 from typing import Any, Dict, List, Union
 
-import requests
+from requests.exceptions import ConnectionError, HTTPError
 
 from agent.config import config
 from agent.llama.requests import LlamaCppRequest
@@ -43,9 +43,27 @@ class LlamaCppAPI:
         try:
             self.logger.debug("Fetching health status")
             return self.request.get("/health")
-        except requests.exceptions.ConnectionError as e:
+        except ConnectionError as e:
             self.logger.debug(f"Connection error while fetching health status: {e}")
             return self.error(500, e, "unavailable_error")
+
+    @property
+    def metrics(self) -> dict[str, any]:
+        """Prometheus compatible metrics exporter."""
+        try:
+            self.logger.debug("Fetching server metrics")
+            content: str = self.request.get("/metrics")
+            data = {}
+            for line in content.split("\n"):
+                if not line or line.startswith("#"):
+                    continue
+                namespace, value = line.split(" ")
+                label, key = namespace.split(":")
+                data[key] = float(value) if "." in value else int(value)
+            return data
+        except HTTPError as e:
+            self.logger.debug("Error fetching server metrics")
+            return self.error(501, e, "unavailable_error")
 
     @property
     def slots(self) -> List[Dict[str, Any]]:
@@ -53,7 +71,7 @@ class LlamaCppAPI:
         try:
             self.logger.debug("Fetching slot states")
             return self.request.get("/slots")
-        except requests.exceptions.HTTPError as e:
+        except HTTPError as e:
             self.logger.debug("Error fetching slot states")
             return self.error(501, e, "unavailable_error")
 
