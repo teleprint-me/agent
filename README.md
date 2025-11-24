@@ -16,6 +16,7 @@ The primary sub-packages are:
 - cli: The main program.
 - config: Automated configuration.
 - llama: Core llama-server wrapper.
+- hf: Huggingface hub wrapper.
 - text: Text extraction utilities.
 - tools: Tools available to models.
 - examples: Usually where I prototype modules. 
@@ -79,15 +80,7 @@ which llama-server
 
 It should output the absolute path to the binary.
 
-Neither huggingface nor ggml-org allow you to pick a path to download. They both create a cache path which then stores the model weights in some arbitrarily chosen path - which is usually local to the users home path. Huggingface creates symbolic links which are hashed entries and obfuscate the model files.
-
-ggml-org hosts their own quantized weights on huggingface. You can toggle flags to auto-download the target weights, but I do not recommend doing this. It's easy to lose track of where the weights are and downloading models eats up disk space fast. I have 10TB of local storage and it's already consumed half of that.
-
-If you download the model from ggml-org (which is safe), get the model directly and then store the weights in the desired path. That way, you know where the weights are.
-
-It's best practice to download the original model weights from the vendor directly, then quantize the model weights locally. It's not difficult, but it can be bandwidth intensive.
-
-I have a package that I plan on merging into agent that allows users to specify exactly where they want the weights to be stored. It's not very user friendly, but it gets the job done. You can then reference the model from **any** chosen storage path - which is a huge deal considering how big the weights are.
+### quantization
 
 llama.cpp has a utility for converting model weights which is written in python.
 
@@ -102,7 +95,7 @@ pip install -r requirements.txt
 
 Note that there is no benefit to quantizing models on the GPU. Use the CPU to utilize system memory more effectively. It's common that the CPU will have more memory available than the GPU itself.
 
-From here, you'll need to download the model weights from the vendor. Once you've done that, you can convert the model weights.
+From here, you'll need to download the model weights from the vendor (see huggingface-hub section below). Once you've done that, you can convert the model weights.
 
 For help, just use the following command.
 
@@ -122,14 +115,6 @@ Once you have the model weights, just deactivate the virtual environment, and yo
 deactivate
 cd # go home
 ```
-
-Recommended models are:
-
-- Qwen2.5 and Qwen3 coder models for FIM
-- GPT-OSS and Qwen3 for Agentic abilities.
-- Gemini, Jinaai, or Qwen3 for Embeddings
-
-Feel free to use any model you prefer. The model should support the features for the provided task at hand. Otherwise, it will perform poorly.
 
 ### agent
 
@@ -155,6 +140,109 @@ pip install -r requirements.txt
 ```
 
 I don't plan on using anything special for managing packages. Using `venv` keeps things simple.
+
+### model downloads
+
+Both **huggingface-hub** and **ggml-org** hide downloaded weights behind an internal cache path. The directories are hashed, symlinked, and usually live inside the user’s home directory. This makes it hard to track where weights actually end up, and models can silently consume large amounts of disk space over time.
+
+If you rely on the built-in auto-download behavior, expect:
+
+* Model files stored in hidden, hashed subdirectories
+* No control over the destination path
+* Potentially huge storage usage (10TB fills *fast* when experimenting)
+
+#### Recommended approach
+
+Download weights yourself and store them exactly where you want them.
+This avoids cache sprawl and keeps your environment transparent.
+
+* Download vendor-released weights directly
+* Quantize locally when possible
+* Keep weights in a predictable, human-readable directory structure
+* Avoid auto-download flags unless you know what they’re doing
+
+`ggml-org` is safe to download from, but get the files manually instead of relying on Hugging Face’s cache mechanism.
+
+#### Agent’s huggingface-hub wrapper
+
+The agent includes a convenience wrapper around `huggingface-hub` that:
+
+* bypasses hashed cache paths
+* writes weights to a user-specified directory
+* exposes a simple CLI for inspecting and downloading models
+
+No more digging through obscure HF cache directories.
+
+Help:
+
+```sh
+python -m agent.hf --help
+```
+
+Download help:
+
+```sh
+python -m agent.hf download --help
+```
+
+#### Authentication (gated models)
+
+Some vendor models require authentication. Create a `.env` file:
+
+```sh
+touch .env
+echo HUGGINGFACE_READ_API=your-token-here >> .env
+```
+
+Tokens: [https://huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)
+
+#### Example: Download a model
+
+```sh
+python -m agent.hf download \
+    -e .env \
+    -t model \
+    -i openai/gpt-oss-20b \
+    -p /mnt/models/openai/gpt-oss-20b
+```
+
+Grab a coffee — some models are large.
+
+#### Recommended Sources
+
+Choose weights based on bandwidth, VRAM, and whether you prefer to quantize locally.
+
+#### Pre-quantized weights (GGUF, etc.)
+
+* [ggml-org](https://huggingface.co/ggml-org)
+
+#### Raw, vendor-official weights
+
+* [openai](https://huggingface.co/openai)
+* [meta-llama](https://huggingface.co/meta-llama)
+* [google](https://huggingface.co/google)
+* [mistralai](https://huggingface.co/mistralai)
+* [Qwen](https://huggingface.co/Qwen)
+* [jinaai](https://huggingface.co/jinaai)
+
+#### FIM (fill-in-the-middle) models
+
+* [Qwen/qwen25-coder](https://huggingface.co/collections/Qwen/qwen25-coder)
+* [Qwen/qwen3-coder](https://huggingface.co/collections/Qwen/qwen3-coder)
+
+#### Agentic models
+
+* [openai/gpt-oss](https://huggingface.co/collections/openai/gpt-oss)
+* [meta-llama/llama-32](https://huggingface.co/collections/meta-llama/llama-32)
+* [Qwen/qwen3](https://huggingface.co/collections/Qwen/qwen3)
+
+#### Embedding models
+
+* [Qwen/qwen3-embedding](https://huggingface.co/collections/Qwen/qwen3-embedding)
+* [google/embeddinggemma](https://huggingface.co/collections/google/embeddinggemma)
+* [jinaai/collections](https://huggingface.co/jinaai/collections)
+
+Pick a model that supports the features required by your task — otherwise you’ll see degraded performance.
 
 ### config
 
