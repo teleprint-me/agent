@@ -8,6 +8,9 @@ from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.layout.containers import HSplit, Window
 from prompt_toolkit.layout.controls import BufferControl, FormattedTextControl
 from prompt_toolkit.layout.layout import Layout
+from pygments.lexers import guess_lexer, guess_lexer_for_filename
+from pygments.lexers.special import TextLexer
+from pygments.util import ClassNotFound
 
 buffer = Buffer()
 kb = KeyBindings()
@@ -18,6 +21,21 @@ root_container = Window(content=BufferControl(buffer=buffer))
 @kb.add("c-q")
 def quit(event):
     event.app.exit()
+
+
+def detect_lexer(text: str, path: str = None):
+    if path:
+        try:
+            return guess_lexer_for_filename(path, text)
+        except ClassNotFound:
+            pass
+
+    try:
+        # try source content
+        return guess_lexer(text)
+    except ClassNotFound:
+        # last resort: plain text
+        return TextLexer()
 
 
 layout = Layout(root_container)
