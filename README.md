@@ -269,51 +269,73 @@ Pick a model that supports the features required by your task - otherwise you’
 
 ### config
 
-Agent will auto-magically generate a cache path locally. There's no way to specify the path for the cache at the moment, but I plan on allowing users to define the path if they'd like.
+Agent automatically generates a local configuration and cache directory.
+Right now the cache path is fixed, but future versions will allow custom paths.
 
-The configuration sets up the agent with sane defaults. You can modify the settings however you'd like.
+The configuration system initializes the agent with sensible defaults, and you can modify any of the settings through the CLI.
 
-For help, use the following command:
+#### Configuration CLI
+
+Show help:
 
 ```sh
 python -m agent.config -h
 ```
 
-You can view, set, list, or reset the configuration. Doing so will create the `.agent` path which contains logs, settings, a database for the agents storage, and a cache of the most recent chat history.
+You can **view**, **set**, **list**, or **reset** configuration keys.
+Any interaction will create the `.agent` directory, which contains:
 
 ```sh
-tree .agent   
+tree .agent
 .agent
-├── messages.json
-├── model.log
-├── settings.json
-└── storage.sqlite3
+├── history.log         # prompt/input history
+├── messages.json       # recent chat history
+├── model.log           # model/server logs
+├── settings.json       # configuration settings
+└── storage.sqlite3     # agent storage database
 
-1 directory, 4 files
+1 directory, 5 files
 ```
 
-You will need to wipe this directory every so often between development cycles.
+#### Resetting configuration & cache
+
+During development, you may need to clear the `.agent` directory to avoid conflicts between versions or stale state.
 
 ```sh
 rm -rf .agent
 ```
 
-This way, there are no conflicts between releases. If you run into any issues, the first thing you should do is reset the cache. I've found this to be a common source of issues I've run into while developing this software.
+If something behaves unexpectedly, wiping this folder is the first thing to try - it has been the most common source of issues during development.
 
 ### tools
 
-The agent has limited access and functionality. This is intentional and by design.
+The agent exposes a small, intentionally restricted set of tools.
+These limitations are by design.
+They help prevent uncontrolled behavior while still enabling autonomous workflows.
 
-The agent has the following tools:
+The available tools are:
 
-- shell: An allow list restricting available commands.
-- read: Read any part of a file.
-- write: Write any part of a file.
-- memories: Store (create, update), recall (read), and forget (delete) memories.
+* **shell**
+  An allow-listed command runner.
+  Only approved commands may be executed.
+  Piping is disabled for now, though it may be enabled later for advanced models.
 
-The model can chain tool calls between each action. This means once given an objective, it will continue to operate independently on its own until that objective has been completed.
+* **read**
+  Read arbitrary slices of a file.
 
-Once an objective has been completed, you will regain control of the prompt.
+* **write**
+  Write or modify slices of a file.
+
+* **memories**
+  Create, update, recall, and delete stored memories.
+  These form the agent’s persistent knowledge base.
+
+#### Tool chaining
+
+The model can chain tool calls during a single objective.
+Once you give the agent a task, it is allowed to operate autonomously, issuing tool calls one after another, until it determines the objective is complete.
+
+After the task is finished, control is returned to you.
 
 ### usage
 
@@ -332,6 +354,20 @@ python -m agent.cli --jinja --model /mnt/models/openai/gpt-oss-20b/ggml-model-q8
 ```
 
 Assuming no errors occur, the server process id is registered, then killed at program exit. If an error occurs, its likely that a zombie process exists. Its recommended that you kill that process before executing the program again. This is not a bug. It's just a limitation of the current implementation.
+
+To kill the zombie process, you'll first need to identify it:
+
+```sh
+ps aux | grep ${USER} | grep llama-server
+```
+
+Identify the process id, then kill it:
+
+```sh
+kill <pid-goes-here>
+```
+
+Note that I plan on eventually adding a detection mecahnism for tracking, running, and stopping llama-server processes automatically. For now, it's done manually.
 
 Existing keyboard shortcuts are:
 
