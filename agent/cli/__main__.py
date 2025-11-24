@@ -355,6 +355,9 @@ if __name__ == "__main__":
                 arguments = call["function"]["arguments"]
                 print(f"{BOLD}{name}({arguments}){RESET}\n")
 
+    previous_prompt = 0
+    previous_gen = 0
+
     while True:
         try:
             if messages.data[-1]["role"] != "tool":
@@ -373,21 +376,22 @@ if __name__ == "__main__":
             print()
             messages.save_json()
 
-            # This is a really crappy way to go about this.
-            # llama-server has an endpoint for getting this information.
-            # should request token count from there instead.
-            token_count = 0
-            for message in messages.data:
-                content = message.get("content")
-                tool_calls = message.get("tool_calls")
-                if content:
-                    token_count += len(model.tokenize(content))
-                if tool_calls:
-                    for call in tool_calls:
-                        name = call["function"]["name"]
-                        arguments = call["function"]["arguments"]
-                        token_count += len(model.tokenize(name + arguments))
-            print(f"\nTokens consumed -> {token_count}/{args.ctx_size}")
+            if args.metrics:
+                prompt = model.metrics["prompt_tokens_total"]
+                generated = model.metrics["tokens_predicted_total"]
+
+                # track deltas
+                dp = prompt - previous_prompt
+                dg = generated - previous_gen
+
+                previous_prompt = prompt
+                previous_gen = generated
+
+                print(f"\n{BOLD}metrics{RESET}:")
+                print(f"  prompt tokens    +{dp}")
+                print(f"  generated tokens +{dg}")
+                print(f"  total: {prompt + generated}/{args.ctx_size}")
+                print()  # add padding
         except EOFError:  # Pop the last message
             print(f"\n{BOLD}Popped:{RESET}")
             last = messages.pop(messages.length - 1)
