@@ -51,9 +51,9 @@ Agent specifically relies on the **`llama-server`** binary.
 Create a local workspace:
 
 ```sh
-mkdir -p ~/.bin/cpp
-git clone https://github.com/ggml-org/llama.cpp ~/.bin/cpp/llama.cpp
-cd ~/.bin/cpp/llama.cpp
+mkdir -p /mnt/source/cpp
+git clone https://github.com/ggml-org/llama.cpp /mnt/source/cpp/llama.cpp
+cd /mnt/source/cpp/llama.cpp
 ```
 
 Then build from source:
@@ -73,7 +73,7 @@ Vulkan is recommended because it works across **NVIDIA, AMD, and Intel**, includ
 
 ```sh
 cd ~
-echo "export PATH=${PATH}:/home/${USER}/.bin/cpp/llama.cpp/build/bin" >> ~/.bashrc
+echo "export PATH=${PATH}:/mnt/source/cpp/llama.cpp/build/bin" >> ~/.bashrc
 ```
 
 If you use `zsh` or another shell, add the same line to the appropriate rc file.
@@ -96,7 +96,7 @@ Because the conversion script lives inside the llama.cpp repository, you must ha
 The conversion utilities require a small Python environment:
 
 ```sh
-cd ~/.bin/cpp/llama.cpp
+cd /mnt/source/cpp/llama.cpp
 python -m venv .venv
 source .venv/bin/activate
 
