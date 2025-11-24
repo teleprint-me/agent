@@ -180,7 +180,26 @@ def build_parser():
         help="Number of layers to offload to GPU (default: 99).",
     )
 
+    parser.add_argument(
+        "--n-cpu-moe",
+        type=int,
+        default=0,
+        help="Number of MoE layers to offload to CPU (default: 0)",
+    )
+
     # Feature toggles (boolean flags)
+    parser.add_argument(
+        "--metrics",
+        action="store_true",
+        help="Enable server metrics (required for some API features).",
+    )
+
+    parser.add_argument(
+        "--props",
+        action="store_true",
+        help="Enable global server properties (required for some API features).",
+    )
+
     parser.add_argument(
         "--slots",
         action="store_true",
@@ -239,11 +258,20 @@ if __name__ == "__main__":
         args.model,
     ]
 
+    if args.metrics:
+        cmd.append("--metrics")
+
+    if args.props:
+        cmd.append("--props")
+
     if args.slots:
         cmd.append("--slots")
 
     if args.jinja:
         cmd.append("--jinja")
+
+    if args.n_cpu_moe > 0:
+        cmd.extend(["--n-cpu-moe", args.n_cpu_moe])
 
     if args.embeddings:
         cmd.append("--embeddings")
