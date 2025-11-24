@@ -9,10 +9,13 @@ Description: High-level Requests API for interacting with the LlamaCpp REST API.
 from pathlib import Path
 from typing import Any, Dict, List, Union
 
+import regex as re
 from requests.exceptions import ConnectionError, HTTPError
 
 from agent.config import config
 from agent.llama.requests import LlamaCppRequest
+
+METRIC_RE = re.compile(r"^([^ {]+)(?:\{([^}]*)\})?\s+([+-]?\d+(?:\.\d+)?)$")
 
 
 # See agent.config.__init__ for details
@@ -50,16 +53,38 @@ class LlamaCppAPI:
     @property
     def metrics(self) -> dict[str, any]:
         """Prometheus compatible metrics exporter."""
+        # @note this format is terrible as a response object.
+        # @see https://prometheus.io/docs/instrumenting/exposition_formats/
         try:
             self.logger.debug("Fetching server metrics")
             content: str = self.request.get("/metrics")
+
             data = {}
-            for line in content.split("\n"):
+            for line in content.splitlines():
+                line = line.strip()
                 if not line or line.startswith("#"):
                     continue
-                namespace, value = line.split(" ")
-                label, key = namespace.split(":")
-                data[key] = float(value) if "." in value else int(value)
+
+                m = METRIC_RE.match(line)
+                if not m:
+                    self.logger.debug(f"Malformed expression: {m}")
+                    continue
+
+                namespace, label_text, value_text = m.groups()
+
+                # strip namespace prefix (i.e. llamacpp:)
+                name = namespace.split(":")[-1]
+                value = float(value_text) if "." in value_text else int(value_text)
+
+                if label_text:
+                    labels = {}
+                    for item in label_text.split(","):
+                        k, v = item.split("=", 1)
+                        labels[k] = v.strip('"')
+                    data[name] = {"value": value, "labels": labels}
+                else:
+                    data[name] = value
+
             return data
         except HTTPError as e:
             self.logger.debug("Error fetching server metrics")
