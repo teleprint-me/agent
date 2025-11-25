@@ -21,10 +21,18 @@ kb = KeyBindings()
 
 @kb.add("enter")
 def on_enter(event: KeyPressEvent):
-    text = event.app.current_buffer.text
-    event.app.layout.container.content.lexer = detect_lexer(text)
+    # current buffer and text
+    buffer = event.current_buffer
+    text = buffer.text
+
+    # detect new lexer
+    new_lexer = detect_lexer(text)
+    event.app.layout.container.content.lexer = new_lexer
+
+    # redraw ui
     event.app.invalidate()
-    event.app.current_buffer.newline()
+    # reset to default behavior
+    buffer.newline()
 
 
 @kb.add("c-q")
