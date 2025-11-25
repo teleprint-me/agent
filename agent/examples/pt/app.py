@@ -19,7 +19,14 @@ from pygments.util import ClassNotFound
 
 from agent.config.style import style_dark
 
+TAB_WIDTH = 4
+
 kb = KeyBindings()
+
+
+@kb.add("tab")
+def on_tab(event: KeyPressEvent):
+    event.current_buffer.insert_text(" " * TAB_WIDTH)
 
 
 @kb.add("enter")
