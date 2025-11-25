@@ -13,8 +13,11 @@ from prompt_toolkit.layout.containers import HSplit, Window
 from prompt_toolkit.layout.controls import BufferControl, FormattedTextControl
 from prompt_toolkit.layout.layout import Layout
 from prompt_toolkit.lexers import PygmentsLexer
+from prompt_toolkit.styles import Style
 from pygments.lexers import get_lexer_for_filename, guess_lexer
 from pygments.util import ClassNotFound
+
+from agent.config.style import style_dark
 
 kb = KeyBindings()
 
@@ -74,5 +77,6 @@ if __name__ == "__main__":
     buffer_control = BufferControl(buffer=buffer, lexer=lexer)
     window = Window(content=buffer_control, allow_scroll_beyond_bottom=True)
     layout = Layout(container=window)
-    app = Application(layout=layout, key_bindings=kb, full_screen=True)
+    style = Style.from_dict(style_dark)
+    app = Application(layout=layout, key_bindings=kb, style=style, full_screen=True)
     app.run()
