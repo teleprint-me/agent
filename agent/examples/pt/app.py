@@ -2,10 +2,13 @@
 https://python-prompt-toolkit.readthedocs.io/en/master/pages/full_screen_apps.html
 """
 
+import sys
+
 from prompt_toolkit import Application
 from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.formatted_text import ANSI
 from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.key_binding.key_processor import KeyPressEvent
 from prompt_toolkit.layout.containers import HSplit, Window
 from prompt_toolkit.layout.controls import BufferControl, FormattedTextControl
 from prompt_toolkit.layout.layout import Layout
@@ -16,8 +19,16 @@ from pygments.util import ClassNotFound
 kb = KeyBindings()
 
 
+@kb.add("enter")
+def on_enter(event: KeyPressEvent):
+    text = event.app.current_buffer.text
+    event.app.layout.container.content.lexer = detect_lexer(text)
+    event.app.invalidate()
+    event.app.current_buffer.newline()
+
+
 @kb.add("c-q")
-def quit(event):
+def quit(event: KeyPressEvent):
     event.app.exit()
 
 
@@ -56,12 +67,4 @@ if __name__ == "__main__":
     window = Window(content=buffer_control, allow_scroll_beyond_bottom=True)
     layout = Layout(container=window)
     app = Application(layout=layout, key_bindings=kb, full_screen=True)
-
-    print(buffer)
-    print(lexer)
-    print(buffer_control)
-    print(window)
-    print(layout)
-    print(app)
-
     app.run()
