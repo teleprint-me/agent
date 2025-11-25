@@ -11,13 +11,9 @@ from prompt_toolkit.layout.controls import BufferControl, FormattedTextControl
 from prompt_toolkit.layout.layout import Layout
 from prompt_toolkit.lexers import PygmentsLexer
 from pygments.lexers import guess_lexer, guess_lexer_for_filename
-from pygments.lexers.special import TextLexer
 from pygments.util import ClassNotFound
 
-buffer = Buffer()
 kb = KeyBindings()
-
-root_container = Window(content=BufferControl(buffer=buffer))
 
 
 @kb.add("c-q")
@@ -25,20 +21,15 @@ def quit(event):
     event.app.exit()
 
 
+# this is so hacky - i hate it.
 def detect_lexer(text: str, path: str = None) -> PygmentsLexer:
-    lexer = None
-    if path:
-        try:
-            lexer = guess_lexer_for_filename(path, text)
-        except ClassNotFound:
-            pass
-
+    cls = None
     try:
-        lexer = guess_lexer(text)
-    except ClassNotFound:
-        lexer = TextLexer()
-
-    return PygmentsLexer(lexer)
+        cls = guess_lexer_for_filename(path, text).__class__
+    except (TypeError, ClassNotFound):
+        # guess_lexer() defaults to TextLexer
+        cls = guess_lexer(text).__class__
+    return PygmentsLexer(cls)
 
 
 def line_number_control(buffer: Buffer) -> FormattedTextControl:
@@ -53,6 +44,19 @@ def line_number_control(buffer: Buffer) -> FormattedTextControl:
     return FormattedTextControl(get_line_format)
 
 
-layout = Layout(root_container)
-app = Application(layout=layout, key_bindings=kb, full_screen=True)
-app.run()
+if __name__ == "__main__":
+    buffer = Buffer()
+    lexer = detect_lexer("plain text")
+    buffer_control = BufferControl(buffer=buffer, lexer=lexer)
+    window = Window(content=buffer_control)
+    layout = Layout(container=window)
+    app = Application(layout=layout, key_bindings=kb, full_screen=True)
+
+    print(buffer)
+    print(lexer)
+    print(buffer_control)
+    print(window)
+    print(layout)
+    print(app)
+
+    app.run()
