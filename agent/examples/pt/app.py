@@ -22,13 +22,17 @@ def quit(event):
 
 
 # this is so hacky - i hate it.
-def detect_lexer(text: str) -> PygmentsLexer:
+def detect_lexer(text: str = None) -> PygmentsLexer:
+    if text is None:
+        text = ""  # default to TextLexer
+
     try:
         # raises ClassNotFound if not a file-like object
         cls = get_lexer_for_filename(text).__class__
     except ClassNotFound:
         # defaults to TextLexer
         cls = guess_lexer(text).__class__
+
     # expects a class, not an instance
     return PygmentsLexer(cls)
 
@@ -47,9 +51,9 @@ def line_number_control(buffer: Buffer) -> FormattedTextControl:
 
 if __name__ == "__main__":
     buffer = Buffer()
-    lexer = detect_lexer("plain text")
+    lexer = detect_lexer()
     buffer_control = BufferControl(buffer=buffer, lexer=lexer)
-    window = Window(content=buffer_control)
+    window = Window(content=buffer_control, allow_scroll_beyond_bottom=True)
     layout = Layout(container=window)
     app = Application(layout=layout, key_bindings=kb, full_screen=True)
 
