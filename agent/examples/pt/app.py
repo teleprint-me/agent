@@ -6,10 +6,11 @@ import sys
 
 from prompt_toolkit import Application
 from prompt_toolkit.buffer import Buffer
+from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import ANSI
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.key_binding.key_processor import KeyPressEvent
-from prompt_toolkit.layout.containers import HSplit, Window
+from prompt_toolkit.layout.containers import Window
 from prompt_toolkit.layout.controls import BufferControl, FormattedTextControl
 from prompt_toolkit.layout.layout import Layout
 from prompt_toolkit.lexers import PygmentsLexer
@@ -23,10 +24,83 @@ TAB_WIDTH = 4
 
 kb = KeyBindings()
 
+#
+# on tab
+#
+
+
+def indent_line(text: str, width: int = TAB_WIDTH) -> str:
+    return " " * width + text
+
+
+def indent_selection(buf: Buffer, doc: Document):
+    # get flat selection range (start, end indexes)
+    start, end = doc.selection_range()
+
+    # find start/end line numbers
+    start_row, _ = doc.translate_index_to_position(start)
+    end_row, _ = doc.translate_index_to_position(end)
+
+    # split into lines
+    lines = doc.text.splitlines(True)  # keep newlines
+
+    # modify each line
+    for i in range(start_row, end_row + 1):
+        lines[i] = indent_line(lines[i])
+
+    # write new text
+    buf.text = "".join(lines)
+
 
 @kb.add("tab")
 def on_tab(event: KeyPressEvent):
-    event.current_buffer.insert_text(" " * TAB_WIDTH)
+    buf = event.current_buffer
+    doc = buf.document
+
+    # if there's a selection, then indent whole selection
+    if buf.selection_state:
+        indent_selection(buf, doc)
+        return
+
+    # otherwise, simple indent on current line at cursor
+    buf.insert_text(" " * TAB_WIDTH)
+
+
+#
+# on shift tab
+#
+
+
+def dedent_line(text: str, width: int = TAB_WIDTH) -> str:
+    stripped = text.lstrip(" ")
+    removed = len(text) - len(stripped)
+    return text[min(width, removed) :]
+
+
+def dedent_selection(buf: Buffer, doc: Document):
+    start, end = doc.selection_range()
+    lines = doc.text.splitlines(True)
+
+    start_row, _ = doc.translate_index_to_position(start)
+    end_row, _ = doc.translate_index_to_position(end)
+
+    for i in range(start_row, end_row + 1):
+        lines[i] = dedent_line(lines[i])
+
+    buf.text = "".join(lines)
+
+
+def dedent_current_line(buf: Buffer, doc: Document):
+    line = doc.current_line
+    indent = len(line) - len(line.lstrip(" "))
+    remove = min(indent, TAB_WIDTH)
+
+    if remove > 0:
+        # move cursor to beginning of line
+        buf.cursor_position -= doc.cursor_position_col
+        buf.delete(count=remove)
+        # restore cursor horizontally
+        buf.cursor_position += max(doc.cursor_position_col - remove, 0)
 
 
 @kb.add("s-tab")
@@ -34,17 +108,17 @@ def on_shift_tab(event: KeyPressEvent):
     buf = event.current_buffer
     doc = buf.document
 
-    # dedent current line regardless of cursor position
-    line = doc.current_line
-    indent = len(line) - len(line.lstrip(" "))
-    remove = min(indent, TAB_WIDTH)
+    if buf.selection_state:
+        dedent_selection(buf, doc)
+        return
 
-    if remove > 0:
-        # move cursor to indentation
-        buf.cursor_position -= doc.cursor_position_col
-        buf.delete(count=remove)
-        # move back to original cursor col, adjusted
-        buf.cursor_position += max(doc.cursor_position_col - remove, 0)
+    # Dedent current line
+    dedent_current_line(buf, doc)
+
+
+#
+# on enter
+#
 
 
 @kb.add("enter")
@@ -63,8 +137,13 @@ def on_enter(event: KeyPressEvent):
     buffer.newline()
 
 
+#
+# on quit
+#
+
+
 @kb.add("c-q")
-def quit(event: KeyPressEvent):
+def on_quit(event: KeyPressEvent):
     event.app.exit()
 
 
