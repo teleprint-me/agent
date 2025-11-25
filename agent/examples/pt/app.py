@@ -29,6 +29,24 @@ def on_tab(event: KeyPressEvent):
     event.current_buffer.insert_text(" " * TAB_WIDTH)
 
 
+@kb.add("s-tab")
+def on_shift_tab(event: KeyPressEvent):
+    buf = event.current_buffer
+    doc = buf.document
+
+    # dedent current line regardless of cursor position
+    line = doc.current_line
+    indent = len(line) - len(line.lstrip(" "))
+    remove = min(indent, TAB_WIDTH)
+
+    if remove > 0:
+        # move cursor to indentation
+        buf.cursor_position -= doc.cursor_position_col
+        buf.delete(count=remove)
+        # move back to original cursor col, adjusted
+        buf.cursor_position += max(doc.cursor_position_col - remove, 0)
+
+
 @kb.add("enter")
 def on_enter(event: KeyPressEvent):
     # current buffer and text
