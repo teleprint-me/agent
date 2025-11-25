@@ -10,7 +10,7 @@ from prompt_toolkit.layout.containers import HSplit, Window
 from prompt_toolkit.layout.controls import BufferControl, FormattedTextControl
 from prompt_toolkit.layout.layout import Layout
 from prompt_toolkit.lexers import PygmentsLexer
-from pygments.lexers import guess_lexer, guess_lexer_for_filename
+from pygments.lexers import get_lexer_for_filename, guess_lexer
 from pygments.util import ClassNotFound
 
 kb = KeyBindings()
@@ -22,13 +22,14 @@ def quit(event):
 
 
 # this is so hacky - i hate it.
-def detect_lexer(text: str, path: str = None) -> PygmentsLexer:
-    cls = None
+def detect_lexer(text: str) -> PygmentsLexer:
     try:
-        cls = guess_lexer_for_filename(path, text).__class__
-    except (TypeError, ClassNotFound):
-        # guess_lexer() defaults to TextLexer
+        # raises ClassNotFound if not a file-like object
+        cls = get_lexer_for_filename(text).__class__
+    except ClassNotFound:
+        # defaults to TextLexer
         cls = guess_lexer(text).__class__
+    # expects a class, not an instance
     return PygmentsLexer(cls)
 
 
