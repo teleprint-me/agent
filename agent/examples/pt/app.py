@@ -7,6 +7,7 @@ import sys
 from prompt_toolkit import Application
 from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.document import Document
+from prompt_toolkit.enums import EditingMode
 from prompt_toolkit.formatted_text import ANSI
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.key_binding.key_processor import KeyPressEvent
@@ -192,5 +193,11 @@ if __name__ == "__main__":
     window = Window(content=buffer_control, allow_scroll_beyond_bottom=True)
     layout = Layout(container=window)
     style = Style.from_dict(style_dark)
-    app = Application(layout=layout, key_bindings=kb, style=style, full_screen=True)
+    app = Application(
+        layout=layout,
+        key_bindings=kb,
+        style=style,
+        full_screen=True,
+        editing_mode=EditingMode.VI,
+    )
     app.run()
