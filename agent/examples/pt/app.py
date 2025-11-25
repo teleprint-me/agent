@@ -46,6 +46,8 @@ def indent_selection(buf: Buffer, doc: Document):
 
     # modify each line
     for i in range(start_row, end_row + 1):
+        # if the last line is empty or a newline,
+        # then a IndexError occurs
         lines[i] = indent_line(lines[i])
 
     # write new text
@@ -85,6 +87,8 @@ def dedent_selection(buf: Buffer, doc: Document):
     end_row, _ = doc.translate_index_to_position(end)
 
     for i in range(start_row, end_row + 1):
+        # if the last line is empty or a newline,
+        # then a IndexError occurs
         lines[i] = dedent_line(lines[i])
 
     buf.text = "".join(lines)
