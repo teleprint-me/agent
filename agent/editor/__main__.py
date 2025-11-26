@@ -190,19 +190,26 @@ if __name__ == "__main__":
 
     # Status bar
     def status_bar_fn():
-        # we'll. this is akward.
+        app = get_app()
+        buffer = app.current_buffer
+
         row = buffer.document.cursor_position_row + 1
         col = buffer.document.cursor_position_col + 1
-        # and it gets weird.
+
+        # real vi mode
         input_mode = app.vi_state.input_mode
-        if input_mode == InputMode.INSERT:
+
+        # visual mode override
+        if buffer.selection_state:
+            mode = "VISUAL"
+        elif input_mode == InputMode.INSERT:
             mode = "INSERT"
         elif input_mode == InputMode.NAVIGATION:
             mode = "NORMAL"
         elif input_mode == InputMode.REPLACE:
             mode = "REPLACE"
         else:
-            mode = "UNKNOWN"
+            mode = "OTHER"
 
         return [
             ("class:status", f"  {mode}  "),
