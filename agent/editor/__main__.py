@@ -34,23 +34,24 @@ def indent_line(text: str, width: int = TAB_WIDTH) -> str:
     return " " * width + text
 
 
-def indent_selection(buf: Buffer, doc: Document):
+def indent_selection(buf: Buffer, doc: Document, mod: callable):
     # get flat selection range (start, end indexes)
     start, end = doc.selection_range()
 
     # find start/end line numbers
     start_row, _ = doc.translate_index_to_position(start)
     end_row, _ = doc.translate_index_to_position(end)
+    end_row += 1  # add one to include last line
 
     # split into lines
     lines = doc.text.splitlines(True)  # keep newlines
 
     # modify each line
-    for i in range(start_row, end_row + 1):
+    for i in range(start_row, end_row):
         try:
-            lines[i] = indent_line(lines[i])
+            lines[i] = mod(lines[i])
         except IndexError:
-            pass  # end row is out of range
+            pass  # row is out of range
 
     # write new text
     buf.text = "".join(lines)
@@ -63,7 +64,7 @@ def on_tab(event: KeyPressEvent):
 
     # if there's a selection, then indent whole selection
     if buf.selection_state:
-        indent_selection(buf, doc)
+        indent_selection(buf, doc, indent_line)
         return
 
     # otherwise, simple indent on current line at cursor
@@ -79,22 +80,6 @@ def dedent_line(text: str, width: int = TAB_WIDTH) -> str:
     stripped = text.lstrip(" ")
     removed = len(text) - len(stripped)
     return text[min(width, removed) :]
-
-
-def dedent_selection(buf: Buffer, doc: Document):
-    start, end = doc.selection_range()
-    lines = doc.text.splitlines(True)
-
-    start_row, _ = doc.translate_index_to_position(start)
-    end_row, _ = doc.translate_index_to_position(end)
-
-    for i in range(start_row, end_row + 1):
-        try:
-            lines[i] = dedent_line(lines[i])
-        except IndexError:
-            pass  # end row is out of range
-
-    buf.text = "".join(lines)
 
 
 def dedent_current_line(buf: Buffer, doc: Document):
@@ -116,7 +101,7 @@ def on_shift_tab(event: KeyPressEvent):
     doc = buf.document
 
     if buf.selection_state:
-        dedent_selection(buf, doc)
+        indent_selection(buf, doc, dedent_line)
         return
 
     # Dedent current line
