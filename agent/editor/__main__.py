@@ -165,21 +165,13 @@ def on_shift_tab(event: KeyPressEvent):
     dedent_current_line(buf, doc)
 
 
-def statusbar_fn():
-    return [
-        ("class:status", "  INSERT  "),
-        ("", " | "),
-        (
-            "class:status.position",
-            f"Ln {buffer.document.cursor_position_row + 1}, Col {buffer.document.cursor_position_col + 1}  ",
-        ),
-    ]
-
-
 if __name__ == "__main__":
+    # Buffer
     buffer = Buffer()
     lexer = detect_lexer()
     buffer_control = BufferControl(buffer=buffer, lexer=lexer)
+
+    # Window
     window = Window(
         content=buffer_control,
         allow_scroll_beyond_bottom=True,
@@ -193,10 +185,39 @@ if __name__ == "__main__":
             )
         ],
     )
-    status_bar = Window(FormattedTextControl(statusbar_fn), height=1)
-    hsplit = HSplit([window, status_bar])
+
+    # Status bar
+    def status_bar_fn():
+        # we'll. this is akward.
+        row = buffer.document.cursor_position_row + 1
+        col = buffer.document.cursor_position_col + 1
+        return [
+            ("class:status", "  INSERT  "),
+            ("", " | "),
+            ("class:status.position", f"Ln {row}, Col {col}  "),
+        ]
+
+    status_bar = Window(FormattedTextControl(status_bar_fn), height=1)
+
+    # Layout
+    hsplit = HSplit(
+        [
+            window,
+            status_bar,
+        ]
+    )
     layout = Layout(container=hsplit)
-    style = Style.from_dict(style_dark)
+
+    # Style
+    style = Style.from_dict(
+        {
+            **style_dark,
+            "status": "#adb5bd",
+            "status.position": "#adb5bd",
+        }
+    )
+
+    # Application
     app = Application(
         layout=layout,
         key_bindings=kb,
