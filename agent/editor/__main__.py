@@ -45,13 +45,14 @@ def indent_selection(buf: Buffer, doc: Document, mod: callable):
 
     # split into lines
     lines = doc.text.splitlines(True)  # keep newlines
+    line_count = len(lines)
+
+    # clamp end_row to avoid indexing past the end
+    end_row = min(end_row, line_count)
 
     # modify each line
     for i in range(start_row, end_row):
-        try:
-            lines[i] = mod(lines[i])
-        except IndexError:
-            pass  # row is out of range
+        lines[i] = mod(lines[i])
 
     # write new text
     buf.text = "".join(lines)
