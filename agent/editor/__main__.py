@@ -67,6 +67,10 @@ def on_quit(event: KeyPressEvent):
 
 @kb.add("enter")
 def on_enter(event: KeyPressEvent):
+    input_mode = event.app.vi_state.input_mode
+    if input_mode == InputMode.NAVIGATION:
+        return  # Block on Normal Mode
+
     # current buffer and text
     buffer = event.current_buffer
     text = buffer.text
