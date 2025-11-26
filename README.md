@@ -499,6 +499,30 @@ Once running, the model can:
 That’s the full loop: start server -> start agent -> think -> act -> respond ->
 exit cleanly.
 
+### Editor
+
+The editor is an early prototype that’s still a work‑in‑progress and not yet
+functionally useful.
+
+If you’d like to try it, run:
+
+```bash
+python -m agent.editor
+```
+
+Press **Ctrl + Q** to exit.
+
+#### Current state
+
+- **Syntax highlighting** – auto‑detects the file type.
+- **Indentation** – tab key inserts a tab, Shift‑Tab removes indentation.
+- **Selection editing** – can tab or reverse‑tab a block of text.
+
+All other features are under development.
+
+The goal is to create a lightweight, VS Code‑like editor that leverages PTK3’s
+strengths while adding ergonomic functionality.
+
 ## Contributions
 
 I'm open to ideas and contributions. Feel free to open an issue or pull
