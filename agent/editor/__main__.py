@@ -1,5 +1,5 @@
 """
-https://python-prompt-toolkit.readthedocs.io/en/master/pages/full_screen_apps.html
+agent.editor.__main__
 """
 
 import sys
@@ -11,6 +11,7 @@ from prompt_toolkit.enums import EditingMode
 from prompt_toolkit.filters import Condition
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.key_binding.key_processor import KeyPressEvent
+from prompt_toolkit.layout import HSplit
 from prompt_toolkit.layout.containers import Window
 from prompt_toolkit.layout.controls import BufferControl, FormattedTextControl
 from prompt_toolkit.layout.layout import Layout
@@ -70,7 +71,7 @@ def on_enter(event: KeyPressEvent):
 
     # detect new lexer
     new_lexer = detect_lexer(text)
-    event.app.layout.container.content.lexer = new_lexer
+    event.app.layout.container.children[0].content.lexer = new_lexer
 
     # redraw ui
     event.app.invalidate()
@@ -164,6 +165,17 @@ def on_shift_tab(event: KeyPressEvent):
     dedent_current_line(buf, doc)
 
 
+def statusbar_fn():
+    return [
+        ("class:status", "  INSERT  "),
+        ("", " | "),
+        (
+            "class:status.position",
+            f"Ln {buffer.document.cursor_position_row + 1}, Col {buffer.document.cursor_position_col + 1}  ",
+        ),
+    ]
+
+
 if __name__ == "__main__":
     buffer = Buffer()
     lexer = detect_lexer()
@@ -181,7 +193,9 @@ if __name__ == "__main__":
             )
         ],
     )
-    layout = Layout(container=window)
+    status_bar = Window(FormattedTextControl(statusbar_fn), height=1)
+    hsplit = HSplit([window, status_bar])
+    layout = Layout(container=hsplit)
     style = Style.from_dict(style_dark)
     app = Application(
         layout=layout,
