@@ -52,6 +52,8 @@ def indent_selection(buf: Buffer, doc: Document, mod: callable):
 
     # modify each line
     for i in range(start_row, end_row):
+        if lines[i].strip() == "":
+            continue
         lines[i] = mod(lines[i])
 
     # write new text
