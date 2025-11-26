@@ -5,12 +5,14 @@ agent.editor.__main__
 import sys
 
 from prompt_toolkit import Application
+from prompt_toolkit.application.current import get_app
 from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.document import Document
 from prompt_toolkit.enums import EditingMode
 from prompt_toolkit.filters import Condition
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.key_binding.key_processor import KeyPressEvent
+from prompt_toolkit.key_binding.vi_state import InputMode
 from prompt_toolkit.layout import HSplit
 from prompt_toolkit.layout.containers import Window
 from prompt_toolkit.layout.controls import BufferControl, FormattedTextControl
@@ -191,8 +193,19 @@ if __name__ == "__main__":
         # we'll. this is akward.
         row = buffer.document.cursor_position_row + 1
         col = buffer.document.cursor_position_col + 1
+        # and it gets weird.
+        input_mode = app.vi_state.input_mode
+        if input_mode == InputMode.INSERT:
+            mode = "INSERT"
+        elif input_mode == InputMode.NAVIGATION:
+            mode = "NORMAL"
+        elif input_mode == InputMode.REPLACE:
+            mode = "REPLACE"
+        else:
+            mode = "UNKNOWN"
+
         return [
-            ("class:status", "  INSERT  "),
+            ("class:status", f"  {mode}  "),
             ("", " | "),
             ("class:status.position", f"Ln {row}, Col {col}  "),
         ]
