@@ -182,7 +182,7 @@ if __name__ == "__main__":
         left_margins=[
             ConditionalMargin(
                 margin=NumberedMargin(
-                    relative=Condition(lambda: True),
+                    relative=Condition(lambda: False),
                     display_tildes=True,
                 ),
                 filter=Condition(lambda: True),
