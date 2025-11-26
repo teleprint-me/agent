@@ -8,12 +8,14 @@ from prompt_toolkit import Application
 from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.document import Document
 from prompt_toolkit.enums import EditingMode
+from prompt_toolkit.filters import Condition
 from prompt_toolkit.formatted_text import ANSI
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.key_binding.key_processor import KeyPressEvent
 from prompt_toolkit.layout.containers import Window
 from prompt_toolkit.layout.controls import BufferControl, FormattedTextControl
 from prompt_toolkit.layout.layout import Layout
+from prompt_toolkit.layout.margins import ConditionalMargin, NumberedMargin
 from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.styles import Style
 from pygments.lexers import get_lexer_for_filename, guess_lexer
@@ -174,7 +176,19 @@ if __name__ == "__main__":
     buffer = Buffer()
     lexer = detect_lexer()
     buffer_control = BufferControl(buffer=buffer, lexer=lexer)
-    window = Window(content=buffer_control, allow_scroll_beyond_bottom=True)
+    window = Window(
+        content=buffer_control,
+        allow_scroll_beyond_bottom=True,
+        left_margins=[
+            ConditionalMargin(
+                margin=NumberedMargin(
+                    relative=Condition(lambda: True),
+                    display_tildes=True,
+                ),
+                filter=Condition(lambda: True),
+            )
+        ],
+    )
     layout = Layout(container=window)
     style = Style.from_dict(style_dark)
     app = Application(
