@@ -2,8 +2,6 @@
 agent.editor.__main__
 """
 
-import sys
-
 from prompt_toolkit import Application
 from prompt_toolkit.application.current import get_app
 from prompt_toolkit.buffer import Buffer
