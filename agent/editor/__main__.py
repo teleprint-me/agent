@@ -160,18 +160,6 @@ def detect_lexer(text: str = None) -> PygmentsLexer:
     return PygmentsLexer(cls)
 
 
-def line_number_control(buffer: Buffer) -> FormattedTextControl:
-    def get_line_format() -> ANSI:
-        total = buffer.document.line_count
-        width = len(str(total))  # right-pad alignment
-        text = ""
-        for i in range(1, total + 1):
-            text += f"{str(i).rjust(width)}\n"
-        return ANSI(text)
-
-    return FormattedTextControl(get_line_format)
-
-
 if __name__ == "__main__":
     buffer = Buffer()
     lexer = detect_lexer()
