@@ -7,6 +7,7 @@ Description: Module for handling low-level requests to the LlamaCpp REST API.
 """
 
 import json
+from json import JSONDecodeError
 from typing import Any, Dict, Generator
 
 import requests
@@ -48,8 +49,13 @@ class LlamaCppRequest:
         :return: The parsed JSON response.
         """
         self.logger.debug(f"Received response with status {response.status_code}")
-        response.raise_for_status()
-        return response.json()
+        if not response.ok:
+            response.raise_for_status()
+
+        try:
+            return response.json()
+        except JSONDecodeError:  # json decode failed
+            return response.text
 
     def get(self, endpoint: str, params: Dict[str, Any] = None) -> Any:
         """
