@@ -153,12 +153,12 @@ class LlamaCppAPI:
         response = self.request.post("/detokenize", data=data)
         return response.get("content", "")
 
-    def embeddings(self, content: str) -> Any:
+    def embeddings(self, text: Union[str, List[str]) -> Any:
         """Get the embedding for the given input."""
-        self.logger.debug(f"Fetching embedding for input: {content}")
+        self.logger.debug(f"Fetching embedding for input: {text}")
         endpoint = "/v1/embeddings"
         data = {
-            "input": content,
+            "input": text,
             "model": "text-embedding-3-small",
             "encoding_format": "float",
         }
