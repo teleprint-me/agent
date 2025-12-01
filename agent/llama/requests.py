@@ -8,7 +8,7 @@ Description: Module for handling low-level requests to the LlamaCpp REST API.
 
 import json
 from json import JSONDecodeError
-from typing import Any, Dict, Generator
+from typing import Any, Dict, Generator, Optional
 
 import requests
 
@@ -27,7 +27,7 @@ class LlamaCppRequest:
         self,
         base_url: str = "http://127.0.0.1",
         port: str = "8080",
-        headers: Dict[str, str] = None,
+        headers: Optional[Dict[str, str]] = None,
     ):
         """
         Initialize the LlamaCppRequest instance.
@@ -57,7 +57,7 @@ class LlamaCppRequest:
         except JSONDecodeError:  # json decode failed
             return response.text
 
-    def get(self, endpoint: str, params: Dict[str, Any] = None) -> Any:
+    def get(self, endpoint: str, params: Optional[Dict[str, Any]] = None) -> Any:
         """
         Perform an HTTP GET request.
 
@@ -73,7 +73,7 @@ class LlamaCppRequest:
         response = requests.get(url, params=params, headers=self.headers)
         return self._handle_response(response)
 
-    def post(self, endpoint: str, data: Dict[str, Any] = None) -> Any:
+    def post(self, endpoint: str, data: Optional[Dict[str, Any]] = None) -> Any:
         """
         Perform an HTTP POST request.
 
