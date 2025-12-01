@@ -7,7 +7,7 @@ Description: High-level Requests API for interacting with the LlamaCpp REST API.
 """
 
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Sequence, Union, cast
 
 import regex as re
 from requests.exceptions import ConnectionError, HTTPError
@@ -20,7 +20,7 @@ METRIC_RE = re.compile(r"^([^ {]+)(?:\{([^}]*)\})?\s+([+-]?\d+(?:\.\d+)?)$")
 
 # See agent.config.__init__ for details
 class LlamaCppAPI:
-    def __init__(self, llama_request: LlamaCppRequest = None, **kwargs: Any):
+    def __init__(self, llama_request: Optional[LlamaCppRequest] = None, **kwargs: Any):
         """Initialize the API with default model parameters and request handler."""
         # Setup request object
         self.request = llama_request if llama_request else LlamaCppRequest()
@@ -36,7 +36,9 @@ class LlamaCppAPI:
         self.logger = config.get_logger("logger", self.__class__.__name__)
         self.logger.debug("Initialized LlamaCppAPI instance.")
 
-    def error(self, code: int, message: str, type: str) -> dict[str, Any]:
+    def error(
+        self, code: int, message: Union[str, Exception], type: str
+    ) -> Dict[str, Any]:
         """Return a dictionary representing an error response."""
         return {"error": {"code": code, "message": message, "type": type}}
 
@@ -51,7 +53,7 @@ class LlamaCppAPI:
             return self.error(500, e, "unavailable_error")
 
     @property
-    def metrics(self) -> dict[str, any]:
+    def metrics(self) -> Dict[str, Any]:
         """Prometheus compatible metrics exporter."""
         # @note this format is terrible as a response object.
         # @see https://prometheus.io/docs/instrumenting/exposition_formats/
@@ -91,7 +93,7 @@ class LlamaCppAPI:
             return self.error(501, e, "unavailable_error")
 
     @property
-    def slots(self) -> List[Dict[str, Any]]:
+    def slots(self) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
         """Get the current slots processing state."""
         try:
             self.logger.debug("Fetching slot states")
@@ -141,15 +143,27 @@ class LlamaCppAPI:
         return response.get("tokens", [])
 
     def detokenize(
-        self, pieces: Union[List[int], List[Dict[str, Union[int, str]]]]
+        self,
+        pieces: List[Union[int, Dict[str, Union[int, str]]]],
     ) -> str:
         """Detokenizes a given sequence of token IDs using the server's detokenize endpoint."""
         self.logger.debug(f"Detokenizing: {pieces}")
-        if isinstance(pieces, list) and isinstance(pieces[0], dict):
-            self.logger.debug("Decoding pieces with 'id' and 'piece' keys")
-            # If pieces is a list of dictionaries, extract the 'id' values
-            pieces = [piece["id"] for piece in pieces]
-        data = {"tokens": pieces}
+        if not isinstance(pieces, list):
+            raise TypeError("Pieces must be a list")
+
+        tokens: List[int] = []
+        if isinstance(pieces[0], int):
+            self.logger.debug("Decoding pieces as 'list' with 'int'")
+            tokens = cast(List[int], pieces)
+        elif isinstance(pieces[0], dict):
+            self.logger.debug("Decoding pieces as 'dict' with 'id' and 'piece' keys")
+            tokens = cast(List[int], [piece["id"] for piece in pieces])
+        else:
+            self.logger.debug("Pieces is not a list with int or dict[str, int|str]")
+            raise TypeError("Pieces must contain int or dict[str, int|str]")
+
+        # Pieces must resolve to a list of integers
+        data: Dict[str, List[int]] = {"tokens": tokens}
         response = self.request.post("/detokenize", data=data)
         return response.get("content", "")
 
