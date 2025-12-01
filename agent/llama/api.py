@@ -152,10 +152,10 @@ class LlamaCppAPI:
             raise TypeError("Pieces must be a list")
 
         tokens: List[int] = []
-        if isinstance(pieces[0], int):
+        if all(isinstance(piece, int) for piece in pieces):
             self.logger.debug("Decoding pieces as 'list' with 'int'")
             tokens = cast(List[int], pieces)
-        elif isinstance(pieces[0], dict):
+        elif all(isinstance(piece, dict) for piece in pieces):
             self.logger.debug("Decoding pieces as 'dict' with 'id' and 'piece' keys")
             tokens = cast(List[int], [piece["id"] for piece in pieces])
         else:
