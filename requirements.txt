@@ -1,6 +1,7 @@
 # Development Tools
 bpython
 flake8
+pyright
 black
 isort
 build
