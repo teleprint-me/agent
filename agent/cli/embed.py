@@ -1,4 +1,4 @@
-# agent/backend/gpt/embed.py
+# agent/cli/embed.py
 """
 Llama-Server Embeddings Wrapper
 ================================
@@ -35,16 +35,34 @@ llama-server \
   -m /mnt/valerie/models/Qwen/Qwen3-Embedding-0.6B/ggml-model-q8_0.gguf
 ```
 
-Notes
+Model & Memory Usage Notes
 -----
-- **Embedding model** - A dedicated embedding model must be used.
-- **Embedding flag** - This flag is required.
-- **Port** - Ensure the port does not conflict with the chat model.
-- **Sequence length** - Qwen3-Embedding supports a maximum of 32768 tokens.
-- **VRAM usage**
-  - GPT-OSS ≈ 12.1 GB
-  - Embedding model ≈ 3.5 GB
-  - Total available ≈ 16 GB
+
+- General Rules
+  - **Embedding model** – Must support the same context window (32 768 tokens).
+  - **Embedding flag** – Required for the embedding server.
+  - **Port** – Keep the chat and embedding servers on different ports.
+  - **Sequence length** – Qwen3‑Embedding supports up to 32 768 tokens.
+
+- VRAM Consumption
+
+| Model                | Approx. VRAM (q8 / bf16) | Notes |
+|----------------------|--------------------------|-------|
+| **GPT‑OSS‑20B‑A3B**  | q8: 12.5 GB | 35 layers |
+| **Qwen3‑Embedding‑0.6B** | bf16: 3.5 GB | 36 layers |
+
+Total available: ~16 GB
+
+- Offloading Strategies
+  - Offloading reduces VRAM load but can hurt throughput.
+  - For GPT‑OSS the **best** performance comes from **all** layers on the GPU (71 tokens/s).
+  - Offloading 5 layers to the CPU drops throughput dramatically (≈73 % drop).
+  - For Qwen‑Embedding the hit is smaller (≈36 % drop) but still noticeable.
+
+| Model | Offload Target | Layers | Tokens/s (GPU‑only) | Tokens/s (CPU‑offload) | Δ% |
+|-------|----------------|--------|---------------------|------------------------|----|
+| **GPT‑OSS** | CPU (`--n-cpu-moe`) | 5 layers | **71** | 19 | -73 % |
+| **Qwen‑Embedding** | GPU (`--n-gpu-layers`) | 5 layers | ~70 tokens/s (baseline) | ~45 tokens/s | -36 % |
 
 --------------------------------------------------------------------
 API Usage
@@ -97,9 +115,9 @@ from typing import Generator
 
 import numpy as np
 
+from agent.config import DEFAULT_PATH_STOR, config
 from agent.llama.api import LlamaCppAPI
 from agent.llama.requests import LlamaCppRequest
-from agent.config import DEFAULT_PATH_STOR, config
 
 #
 # Embedding model
@@ -154,7 +172,7 @@ def rag_initialize() -> None:
         conn.commit()
 
 
-def rag_entry(doc_id: str, chunk_id: int, content: str, vector: np.ndarray) -> None:
+def rag_create(doc_id: str, chunk_id: int, content: str, vector: np.ndarray) -> None:
     with rag_connect() as conn:
         conn.execute(
             """
@@ -176,7 +194,7 @@ def rag_ingest(llama_api: LlamaCppAPI, path: str) -> None:
         for i, chunk in enumerate(token_chunk(token_ids)):
             chunk_text = llama_api.detokenize(chunk)
             vector = embeddings(llama_api, chunk_text)
-            rag_entry(path, i, chunk_text, vector)
+            rag_create(path, i, chunk_text, vector)
 
 
 def rag_load() -> Generator:
