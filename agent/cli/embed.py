@@ -108,7 +108,8 @@ from agent.config import DEFAULT_PATH_STOR, config
 
 def embeddings(llama_api: LlamaCppAPI, text: str) -> np.ndarray:
     response = llama_api.embeddings(text=text)
-    return np.asarray(response["data"][0]["embedding"], dtype=np.float32)
+    embedding = response["data"][0]["embedding"]
+    return np.asarray(embedding, dtype=np.float32)
 
 
 #
