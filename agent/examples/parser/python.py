@@ -11,5 +11,7 @@ with open(args.file) as file:
     source = file.read()
 
 lines = source.splitlines(keepends=True)
-for line in lines:
-    print(line, end="")
+tree = ast.parse(source)
+print(tree)
+for node in tree.body:
+    print(node)
