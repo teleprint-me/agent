@@ -67,10 +67,38 @@ for node in tree.body:
         # top-level function
         chunks.append(slice_block(lines, start, end))
         used.update(range(start, end))
-        print(chunks)
-        print(used)
     elif isinstance(node, ast.ClassDef):
+        # need to handle decorators
         methods = []
         for child in node.body:
             print(f"child: {child}")
+            if isinstance(child, ast.FunctionDef):
+                mstart = start_line(child)
+                mend = end_line(lines, mstart)
+                methods.append((mstart, mend))
 
+        cursor = start
+        cls_chunks = []
+        for mstart, mend in sorted(methods):
+            if cursor < mstart:
+                cls_chunks.append(slice_block(lines, cursor, mstart))
+                used.update(range(cursor, mstart))
+            cursor = mend
+
+        if cursor < end:
+            cls_chunks.append(slice_block(lines, curosr, end))
+            used.update(range(cursor, end))
+
+        for chunk in cls_chunks:
+            if chunk.strip():
+                chunks.append(chunk)
+
+        for mstart, mend in methods:
+            chunks.append(slice_block(lines, mstart, mend))
+            used.update(range(mstart, mend))
+
+
+print("Aggregated Chunks:")
+for i, chunk in enumerate(chunks):
+    print(f"Chunk {i}\n---")
+    print(chunk, end="")
