@@ -61,7 +61,7 @@ for node in tree.body:
     end: int = end_line(lines, start)
 
     # start is inclusive, end is exclusive
-    print(f"start: {start + 1}, end: {end}, {node}")
+    print(f"start: {start + 1}, end: {end}, parent: {node}")
 
     if isinstance(node, ast.FunctionDef):
         # top-level function
@@ -69,4 +69,8 @@ for node in tree.body:
         used.update(range(start, end))
         print(chunks)
         print(used)
+    elif isinstance(node, ast.ClassDef):
+        methods = []
+        for child in node.body:
+            print(f"child: {child}")
 
