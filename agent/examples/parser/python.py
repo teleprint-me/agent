@@ -39,6 +39,10 @@ def end_line(lines: List[str], start: int) -> int:
     return end
 
 
+def slice_block(lines: List[str], start: int, end: int) -> str:
+    return "".join(lines[start:end])
+
+
 def parse_args() -> Namespace:
     parser = ArgumentParser()
     parser.add_argument("path", type=str, help="The python source file to parse.")
@@ -49,6 +53,8 @@ args = parse_args()
 source = open_file(args.path)
 lines = source.splitlines(keepends=True)
 tree = ast.parse(source)
+chunks = []
+used = set() # chunked lines
 
 for node in tree.body:
     start: int = start_line(node)
@@ -56,3 +62,11 @@ for node in tree.body:
 
     # start is inclusive, end is exclusive
     print(f"start: {start + 1}, end: {end}, {node}")
+
+    if isinstance(node, ast.FunctionDef):
+        # top-level function
+        chunks.append(slice_block(lines, start, end))
+        used.update(range(start, end))
+        print(chunks)
+        print(used)
+
