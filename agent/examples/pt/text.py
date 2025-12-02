@@ -44,5 +44,6 @@ with open(args.path) as file:
 if args.debug:
     for tok in tokens_list:
         print(tok)
+else:
+    print(PygmentsTokens(token_list=tokens_list), style=Style.from_dict(style_dark))
 
-print(PygmentsTokens(token_list=tokens_list), style=Style.from_dict(style_dark))
