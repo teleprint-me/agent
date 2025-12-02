@@ -3,25 +3,24 @@ https://docs.python.org/3/library/ast.html
 """
 
 import ast
+import re
 from argparse import ArgumentParser, Namespace
 from typing import List
-import re
 
-parser = ArgumentParser()
-parser.add_argument("file", type=str, help="The python source file to parse.")
-args = parser.parse_args()
 
-source = ""
-with open(args.file) as file:
-    source = file.read()
+def open_file(path: str) -> str:
+    """return the raw source file as a string."""
+    source = ""
+    with open(path) as file:
+        source = file.read()
+    return source
 
-lines = source.splitlines(keepends=True)
-tree = ast.parse(source)
-print(tree)
-for node in tree.body:
-    start = node.lineno - 1
 
-    # compute final line
+def start_line(node: ast.AST) -> int:
+    return node.lineno - 1
+
+
+def end_line(lines: List[str], start: int) -> int:
     first_indent = len(lines[start]) - len(lines[start].lstrip())
     end = start + 1
     n = len(lines)
@@ -37,6 +36,23 @@ for node in tree.body:
             break
 
         end += 1
+    return end
+
+
+def parse_args() -> Namespace:
+    parser = ArgumentParser()
+    parser.add_argument("path", type=str, help="The python source file to parse.")
+    return parser.parse_args()
+
+
+args = parse_args()
+source = open_file(args.path)
+lines = source.splitlines(keepends=True)
+tree = ast.parse(source)
+
+for node in tree.body:
+    start: int = start_line(node)
+    end: int = end_line(lines, start)
 
     # start is inclusive, end is exclusive
     print(f"start: {start + 1}, end: {end}, {node}")
