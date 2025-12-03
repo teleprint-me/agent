@@ -17,7 +17,7 @@ def open_file(path: str) -> str:
 
 
 def start_line(node: ast.AST) -> int:
-    start = node.lineno - 1 # start is inclusive
+    start = node.lineno - 1  # start is inclusive
     if hasattr(node, "decorator_list"):
         for decorator in node.decorator_list:
             start = min(start, decorator.lineno - 1)
@@ -44,30 +44,41 @@ lines = source.splitlines(keepends=True)
 tree = ast.parse(source)
 chunks = []
 used = set()  # chunked lines
+# import state machine
+import_start = None
+import_end = None
 
 for node in tree.body:
     start: int = start_line(node)
     end: int = end_line(node)
 
-    print(f"parent: {node}")
-    print(f"start: {start + 1}, end: {end}")
-    print(vars(node), end="\n\n")
+    # print(f"parent: {node}")
+    # print(f"start: {start}, end: {end}")
+    # print(vars(node), end="\n\n")
 
-    if isinstance(node, ast.FunctionDef):
-        # top-level function
-        chunks.append(slice_block(lines, start, end))
-        used.update(range(start, end))
-    elif isinstance(node, ast.ClassDef):
+    # consecutive import block (group all inclusions)
+    if isinstance(node, (ast.Import, ast.ImportFrom)):
+        if import_start is None:
+            import_start = start
+        import_end = end
+        continue
+
+    # flush pending import block
+    if import_start is not None:
+        chunks.append(slice_block(lines, import_start, import_end))
+        import_start = import_end = None
+
+    if isinstance(node, ast.ClassDef):
         # need to handle decorators
         methods = []
         for child in node.body:
-            print(f"child: {child}")
-            print(vars(child))
+            # print(f"child: {child}")
+            # print(vars(child))
             if isinstance(child, ast.FunctionDef):
                 mstart = start_line(child)
                 mend = end_line(child)
                 methods.append((mstart, mend))
-            print()
+            # print()
 
         cursor = start
         cls_chunks = []
@@ -89,6 +100,7 @@ for node in tree.body:
             chunks.append(slice_block(lines, mstart, mend))
             used.update(range(mstart, mend))
     else:
+        # everything else (defs, ifs, etc.)
         if start not in used:
             chunks.append(slice_block(lines, start, end))
             used.update(range(start, end))
