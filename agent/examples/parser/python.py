@@ -58,7 +58,7 @@ for node in tree.body:
         methods = []
         for child in node.body:
             print(f"child: {child}")
-            print(vars(node))
+            print(vars(child))
             if isinstance(child, ast.FunctionDef):
                 mstart = start_line(child)
                 mend = end_line(child)
