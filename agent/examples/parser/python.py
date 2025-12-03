@@ -17,7 +17,11 @@ def open_file(path: str) -> str:
 
 
 def start_line(node: ast.AST) -> int:
-    return node.lineno - 1 # start is inclusive
+    start = node.lineno - 1 # start is inclusive
+    if hasattr(node, "decorator_list"):
+        for decorator in node.decorator_list:
+            start = min(start, decorator.lineno - 1)
+    return start
 
 
 def end_line(node: ast.AST) -> int:
