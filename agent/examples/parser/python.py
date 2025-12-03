@@ -52,10 +52,6 @@ for node in tree.body:
     start: int = start_line(node)
     end: int = end_line(node)
 
-    # print(f"parent: {node}")
-    # print(f"start: {start}, end: {end}")
-    # print(vars(node), end="\n\n")
-
     # consecutive import block (group all inclusions)
     if isinstance(node, (ast.Import, ast.ImportFrom)):
         if import_start is None:
@@ -72,13 +68,10 @@ for node in tree.body:
         # need to handle decorators
         methods = []
         for child in node.body:
-            # print(f"child: {child}")
-            # print(vars(child))
             if isinstance(child, ast.FunctionDef):
                 mstart = start_line(child)
                 mend = end_line(child)
                 methods.append((mstart, mend))
-            # print()
 
         cursor = start
         cls_chunks = []
