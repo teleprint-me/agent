@@ -17,26 +17,11 @@ def open_file(path: str) -> str:
 
 
 def start_line(node: ast.AST) -> int:
-    return node.lineno - 1
+    return node.lineno - 1 # start is inclusive
 
 
-def end_line(lines: List[str], start: int) -> int:
-    first_indent = len(lines[start]) - len(lines[start].lstrip())
-    end = start + 1
-    n = len(lines)
-    while end < n:
-        line = lines[end]
-        # empty/comment lines allowed
-        if not line.strip():
-            end += 1
-            continue
-
-        indent = len(line) - len(line.lstrip())
-        if indent <= first_indent:
-            break
-
-        end += 1
-    return end
+def end_line(node: ast.AST) -> int:
+    return node.end_lineno  # end is exclusive
 
 
 def slice_block(lines: List[str], start: int, end: int) -> str:
@@ -54,14 +39,15 @@ source = open_file(args.path)
 lines = source.splitlines(keepends=True)
 tree = ast.parse(source)
 chunks = []
-used = set() # chunked lines
+used = set()  # chunked lines
 
 for node in tree.body:
     start: int = start_line(node)
-    end: int = end_line(lines, start)
+    end: int = end_line(node)
 
-    # start is inclusive, end is exclusive
-    print(f"start: {start + 1}, end: {end}, parent: {node}")
+    print(f"parent: {node}")
+    print(f"start: {start + 1}, end: {end}")
+    print(vars(node), end="\n\n")
 
     if isinstance(node, ast.FunctionDef):
         # top-level function
@@ -72,10 +58,12 @@ for node in tree.body:
         methods = []
         for child in node.body:
             print(f"child: {child}")
+            print(vars(node))
             if isinstance(child, ast.FunctionDef):
                 mstart = start_line(child)
-                mend = end_line(lines, mstart)
+                mend = end_line(child)
                 methods.append((mstart, mend))
+            print()
 
         cursor = start
         cls_chunks = []
@@ -86,7 +74,7 @@ for node in tree.body:
             cursor = mend
 
         if cursor < end:
-            cls_chunks.append(slice_block(lines, curosr, end))
+            cls_chunks.append(slice_block(lines, cursor, end))
             used.update(range(cursor, end))
 
         for chunk in cls_chunks:
@@ -96,9 +84,13 @@ for node in tree.body:
         for mstart, mend in methods:
             chunks.append(slice_block(lines, mstart, mend))
             used.update(range(mstart, mend))
-
+    else:
+        if start not in used:
+            chunks.append(slice_block(lines, start, end))
+            used.update(range(start, end))
 
 print("Aggregated Chunks:")
 for i, chunk in enumerate(chunks):
     print(f"Chunk {i}\n---")
     print(chunk, end="")
+    print("---")
