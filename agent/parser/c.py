@@ -30,27 +30,29 @@ def parse_args() -> Namespace:
 
 args = parse_args()
 
-# assert the source file is a python script or module
+# only parse the file if it's a C source
 file_magic = magic.detect_from_filename(args.path)
-assert "utf-8" == file_magic.encoding, "File is not UTF-8 encoded"
-assert "text/x-c" == file_magic.mime_type, "File is not text/x-c"
-assert "C source" in file_magic.name, "File is not a C source"
+if file_magic.encoding != "utf-8":
+    raise RuntimeError("File is not UTF‑8")
+if file_magic.mime_type != "text/x-c":
+    raise RuntimeError("File is not a C source")
+if "C source" not in file_magic.name:
+    raise RuntimeError("File is not a C source")
 
-# returns a capsule instance
 capsule = tsc.language()
-# must pass capsule to get language instance
 lang = Language(capsule)
-# parser accepts the language instance object
 parser = Parser(lang)
-# get the source file as byte code
 source = read_bytes(args.path)
-# tree sitter expects raw byte code
 tree = parser.parse(source)
 
-print(tree)
 for node in tree.root_node.children:
-    print(node.type)
+    if node.type == ";":
+        continue
+    print(f"type: {node.type}, start: {node.start_byte}, end: {node.end_byte}")
     print("---")
-    print(source[node.start_byte:node.end_byte].decode(file_magic.encoding))
+    txt = node.text.decode()
+    nxt = node.next_sibling
+    if nxt and nxt.type == ";":
+        txt += nxt.text.decode()
+    print(txt)
     print("---")
-
