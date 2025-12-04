@@ -23,6 +23,13 @@ capsule = tsc.language()
 lang = Language(capsule)
 # parser accepts the language instance object
 parser = Parser(lang)
+
+# do a quick sanity check
+source = b'int main() { return 0; }'
+# tree sitter expects raw byte code
+tree = parser.parse(source)
 print(lang)
 print(parser)
+print(source)
+print(tree)
 
