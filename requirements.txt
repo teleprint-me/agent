@@ -33,5 +33,10 @@ python-poppler @ git+https://github.com/opale-ai/python-poppler.git@ca6678d
 #   - Python has a builtin Abstract Syntax Tree. 
 #   - Each language has its own dependency. e.g. tree-sitter-c
 tree-sitter  # base package
-tree-sitter-python
+# Officially supported languages
 tree-sitter-c
+tree-sitter-cpp
+tree-sitter-rust
+tree-sitter-python
+tree-sitter-bash
+# Add others as needed
