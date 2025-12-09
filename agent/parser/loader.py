@@ -5,39 +5,28 @@ Attempt to guess, load, and return a tree-sitter parser.
 
 import importlib
 import importlib.metadata
-import os
+import importlib.util
 import sys
-from importlib.machinery import ModuleSpec
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Optional
 
-import magic
 from tree_sitter import Language, Parser, Tree
 
-# note: markdown is not supported by tree-sitter
+# note: markdown and latex are not supported by tree-sitter
 
+# map extensions to modules
 # module names, e.g. tree-sitter-c
-c = "c"
-cpp = "cpp"
-rust = "rust"
-bash = "bash"
-python = "python"
-html = "html"
-css = "css"
-javascript = "javascript"
-
-# map extensions to module
 MOD_MAP = {
-    ".c": c,
-    ".h": c,
-    ".cpp": cpp,
-    ".hpp": cpp,
-    ".rs": rust,
-    ".py": python,
-    ".sh": bash,
-    ".html": html,
-    ".css": css,
-    ".js": javascript,
+    ".c": "c",
+    ".h": "c",
+    ".cpp": "cpp",
+    ".hpp": "cpp",
+    ".rs": "rust",
+    ".py": "python",
+    ".sh": "bash",
+    ".html": "html",
+    ".css": "css",
+    ".js": "javascript",
 }
 
 
@@ -46,7 +35,7 @@ def guess_module(source: str) -> Optional[str]:
     return MOD_MAP.get(path)
 
 
-def guess_language(source: str) -> Optional[Language]:
+def guess_capsule(source: str) -> Optional[Language]:
     mod_type = guess_module(source)
     if mod_type is None:
         return None  # gracefully handle markdown
@@ -62,14 +51,20 @@ def guess_language(source: str) -> Optional[Language]:
             return None  # invalid import
         module = importlib.util.module_from_spec(mod_spec)
         sys.modules[mod_name] = module
-        spec.loader.exec_module(module)
-        return module.language()
+        # pyright complains about this, but it's assertion is invalid.
+        # this is documented in the official python docs.
+        # https://docs.python.org/3/library/importlib.html#importing-a-source-file-directly
+        # using __import__ directly is considered to be an anti-pattern.
+        mod_spec.loader.exec_module(module)  # type: ignore
+        # https://docs.python.org/3/c-api/capsule.html
+        # https://docs.python.org/3/extending/extending.html#using-capsules
+        return module.language()  # returns a PyCapsule object (e.g. void*)
 
 
 def parse_file(source: str) -> Optional[Tree]:
     path = Path(source)
     data = path.read_bytes()
-    capsule = guess_language(source)
+    capsule = guess_capsule(source)
     if capsule is None:
         return None
     language = Language(capsule)
