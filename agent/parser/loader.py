@@ -8,7 +8,7 @@ import importlib.metadata
 import importlib.util
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 from tree_sitter import Language, Parser, Tree
 
@@ -30,43 +30,59 @@ MOD_MAP = {
 }
 
 
-def guess_module(source: str) -> Optional[str]:
-    path = Path(source).suffix.lower()
-    return MOD_MAP.get(path)
+def guess_module(path: str) -> Optional[str]:
+    return MOD_MAP.get(path.suffix.lower())
 
 
-def guess_capsule(source: str) -> Optional[Language]:
-    mod_type = guess_module(source)
-    if mod_type is None:
+def guess_capsule(name: str) -> Optional[Language]:
+    if name is None:
         return None  # gracefully handle markdown
 
-    pkg_name = f"tree-sitter-{mod_type}"
+    pkg_name = f"tree-sitter-{name}"
     for dist in importlib.metadata.distributions():
         dist_name = dist.metadata["Name"]
         if dist_name != pkg_name:
-            continue
+            continue  # skip
+
         mod_name = dist_name.replace("-", "_")
         mod_spec = importlib.util.find_spec(mod_name)
         if mod_spec is None:
             return None  # invalid import
+
         module = importlib.util.module_from_spec(mod_spec)
         sys.modules[mod_name] = module
+
         # pyright complains about this, but it's assertion is invalid.
         # this is documented in the official python docs.
         # https://docs.python.org/3/library/importlib.html#importing-a-source-file-directly
         # using __import__ directly is considered to be an anti-pattern.
         mod_spec.loader.exec_module(module)  # type: ignore
+
         # https://docs.python.org/3/c-api/capsule.html
         # https://docs.python.org/3/extending/extending.html#using-capsules
         return module.language()  # returns a PyCapsule object (e.g. void*)
 
 
-def parse_file(source: str) -> Optional[Tree]:
+def parse_file(source: Union[str, Path]) -> Optional[Tree]:
     path = Path(source)
-    data = path.read_bytes()
-    capsule = guess_capsule(source)
+    name = guess_module(path)
+    capsule = guess_capsule(name)
     if capsule is None:
-        return None
+        return None  # unsupported language
+
     language = Language(capsule)
     parser = Parser(language)
-    return parser.parse(data)
+    return parser.parse(path.read_bytes())
+
+
+# example usage
+if __name__ == "__main__":
+    from argparse import ArgumentParser
+
+    parser = ArgumentParser()
+    parser.add_argument("path", help="Path to a plain text source file")
+    args = parser.parse_args()
+    tree = parse_file(args.path)
+    print(tree)
+    for node in tree.root_node.children:
+        print(node)
