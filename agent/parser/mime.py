@@ -1,4 +1,7 @@
-""" """
+"""
+agent.parser.mime
+Get the mime type of a given file object.
+"""
 
 import inspect
 from argparse import ArgumentParser
