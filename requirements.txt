@@ -39,6 +39,7 @@ tree-sitter-cpp
 tree-sitter-rust
 tree-sitter-python
 tree-sitter-bash
+tree-sitter-markdown
 # Add others as needed
 tree-sitter-json
 tree-sitter-html
