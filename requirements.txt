@@ -40,6 +40,7 @@ tree-sitter-rust
 tree-sitter-python
 tree-sitter-bash
 # Add others as needed
+tree-sitter-json
 tree-sitter-html
 tree-sitter-css
 tree-sitter-javascript
