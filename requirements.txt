@@ -7,6 +7,8 @@ isort
 build
 
 # Dependencies
+#   Web‑dependent packages flagged as vulnerable: bs4, selenium.
+#   Safe: requests (required for llama-server).
 python-dotenv
 python-magic
 regex
@@ -17,31 +19,34 @@ jsonpycraft
 requests
 markdown-it-py
 html2text
-bs4
-selenium
+bs4          # Vulnerable – exclude from pipelines.
+selenium     # Vulnerable – exclude from pipelines.
 opencv-python
 pytesseract
 huggingface-hub
 pygments
 prompt-toolkit
+
 # Temporary fix for python-poppler issue #93
 # https://github.com/cbrunet/python-poppler/issues/93
+# python-poppler fork (wrapper unmaintained – upstream poppler maintained)
 python-poppler @ git+https://github.com/opale-ai/python-poppler.git@ca6678d
 
 # Tree Sitter - parser generator and analysis tooling.
 # Notes:
 #   - Python has a builtin Abstract Syntax Tree. 
 #   - Each language has its own dependency. e.g. tree-sitter-c
+#   - tree-sitter used to support LaTeX (in rust), but the repo no longer exists.
+#     A custom parser for LaTeX will need to be written to mitigate nodejs security risks.
 tree-sitter  # base package
-# Officially supported languages
 tree-sitter-c
 tree-sitter-cpp
 tree-sitter-rust
 tree-sitter-python
 tree-sitter-bash
 tree-sitter-markdown
-# Add others as needed
 tree-sitter-json
 tree-sitter-html
 tree-sitter-css
 tree-sitter-javascript
+# LaTeX: missing official C/Rust parser – write custom one.
