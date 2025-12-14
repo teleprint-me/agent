@@ -45,6 +45,7 @@ _EXT_TO_PKG = {
     ".html": "html",
     ".css": "css",
     ".js": "javascript",
+    ".mjs": "javascript",
 }
 
 
