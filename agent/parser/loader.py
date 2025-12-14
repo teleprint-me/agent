@@ -43,6 +43,8 @@ _EXT_TO_PKG = {
     ".rs": "rust",
     ".py": "python",
     ".sh": "bash",
+    ".md": "markdown",
+    ".json": "json",
     ".html": "html",
     ".css": "css",
     ".js": "javascript",
@@ -97,46 +99,41 @@ def _capsule_for_name(name: str) -> Optional[CapsuleType]:
     return getattr(module, "language", lambda: None)()
 
 
-def parse_file(source: Union[str, Path]) -> Optional[Tree]:
-    """
-    Parse *source* with the appropriate Tree‑Sitter parser.
-
-    Parameters
-    ----------
-    source
-        Path to a source file.
-
-    Returns
-    -------
-    Tree | None
-        The parsed syntax tree, or `None` if the file is not a
-        supported source file or the corresponding parser package
-        cannot be found.
-    """
-    path = Path(source)
-    if not path.is_file():
-        return None
-
+@lru_cache(maxsize=None)
+def get_language(path: Union[str, Path]) -> Optional[Language]:
     module_name = _module_name_for_path(path)
-    if module_name is None:
+    if not module_name:
         return None
-
     capsule = _capsule_for_name(module_name)
     if capsule is None:
         return None
+    return Language(capsule) # note: type is void*
 
-    language = Language(capsule)
-    parser = Parser(language)
+
+def get_parser(path: Union[str, Path]) -> Optional[Parser]:
+    language = get_language(path)
+    if language is None:
+        return None
+    return Parser(language)
+
+
+def get_tree(path: Union[str, Path]) -> Optional[Tree]:
+    path = Path(path)
+    if not path.is_file():
+        return None
+
+    parser = get_parser(path)
+    if parser is None:
+        return None
 
     try:
         return parser.parse(path.read_bytes())
-    except OSError:
-        # e.g. permission denied, file vanished, etc.
+    except OSError:  # e.g. permission denied, vanished, etc.
         return None
 
 
 # Public API
-__all__ = ["parse_file"]
+__all__ = ["get_language", "get_parser", "get_tree"]
 
 # example usage
 if __name__ == "__main__":
@@ -146,7 +143,7 @@ if __name__ == "__main__":
     parser.add_argument("path", help="Path to a plain text source file")
     args = parser.parse_args()
 
-    tree = parse_file(args.path)
+    tree = get_tree(args.path)
     if tree is None:
         print("Could not parse the file - unsupported language or missing parser.")
         sys.exit(1)
