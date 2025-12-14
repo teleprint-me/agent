@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Iterable, List, Set
 
 from agent.parser import loader
-from tree_sitter import Tree, Node
+from tree_sitter import Node, Tree
 
 # What counts as an “import” in the languages we support
 # If you add a new grammar (e.g. Rust, Go, JS) just add its import node type
@@ -36,17 +36,17 @@ def top_level_nodes(tree: Tree) -> Iterable[Node]:
 
 # Chunker
 def chunk_tree(tree: Tree) -> Iterable[str]:
-    """
-    Yield the raw source text of each *semantic* chunk.
+    """Yield the raw source text of each *semantic* chunk."""
 
-    - Consecutive import nodes are merged into a single string.
-    - Stand‑alone semicolons are ignored.
-    - Other nodes are yielded unchanged.
-    """
     import_bucket: List[str] = []
+    comment_bucket: List[str] = []
+    expr_bucket: List[str] = []
 
     for node in top_level_nodes(tree):
-        print(f"--- node type: {node.type} ---")
+        # print(f"--- node type: {node.type} ---")  # debug
+
+        # --- handle semicolons ---
+
         # Skip semicolons that the grammar has turned into a separate node.
         if node.type == ";":
             continue
@@ -59,26 +59,54 @@ def chunk_tree(tree: Tree) -> Iterable[str]:
             yield txt
             continue
 
+        # --- handle comments ---
+
+        # Merge comments
         if node.type == "comment" and nxt.type == "comment":
-            # group consecutive comments (if any)
-            pass
+            comment_bucket.append(txt.strip())
+            continue
+
+        # Flush accumulated comments
+        if comment_bucket:
+            yield "\n".join(comment_bucket)
+            comment_bucket.clear()
+
+        # --- handle imports ---
 
         # Merge imports
         if node.type in IMPORT_TYPES:
             import_bucket.append(txt.strip())
             continue
 
-        # Flush any accumulated imports first
+        # Flush accumulated imports
         if import_bucket:
             yield "\n".join(import_bucket)
             import_bucket.clear()
 
+        # --- handle expressions ---
+
+        # Merge flat expressions
+        if node.type == "expression_statement":
+            expr_bucket.append(txt.strip())
+            continue
+
+        if expr_bucket:
+            yield "\n".join(expr_bucket)
+            expr_bucket.clear()
+
         # Yield the node as a separate chunk
         yield txt
 
-    # Flush the last import bucket (if any)
+    # --- Flush final buckets (if any) ---
+
+    if comment_bucket:
+        yield "\n".join(comment_bucket)
+
     if import_bucket:
         yield "\n".join(import_bucket)
+
+    if expr_bucket:
+        yield "\n".join(expr_bucket)
 
 
 # Main CLI
