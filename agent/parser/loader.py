@@ -1,18 +1,15 @@
 # agent/parser/loader.py
 """
-Utilities for dynamically loading a Tree‑Sitter parser and parsing a
-source file.
+Utilities for loading Tree‑Sitter languages, parsers, and trees.
 
-The module exposes a single public helper – :func:`parse_file`.  All other
-functions are implementation details and are not exported.
+Public helpers
+--------------
+* :func:`get_language` – Return a :class:`tree_sitter.Language` instance for a file.
+* :func:`get_parser`   – Return a fresh :class:`tree_sitter.Parser` configured for the file.
+* :func:`get_tree`     – Convenience: parse a file and return a :class:`tree_sitter.Tree`.
 
-Typical usage:
-
->>> tree = parse_file("src/main.c")
->>> if tree is None:  # unsupported language or missing parser
-...     ...
-
-The function returns a :class:`tree_sitter.Tree` or `None`.
+All helpers are lightweight and cache the immutable `Language`` objects
+internally via :func:`functools.lru_cache`.
 """
 
 import importlib
