@@ -101,6 +101,12 @@ def _capsule_for_name(name: str) -> Optional[CapsuleType]:
 
 @lru_cache(maxsize=None)
 def get_language(path: Union[str, Path]) -> Optional[Language]:
+    """
+    Return a :class:`tree_sitter.Language` instance for *path*.
+
+    The function is idempotent: repeated calls for the same language
+    reuse the cached `Language` object.
+    """
     module_name = _module_name_for_path(path)
     if not module_name:
         return None
@@ -111,6 +117,13 @@ def get_language(path: Union[str, Path]) -> Optional[Language]:
 
 
 def get_parser(path: Union[str, Path]) -> Optional[Parser]:
+    """
+    Create a fresh :class:`tree_sitter.Parser` for the language of *path*.
+
+    A new `Parser` instance is returned each time – this is intentional
+    because parsers hold mutable state that is useful when editing a file
+    incrementally.
+    """
     language = get_language(path)
     if language is None:
         return None
@@ -118,16 +131,23 @@ def get_parser(path: Union[str, Path]) -> Optional[Parser]:
 
 
 def get_tree(path: Union[str, Path]) -> Optional[Tree]:
-    path = Path(path)
-    if not path.is_file():
+    """
+    Parse *path* and return a :class:`tree_sitter.Tree`.
+
+    The function silently returns `None` for unsupported files or
+    missing language packages.  It reads the file *once* and feeds the raw
+    bytes to the parser.
+    """
+    p = Path(path)
+    if not p.is_file():
         return None
 
-    parser = get_parser(path)
+    parser = get_parser(p)
     if parser is None:
         return None
 
     try:
-        return parser.parse(path.read_bytes())
+        return parser.parse(p.read_bytes())
     except OSError:  # e.g. permission denied, vanished, etc.
         return None
 
