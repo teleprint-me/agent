@@ -25,6 +25,15 @@ IMPORT_TYPES: Set[str] = {
     "import_declaration",  # Go
 }
 
+# docstrings are type "expression_statement".
+# this means expression_statement has multiple meanings and can potentially conflict based on context.
+# not sure if it's a good idea to add here. probably not.
+# note that expression statements typically happen outside of a block area.
+COMMENT_TYPES: Set[str] = {
+    "comment",
+    "line_comment",
+}
+
 
 # Utility: iterate over the top‑level nodes of a tree
 def top_level_nodes(tree: Tree) -> Iterable[Node]:
@@ -43,17 +52,20 @@ def chunk_tree(tree: Tree) -> Iterable[str]:
     expr_bucket: List[str] = []
 
     for node in top_level_nodes(tree):
-        # print(f"--- node type: {node.type} ---")  # debug
+        print(f"--- node type: {node.type} ---")  # debug
+
+        # --- extract node text ---
+
+        # Decode current node
+        txt = node.text.decode()
+        # Peek into next node
+        nxt = node.next_sibling
 
         # --- handle semicolons ---
 
-        # Skip semicolons that the grammar has turned into a separate node.
+        # Skip semicolons and join split nodes
         if node.type == ";":
             continue
-
-        # Join split nodes when a semicolon is an individual node
-        txt = node.text.decode()
-        nxt = node.next_sibling
         if nxt and nxt.type == ";":
             txt += nxt.text.decode()
             yield txt
@@ -61,24 +73,20 @@ def chunk_tree(tree: Tree) -> Iterable[str]:
 
         # --- handle comments ---
 
-        # Merge comments
-        if node.type == "comment" and nxt.type == "comment":
+        # Merge and flush accumulated comments
+        if node.type in COMMENT_TYPES:
             comment_bucket.append(txt.strip())
             continue
-
-        # Flush accumulated comments
         if comment_bucket:
             yield "\n".join(comment_bucket)
             comment_bucket.clear()
 
         # --- handle imports ---
 
-        # Merge imports
+        # Merge and flush accumulated imports
         if node.type in IMPORT_TYPES:
             import_bucket.append(txt.strip())
             continue
-
-        # Flush accumulated imports
         if import_bucket:
             yield "\n".join(import_bucket)
             import_bucket.clear()
@@ -89,7 +97,6 @@ def chunk_tree(tree: Tree) -> Iterable[str]:
         if node.type == "expression_statement":
             expr_bucket.append(txt.strip())
             continue
-
         if expr_bucket:
             yield "\n".join(expr_bucket)
             expr_bucket.clear()
@@ -97,14 +104,12 @@ def chunk_tree(tree: Tree) -> Iterable[str]:
         # Yield the node as a separate chunk
         yield txt
 
-    # --- Flush final buckets (if any) ---
+    # --- Flush remaining buckets (if any) ---
 
     if comment_bucket:
         yield "\n".join(comment_bucket)
-
     if import_bucket:
         yield "\n".join(import_bucket)
-
     if expr_bucket:
         yield "\n".join(expr_bucket)
 
