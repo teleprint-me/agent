@@ -111,7 +111,7 @@ def get_language(path: Union[str, Path]) -> Optional[Language]:
     capsule = _capsule_for_name(module_name)
     if capsule is None:
         return None
-    return Language(capsule) # note: type is void*
+    return Language(capsule)  # note: type is void*
 
 
 def get_parser(path: Union[str, Path]) -> Optional[Parser]:
@@ -168,6 +168,25 @@ if __name__ == "__main__":
 
     # note: language.version is deprecated. use language.abi_version instead.
     # a warning will be emitted to standard output if version is used.
-    print(f"Language: name: {tree.language.name}, abi version: {tree.language.abi_version}")
-    for node in tree.root_node.children:
-        print(node)
+    print(
+        f"Language: name: {tree.language.name}, abi version: {tree.language.abi_version}"
+    )
+    print("Children:", tree.root_node.child_count)          # e.g. 1
+    print("Named children:", tree.root_node.named_child_count)  # e.g. 1
+    print("Descendants (incl. self):", tree.root_node.descendant_count)  # e.g. 5
+
+    # Depth-first walk
+    cursor = tree.walk()
+    node_count = 0
+    while True:
+        node_count += 1
+        if cursor.goto_first_child():
+            continue
+        if cursor.goto_next_sibling():
+            continue
+        while not cursor.goto_parent():
+            break
+        if cursor.goto_next_sibling():
+            continue
+        break
+    print(f"Counted {node_count} nodes via cursor")
