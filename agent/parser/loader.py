@@ -166,6 +166,8 @@ if __name__ == "__main__":
         print("Could not parse the file - unsupported language or missing parser.")
         sys.exit(1)
 
-    print(tree)
+    # note: language.version is deprecated. use language.abi_version instead.
+    # a warning will be emitted to standard output if version is used.
+    print(f"Language: name: {tree.language.name}, abi version: {tree.language.abi_version}")
     for node in tree.root_node.children:
         print(node)
