@@ -171,14 +171,19 @@ if __name__ == "__main__":
     print(
         f"Language: name: {tree.language.name}, abi version: {tree.language.abi_version}"
     )
-    print("Children:", tree.root_node.child_count)          # e.g. 1
+    print("Children:", tree.root_node.child_count)  # e.g. 1
     print("Named children:", tree.root_node.named_child_count)  # e.g. 1
     print("Descendants (incl. self):", tree.root_node.descendant_count)  # e.g. 5
 
-    # Depth-first walk
+    # Depth-first search
     cursor = tree.walk()
-    node_count = 0
+    # Skip root node
+    cursor.goto_first_child()
+    # Count first node
+    node_count = 1
     while True:
+        print(f"--- node {node_count}: {cursor.node.type} ---")
+        print(cursor.node.text.decode())
         node_count += 1
         if cursor.goto_first_child():
             continue
