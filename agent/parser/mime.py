@@ -4,11 +4,14 @@ Get the mime type of a given file object.
 """
 
 import inspect
-from argparse import ArgumentParser
 import os
+from argparse import ArgumentParser
 from pathlib import Path
-import magic
 from typing import Iterator
+
+# note: magic misclassifies file types regularly
+# e.g. js can be misclassified as c++
+import magic
 
 
 # note that FileMagic has no internal __dict__.
