@@ -22,7 +22,6 @@ IMPORT_TYPES: Set[str] = {
     "import_from_statement",  # Python
     "preproc_include",  # C, C++, Swift, etc.
     "use_declaration",  # Rust
-    "import_declaration",  # Go
 }
 
 # docstrings are type "expression_statement".
