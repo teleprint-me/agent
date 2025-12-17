@@ -15,10 +15,12 @@ NOTE: This is still a Work in Progress.
 
 import logging
 import sys
+from concurrent import futures
 from logging import Logger
 from pathlib import Path
 from typing import List, Optional, Union
 
+from agent.hf.logger import get_default_logger
 from huggingface_hub import (
     HfApi,
     dataset_info,
@@ -27,13 +29,11 @@ from huggingface_hub import (
     model_info,
     space_info,
 )
-from huggingface_hub.utils import (
+from huggingface_hub.errors import (
     EntryNotFoundError,
     LocalEntryNotFoundError,
     RepositoryNotFoundError,
 )
-
-from agent.hf.logger import get_default_logger
 
 
 class HuggingFaceDownload:
@@ -85,12 +85,11 @@ class HuggingFaceDownload:
     ) -> str:
         model_path = hf_hub_download(
             repo_id=repo_id,
-            repo_type=repo_type,
             filename=local_file,
+            repo_type=repo_type,
             local_dir=local_path,
-            local_dir_use_symlinks=False,
             force_download=force_download,
-            token=self.token,  # This should work, but doesn't because the argument isn't respected!
+            token=self.token,  # Input token is not respected
         )
         self._logger.info(f"Downloaded {local_file} to {model_path}")
         return model_path
@@ -103,17 +102,22 @@ class HuggingFaceDownload:
         repo_type: Optional[str] = None,
         force_download: bool = False,
     ) -> List[str]:
-        model_paths = []
-        for local_file in local_files:
-            model_path = self.download_file(
-                local_file=local_file,
+        """Download a list of files in parallel."""
+
+        def _worker(file_name: str) -> str:
+            return self.download_file(
+                local_file=file_name,
                 local_path=local_path,
                 repo_id=repo_id,
                 repo_type=repo_type,
                 force_download=force_download,
             )
-            model_paths.append(model_path)
-        return model_paths
+
+        max_workers = min(8, len(local_files))
+        results = []
+        with futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            results = list(executor.map(_worker, local_files))
+        return results
 
     def download_folder(
         self,
@@ -135,12 +139,17 @@ class HuggingFaceDownload:
             else:
                 metadata = model_info(repo_id)
 
-            # NOTE: Ignore consolidated files to enforce dedupping
-            local_files = [
-                x.rfilename
-                for x in metadata.siblings
-                if not x.rfilename.startswith("consolidated")
-            ]
+            local_files = []
+            for x in metadata.siblings:
+                filename = x.rfilename
+                # NOTE: Ignore consolidated files to enforce dedupping
+                if filename.startswith("consolidated"):
+                    continue
+                # NOTE: Ignore hidden files
+                if filename[0] == ".":
+                    continue  # ignore .cache, etc.
+                local_files.append(filename)
+
             self._download_all_files(
                 repo_id=repo_id,
                 local_path=local_path,
@@ -153,7 +162,7 @@ class HuggingFaceDownload:
             sys.exit(1)
         except LocalEntryNotFoundError as e:
             self._logger.error(f"Error accessing source: {e}")
-            while retries < max_retries and self.api.is_online():
+            while retries < max_retries:
                 self._logger.info("Retrying download...")
                 retries += 1
                 self._download_all_files(
