@@ -26,6 +26,7 @@ pytesseract
 huggingface-hub
 pygments
 prompt-toolkit
+gitpython
 
 # Temporary fix for python-poppler issue #93
 # https://github.com/cbrunet/python-poppler/issues/93
