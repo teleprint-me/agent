@@ -56,10 +56,16 @@ tree-sitter-javascript
 # python-poppler fork (wrapper unmaintained – upstream poppler maintained)
 python-poppler @ git+https://github.com/opale-ai/python-poppler.git@ca6678d
 
-# Only PyTorch gets this custom index.
-torch --extra-index-url https://download.pytorch.org/whl/cpu   # pip 22+ supports inline options
-
 # Get latest GGUF package directly from repo
 # This is required for enabling convert_hf_to_gguf.py
-git+https://github.com/ggml-org/llama.cpp.git@master#egg=gguf-py&subdirectory=gguf‑py
+gguf @ git+https://github.com/ggml-org/llama.cpp.git@master#subdirectory=gguf-py
+
+# Only PyTorch gets this custom index.
+# WARN: DO NOT USE THIS! Affects dependencies globally! 
+# https://pip.pypa.io/en/stable/cli/pip_install/#cmdoption-i
+# NOTE: See dependency confusion for security implications.
+# https://medium.com/@alex.birsan/dependency-confusion-4a5d60fec610
+# NOTE: PyTorch installs CUDA by default. We need CPU, not GPU.
+# manually execute pip install torch --index-url instead.
+# pip install torch --index-url https://download.pytorch.org/whl/cpu
 
