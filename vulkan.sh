@@ -129,7 +129,7 @@ function install_vulkan_packages() {
             ;;
     esac
 
-    if [ 0 -neq $? ]; then
+    if [ 0 -ne $? ]; then
         echo "Error occurred while attempting to install packages:\n\t$pkg";
         exit $ERROR_PKGS;
     fi
