@@ -28,11 +28,6 @@ pygments
 prompt-toolkit
 gitpython
 
-# Temporary fix for python-poppler issue #93
-# https://github.com/cbrunet/python-poppler/issues/93
-# python-poppler fork (wrapper unmaintained – upstream poppler maintained)
-python-poppler @ git+https://github.com/opale-ai/python-poppler.git@ca6678d
-
 # Tree Sitter - parser generator and analysis tooling.
 # Notes:
 #   - Python has a builtin Abstract Syntax Tree. 
@@ -51,3 +46,15 @@ tree-sitter-html
 tree-sitter-css
 tree-sitter-javascript
 # LaTeX: missing official C/Rust parser – write custom one.
+
+# Repositories
+
+# Temporary fix for python-poppler issue #93
+# https://github.com/cbrunet/python-poppler/issues/93
+# python-poppler fork (wrapper unmaintained – upstream poppler maintained)
+python-poppler @ git+https://github.com/opale-ai/python-poppler.git@ca6678d
+
+# Get latest GGUF package directly from repo
+# This is required for enabling convert_hf_to_gguf.py
+git+https://github.com/ggml-org/llama.cpp.git@master#egg=gguf-py&subdirectory=gguf‑py
+
