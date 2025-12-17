@@ -14,7 +14,6 @@ python-magic
 regex
 click
 tqdm
-numpy
 jsonpycraft
 requests
 markdown-it-py
@@ -23,7 +22,10 @@ bs4          # Vulnerable – exclude from pipelines.
 selenium     # Vulnerable – exclude from pipelines.
 opencv-python
 pytesseract
+numpy
+sentencepiece
 huggingface-hub
+transformers
 pygments
 prompt-toolkit
 gitpython
@@ -53,6 +55,9 @@ tree-sitter-javascript
 # https://github.com/cbrunet/python-poppler/issues/93
 # python-poppler fork (wrapper unmaintained – upstream poppler maintained)
 python-poppler @ git+https://github.com/opale-ai/python-poppler.git@ca6678d
+
+# Only PyTorch gets this custom index.
+torch --extra-index-url https://download.pytorch.org/whl/cpu   # pip 22+ supports inline options
 
 # Get latest GGUF package directly from repo
 # This is required for enabling convert_hf_to_gguf.py
