@@ -111,13 +111,26 @@ function ask_vulkan_packages() {
 # llama.cpp depends upon the vulkan headers and icd loader.
 # this varies from distro to distro, but are generally the same.
 # user must attend the install and confirm packages manually.
+# note: package managers may have unique commands and or options for installation.
 function install_vulkan_packages() {
     cmd="$(ask_package_manager)"
     pkg="$(ask_vulkan_packages)"
-    sudo $cmd $pkg
+    case $cmd in
+        apt|dnf)
+            sudo $cmd install $pkg
+            ;;
+        pacman)
+            sudo $cmd -S $pkg
+            ;;
+        *)
+            echo "Unsupported package manager: $(cmd)";
+            echo "Attempted to install the following packages:\n\t${pkg}"
+            exit $ERROR_PKGS;
+            ;;
+    esac
 
     if [ 0 -neq $? ]; then
-        echo "Failed to install $pkg";
+        echo "Error occurred while attempting to install packages:\n\t$pkg";
         exit $ERROR_PKGS;
     fi
 }
