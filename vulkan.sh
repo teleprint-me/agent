@@ -105,8 +105,8 @@ function ask_vulkan_packages() {
             echo "vulkan-headers vulkan-icd-loader vulkan-tools"
             ;;
         *)
-            echo "Unsupported os release: ${manager}";
-            exit $ERROR_DIST;
+            echo "Unsupported os release: ${manager}"
+            exit $ERROR_DIST
             ;;
     esac
 }
