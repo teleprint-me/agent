@@ -123,16 +123,11 @@ function install_vulkan_packages() {
             sudo $cmd -S $pkg
             ;;
         *)
-            echo "Unsupported package manager: $(cmd)";
-            echo "Attempted to install the following packages:\n\t${pkg}"
-            exit $ERROR_PKGS;
+            echo "Unsupported package manager: ${cmd}"
+            echo "Attempted to install: ${pkg}"
+            exit $ERROR_PKGS
             ;;
     esac
-
-    if [ 0 -ne $? ]; then
-        echo "Error occurred while attempting to install packages:\n\t$pkg";
-        exit $ERROR_PKGS;
-    fi
 }
 
 function main() {
