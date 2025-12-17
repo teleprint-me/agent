@@ -36,6 +36,8 @@ ERROR_PKGS=8
 # This means user space commands remain in user space.
 # Root commands use sudo to execute as a super user.
 function ask_root() {
+    # note: id -u returns the EUID (effective user identifier)
+    # https://stackoverflow.com/a/27670422/15147156
     if [ 0 -eq "$(id -u)" ]; then
         echo "Do not run this script as root!";
         exit $ERROR_ROOT;
@@ -51,7 +53,7 @@ function ask_sudo() {
     fi
 
     # A quick test that forces the password prompt now.
-    sudo true || { echo "Unable to elevate privileges" >&2; return 2; }
+    sudo true || { echo "Unable to elevate privileges" >&2; return $ERROR_SUDO; }
 }
 
 # This is useful for discovering the distro family if the above fails for some reason.
@@ -82,7 +84,8 @@ function ask_package_manager() {
 }
 
 function ask_vulkan_packages() {
-    case "$(ask_package_manager)" in
+    manager=$(ask_package_manager)
+    case "${manager}" in
         apt)
             # note: ubuntu uses mesa-vulkan-drivers instead of vulkan-headers?
             # https://packages.debian.org/search?keywords=vulkan
@@ -102,7 +105,7 @@ function ask_vulkan_packages() {
             echo "vulkan-headers vulkan-icd-loader vulkan-tools"
             ;;
         *)
-            echo "Unsupported os release: $(ask_os_release)";
+            echo "Unsupported os release: ${manager}";
             exit $ERROR_DIST;
             ;;
     esac
