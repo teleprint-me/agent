@@ -1,0 +1,27 @@
+#
+# requirements/tree-sitter.txt 
+#
+
+#
+# Tree Sitter - parser generator and analysis tooling.
+#
+# Notes:
+#   - Python has a builtin Abstract Syntax Tree. 
+#   - Each language has its own dependency. e.g. tree-sitter-c
+#   - tree-sitter used to support LaTeX (in rust), but repo no longer exists.
+#   - LaTeX will need to be created to mitigate nodejs security risks.
+#
+
+tree-sitter  # base package
+tree-sitter-c
+tree-sitter-cpp
+tree-sitter-rust
+tree-sitter-python
+tree-sitter-bash
+tree-sitter-markdown
+tree-sitter-json
+tree-sitter-html
+tree-sitter-css
+tree-sitter-javascript
+# LaTeX: missing official C/Rust parser – write custom one.
+

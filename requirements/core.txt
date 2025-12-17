@@ -1,0 +1,29 @@
+#
+# requirements/core.txt
+#
+
+# LlamaCpp REST API
+requests
+
+# File Magic
+python-dotenv
+python-magic
+
+# Parsing
+regex
+jsonpycraft
+markdown-it-py
+html2text
+opencv-python~=4.11.0.86
+pytesseract
+
+# Editor
+pygments
+prompt-toolkit
+gitpython
+
+# HuggingFace
+click
+tqdm
+huggingface-hub
+
