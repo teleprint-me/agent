@@ -1,30 +1,37 @@
 #!/usr/bin/env bash
 
 #
-# packages.sh
-# shell script providing functions for installing dependencies.
+# File:          packages.sh
+# Author(s):     Austin Berrio 
+# Project:       agent / llama.cpp Vulkan dependency installer
+# License:       AGPL-3.0-or-later  (see LICENSE file in repo)
 #
-# usage:
-#   source packages.sh # import existing functions
+# Version:       v0.1 # <-- bump when you make a breaking change
+# Last‑Updated:  2025‑12‑18
 #
-#   ask_root
-#   ask_permission
-#   ask_sudo
-#   install_vulkan_packages
+# Description:
+#     A collection of shell functions that install the minimal set of Vulkan 
+#     development packages required to build llama.cpp with its vulkan backend.
+#     
+#     The script is *intended* for end users who already have their GPU drivers
+#     installed.  It will **never** touch driver installation – this responsibility
+#     remains on the user or a higher‑level installer (e.g., your RAG pipeline).
 #
-# NOTE: The user is responsible for installing their own drivers if necessary.
+# Usage:
+#   source packages.sh          # Import functions into current shell.
 #
-# Fedora provides the drivers out of the box.
-# Debian based distros may require extra steps.
-# Arch based distros require explicit installation.
+# Functions exported by default:
+#   ask_root            - abort if script is run as root
+#   ask_permission      - display disclaimer & confirm continuation
+#   ask_sudo            - cache sudo privileges for the session
+#   install_vulkan_packages  – installs distro‑specific Vulkan dev packages
+#   install_llama_dependencies – generic build tools (gcc, cmake …)
 #
-# See your respective distribution documentation for more information.
-#
-# DISCLAIMER:
-# This script simply installs the core vulkan dependencies to enable building the llama.cpp vulkan backend.
-# In most cases, running this is harmless, but you are encouraged to do your own research before executing this      script.
-# In some rare cases, you may corrupt your current installation, so run this script with absolute caution.
-# This script is simply a convenience script. I offer no guarentee that it will work or operate as expected.
+# Notes:
+# * The script automatically detects your package manager via `apt`, `dnf`,
+#   or `pacman`. If none of these are found it falls back to `/etc/os-release`.
+# * Duplicate definitions for any function will cause the last one defined
+#   (in this file) to be used.  Remove duplicates before committing.
 #
 
 set -euo pipefail # fail fast
@@ -54,25 +61,17 @@ function ask_root() {
 # Print a disclaimer and ask end user for permission before proceeding.
 # NOTE: Using echo is cleaner than cat << EOF
 function ask_permission() {
+    local response
+
     echo 'DISCLAIMER:'
-    echo 'This script installs only Vulkan development packages.'
+    # General note – what this installer does:
+    echo 'This installer will pull packages, clone a Git repository,'
+    echo 'and build C++ code for the llama.cpp Vulkan backend.'
+    # Explicit driver notice (kept from second duplicate):
     echo 'Drivers are NOT installed – they must be provided separately.'
     echo
     echo "Enter 'n' or ctrl‑c to abort, 'Y' to continue."
-    read -p 'Proceed with installing these dependencies? (Y/n) ' -r response
-    if [ "Y" != "$response" ]; then
-        echo "Quit.";
-        exit 0;
-    fi
-}
 
-function ask_permission() {
-    echo 'DISCLAIMER:'
-    echo 'This installer will pull packages, clone a Git repo, and build C++ code.'
-    echo 'Drivers are NOT installed – they must be provided separately.'
-    echo
-    echo 'Drivers are NOT installed – you must have them already.'
-    echo "You can press ctrl‑c to abort."
     read -p 'Proceed with installing these dependencies? (Y/n) ' -r response
     if [ "Y" != "$response" ]; then
         echo "Quit.";
