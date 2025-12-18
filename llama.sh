@@ -22,13 +22,26 @@
 # See source for build instructions.
 # https://github.com/ggml-org/llama.cpp/blob/master/docs/build.md
 #
+# NOTE: llama.cpp is under review for official distribution support.
+#
+# This usually takes some time, so this is fine for now.
+#
+# SEE:
+#   - Debian Unstable: https://packages.debian.org/search?keywords=llama.cpp
+#   - Fedora Packages: https://packages.fedoraproject.org/pkgs/llama-cpp
+#   - Arch User Repository: https://aur.archlinux.org/packages?O=0&K=llama.cpp
+#
+# Agent is developed on top of the lastest release which may be out of sync with distros like debian and fedora.
+# You're free to install based on your preferences, but this is important to keep in mind.
+# The development builds will conflict with the release builds. e.g. missing or broken features.
+#
 # ------------------------------------------------------------
 #
 #   llama.sh – Portable installer for ggml-org/llama.cpp.
 #
 #  * Detects the distribution and installs only what is needed:
 #      * build tools (cmake, git …)
-#      * optional backend libraries: Vulkan or CUDA
+#      * installs llama.cpp into the system
 #  * Clones / updates a local copy of `ggml‑org/llama.cpp`
 #    into `${SRC_DIR}` – defaults to `<script-dir>/../src`.
 #
@@ -110,16 +123,7 @@ function ask_package_manager() {
     fi
 }
 
-# NOTE: llama.cpp is under review for official distribution support.
-# This usually takes some time, so this is fine for now.
-# SEE:
-#   - Debian Unstable: https://packages.debian.org/search?keywords=llama.cpp
-#   - Fedora Packages: https://packages.fedoraproject.org/pkgs/llama-cpp
-#   - Arch User Repository: https://aur.archlinux.org/packages?O=0&K=llama.cpp
-# Agent is developed on top of the lastest release which may be out of sync with distros like debian and fedora.
-# You're free to install based on your preferences, but this is important to keep in mind.
-# The development builds will conflict with the release builds. e.g. missing or broken features.
-function ask_llama_packages() {
+function ask_llama_dependencies() {
     manager="$(ask_package_manager)"
     case $manager in
         apt)
@@ -142,9 +146,9 @@ function ask_llama_packages() {
     esac
 }
 
-function install_llama_packages() {
+function install_llama_dependencies() {
     manager="$(ask_package_manager)"
-    packages="$(ask_llama_packages)"
+    packages="$(ask_llama_dependencies)"
     case $manager in
         apt|dnf)
             sudo $manager install $packages
