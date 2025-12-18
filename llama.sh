@@ -20,7 +20,7 @@ GIT_URL="${GIT_BASE}/${GIT_REPO}.git@${GIT_BRANCH}"
 # backend can be specified if installed drivers are supported and dependencies are met.
 # CPU, Vulkan, and CUDA are the easiest to build for.
 # GGML supports ROCm, ARM, Andriod, and more. See build.md (above) for more information.
-GGML_BACKEND="${1}"
+GGML_BACKEND="${1:-cpu}"
 
 CMAKE_BUILD=('-DCMAKE_BUILD_TYPE=Release' '-DGGML_DEBUG=0' '-DBUILD_SHARED_LIBS=1' '-DLLAMA_BUILD_TESTS=0')
 CMAKE_PREFIX="${2:-/usr/local}" # default to /usr/local
