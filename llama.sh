@@ -3,6 +3,25 @@
 #
 # llama.sh
 #
+# NOTE: The user is responsible for installing their own drivers if necessary.
+#
+# Fedora provides drivers out of the box.
+# Debian based distros may require extra steps.
+# Arch based distros require explicit installation.
+#
+# See your respective distribution documentation for more information.
+#
+# DISCLAIMER:
+# This script simply installs the core development dependencies to enable building llama.cpp from source.
+# In most cases, running this is harmless, but you are encouraged to do your own research before executing this script.
+# In some rare cases, you may corrupt your current installation, so run this script with absolute caution.
+# This script is simply a convenience script. I offer no guarentee that it will work or operate as expected.
+#
+# NOTE: You can modify this script to fit your requirements.
+#
+# See source for build instructions.
+# https://github.com/ggml-org/llama.cpp/blob/master/docs/build.md
+#
 # ------------------------------------------------------------
 #
 #   llama.sh – Portable installer for ggml-org/llama.cpp.
@@ -17,11 +36,6 @@
 #     ./llama.sh [cpu|vulkan|cuda] [/usr/local]
 #
 # ------------------------------------------------------------
-#
-# NOTE: You can modify this script to fit your requirements.
-#
-# See source for build instructions.
-# https://github.com/ggml-org/llama.cpp/blob/master/docs/build.md
 #
 
 set -euo pipefail # fail fast
