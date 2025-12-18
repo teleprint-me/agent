@@ -1,22 +1,9 @@
 #!/usr/bin/env bash
 
 #
-# NOTE: You can modify this script to fit your requirements.
-#
-# See source for build instructions.
-# https://github.com/ggml-org/llama.cpp/blob/master/docs/build.md
-#
-# NOTE: llama.cpp is under review for official distribution support.
-# SEE:
-#   * Debian Unstable: https://packages.debian.org/search?keywords=llama.cpp
-#   * Fedora Packages: https://packages.fedoraproject.org/pkgs/llama-cpp
-#   * Arch User Repository: https://aur.archlinux.org/packages?O=0&K=llama.cpp
-#
-# Agent is developed on top of the lastest release which may be out of sync with distros like debian and fedora.
-# You're free to install based on your preferences, but this is important to keep in mind.
-# The development builds will conflict with the release builds. e.g. missing or broken features.
-#
 ## llama.sh – Portable installer / build helper for ggml‑org/llama.cpp.
+#
+# NOTE: You can modify this script to fit your requirements.
 #
 ## Purpose ---------------------------------------------------------------
 # Automates the process of building `llama.cpp` from source on a fresh system:
@@ -44,6 +31,9 @@
 # You are responsible for installing your own graphics driver stack if Vulkan or CUDA is chosen;
 # only build‑time tools are auto-installed when missing on the target system.
 #
+# See source for build instructions:
+#   https://github.com/ggml-org/llama.cpp/blob/master/docs/build.md
+#
 ## WARNING / DISCLAIMER ----------------------------------------------- 
 # * No uninstaller – running this will overwrite an existing
 #   `${PREFIX}/bin/llama` and leave any manually installed binaries in place.
@@ -55,6 +45,14 @@
 #   project), but CPU and CUDA builds are also supported via flags above.
 # * The Agent uses the latest GitHub commit; distro‑packaged releases may be older,
 #   so mixing system binaries with a git build can cause feature mismatches.
+#
+## References ------------------------------------------------------------
+# NOTE: llama.cpp is under review for official distribution support.
+#
+# SEE:
+#   * Debian Unstable: https://packages.debian.org/search?keywords=llama.cpp
+#   * Fedora Packages: https://packages.fedoraproject.org/pkgs/llama-cpp
+#   * Arch User Repository: https://aur.archlinux.org/packages?O=0&K=llama.cpp
 #
 
 set -euo pipefail # fail fast
