@@ -52,8 +52,7 @@ function ask_permission() {
     echo 'Drivers are NOT installed – they must be provided separately.'
     echo
     echo 'Enter 'n' or ctrl‑c to abort, 'Y' to continue.'
-    read -n1 -p 'Proceed with installing these dependencies? (Y/n) ' -r response 
-    echo
+    read -p 'Proceed with installing these dependencies? (Y/n) ' -r response
     if [ "Y" != "$response" ]; then
         echo -e "Quit.";
         exit 0;
