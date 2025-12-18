@@ -1,54 +1,60 @@
 #!/usr/bin/env bash
 
 #
-# llama.sh
-#
-# NOTE: The user is responsible for installing their own drivers if necessary.
-#
-# Fedora provides drivers out of the box.
-# Debian based distros may require extra steps.
-# Arch based distros require explicit installation.
-#
-# See your respective distribution documentation for more information.
-#
-# DISCLAIMER:
-# This script simply installs the core development dependencies to enable building llama.cpp from source.
-# In most cases, running this is harmless, but you are encouraged to do your own research before executing this script.
-# In some rare cases, you may corrupt your current installation, so run this script with absolute caution.
-# This script is simply a convenience script. I offer no guarentee that it will work or operate as expected.
-#
 # NOTE: You can modify this script to fit your requirements.
 #
 # See source for build instructions.
 # https://github.com/ggml-org/llama.cpp/blob/master/docs/build.md
 #
 # NOTE: llama.cpp is under review for official distribution support.
-#
-# This usually takes some time, so this is fine for now.
-#
 # SEE:
-#   - Debian Unstable: https://packages.debian.org/search?keywords=llama.cpp
-#   - Fedora Packages: https://packages.fedoraproject.org/pkgs/llama-cpp
-#   - Arch User Repository: https://aur.archlinux.org/packages?O=0&K=llama.cpp
+#   * Debian Unstable: https://packages.debian.org/search?keywords=llama.cpp
+#   * Fedora Packages: https://packages.fedoraproject.org/pkgs/llama-cpp
+#   * Arch User Repository: https://aur.archlinux.org/packages?O=0&K=llama.cpp
 #
 # Agent is developed on top of the lastest release which may be out of sync with distros like debian and fedora.
 # You're free to install based on your preferences, but this is important to keep in mind.
 # The development builds will conflict with the release builds. e.g. missing or broken features.
 #
-# ------------------------------------------------------------
+## llama.sh – Portable installer / build helper for ggml‑org/llama.cpp.
 #
-#   llama.sh – Portable installer for ggml-org/llama.cpp.
+## Purpose ---------------------------------------------------------------
+# Automates the process of building `llama.cpp` from source on a fresh system:
+#   * Installs only minimal development tools (gcc, g++, make,
+#     cmake, pkgconf) when they are missing.
+#   * Clones or updates a local copy in `${SRC_DIR}` – defaults to
+#     `<script‑dir>/../src`.
 #
-#  * Detects the distribution and installs only what is needed:
-#      * build tools (cmake, git …)
-#      * installs llama.cpp into the system
-#  * Clones / updates a local copy of `ggml‑org/llama.cpp`
-#    into `${SRC_DIR}` – defaults to `<script-dir>/../src`.
+## Usage ---------------------------------------------------------------
+#  ./llama.sh [cpu|vulkan|cuda] [/usr/local]
+#    cpu      * (default) build for CPU only (no GPU driver required).
+#    vulkan   * builds the Vulkan backend. Requires a working graphics stack.
+#    cuda     * attempt an NVIDIA‑CUDA build if `nvcc`/drivers are present.
 #
-#   Usage:
-#     ./llama.sh [cpu|vulkan|cuda] [/usr/local]
+## Distribution notes -----------------------------------------------------
+# * Fedora ships all needed tools out of the box – no action required.
+# * Debian / Ubuntu: you may need to run e.g.:
+#       apt install gcc g++ make cmake pkgconf libvulkan-dev
+#   (and `nvidia-driver` for CUDA).
+# * Arch users must explicitly pacman‑install those packages and any GPU
+#   drivers they intend to use.
 #
-# ------------------------------------------------------------
+## Dependencies -----------------------------------------------------------
+# The script does **not** pull in runtime libraries.
+# You are responsible for installing your own graphics driver stack if Vulkan or CUDA is chosen;
+# only build‑time tools are auto-installed when missing on the target system.
+#
+## WARNING / DISCLAIMER ----------------------------------------------- 
+# * No uninstaller – running this will overwrite an existing
+#   `${PREFIX}/bin/llama` and leave any manually installed binaries in place.
+# * The script runs with elevated privileges if needed; proceed at your own risk.
+#   It is a convenience wrapper, not guaranteed to work on every system.
+#
+## Miscellaneous ----------------------------------------------------------
+# * This helper targets Vulkan as the primary backend (used by our agent
+#   project), but CPU and CUDA builds are also supported via flags above.
+# * The Agent uses the latest GitHub commit; distro‑packaged releases may be older,
+#   so mixing system binaries with a git build can cause feature mismatches.
 #
 
 set -euo pipefail # fail fast
