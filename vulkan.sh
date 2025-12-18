@@ -131,18 +131,18 @@ function ask_vulkan_packages() {
 # user must attend the install and confirm packages manually.
 # note: package managers may have unique commands and or options for installation.
 function install_vulkan_packages() {
-    cmd="$(ask_package_manager)"
-    pkg="$(ask_vulkan_packages)"
+    manager="$(ask_package_manager)"
+    packages="$(ask_vulkan_packages)"
     case $cmd in
         apt|dnf)
-            sudo $cmd install $pkg
+            sudo $manager install $packages
             ;;
         pacman)
-            sudo $cmd -S $pkg
+            sudo $manager -S $packages
             ;;
         *)
-            echo "Unsupported package manager: ${cmd}"
-            echo "Attempted to install: ${pkg}"
+            echo "Unsupported package manager: ${manager}"
+            echo "Attempted to install: ${packages}"
             exit $ERROR_PKGS
             ;;
     esac
