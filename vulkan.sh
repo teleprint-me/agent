@@ -44,6 +44,22 @@ function ask_root() {
     fi
 }
 
+# Print a disclaimer and ask end user for permission before proceeding.
+# NOTE: Using echo is cleaner than cat << EOF
+function ask_permission() {
+    echo 'DISCLAIMER:'
+    echo 'This script installs only Vulkan development packages.'
+    echo 'Drivers are NOT installed – they must be provided separately.'
+    echo
+    echo 'Enter 'n' or ctrl‑c to abort, 'Y' to continue.'
+    read -n1 -p 'Proceed with installing these dependencies? (Y/n) ' -r response 
+    echo
+    if [ "Y" != "$response" ]; then
+        echo -e "Quit.";
+        exit 0;
+    fi
+}
+
 # Escalate user privileges.
 # Ask once per script run (cached for ~15 min by sudo)
 function ask_sudo() {
@@ -53,7 +69,7 @@ function ask_sudo() {
     fi
 
     # A quick test that forces the password prompt now.
-    sudo true || { echo "Unable to elevate privileges" >&2; return $ERROR_SUDO; }
+    sudo true || { echo "Unable to elevate privileges" >&2; exit $ERROR_SUDO; }
 }
 
 # This is useful for discovering the distro family if the above fails for some reason.
@@ -135,6 +151,7 @@ function install_vulkan_packages() {
 
 function main() {
     ask_root
+    ask_permission
     ask_sudo
     install_vulkan_packages
 }
