@@ -57,11 +57,14 @@
 
 set -euo pipefail # fail fast
 
-# ERROR
-ERROR_ROOT=1          # script was run as root
-ERROR_SUDO=2          # sudo is missing or not usable
-ERROR_DISTRO=4        # unsupported distro / no known package manager
-ERROR_DEPS=8
+# Dependency import
+# Includes error codes - see packages.sh for more information.
+# This script should not install any packages aside from llama.cpp.
+# The goal is to separate concerns and reduce repeated code.
+if [[ ! -f "./packages.sh" ]]; then
+    echo "❌ Could not locate ./packages.sh – aborting." >&2
+    exit $ERROR_SRCS   # the helper file defines its own error codes.
+fi
 
 # GIT
 GIT_BASE='https://github.com'
@@ -78,95 +81,6 @@ GGML_BACKEND="${1:-cpu}"
 # CMAKE
 CMAKE_BUILD=('-DCMAKE_BUILD_TYPE=Release' '-DGGML_DEBUG=0' '-DBUILD_SHARED_LIBS=1' '-DLLAMA_BUILD_TESTS=0')
 CMAKE_PREFIX="${2:-/usr/local}" # default to /usr/local
-
-function ask_root() {
-    if [ "$(id -u)" = 0 ]; then
-      echo "Do NOT run this script as root."
-      exit $ERROR_ROOT
-    fi
-}
-
-function ask_permission() {
-    echo 'DISCLAIMER:'
-    echo 'This installer will pull packages, clone a Git repo, and build C++ code.'
-    echo 'Drivers are NOT installed – they must be provided separately.'
-    echo
-    echo 'Drivers are NOT installed – you must have them already.'
-    echo "You can press ctrl‑c to abort."
-    read -p 'Proceed with installing these dependencies? (Y/n) ' -r response
-    if [ "Y" != "$response" ]; then
-        echo "Quit.";
-        exit 0;
-    fi
-}
-
-function ask_sudo() {
-    if ! command -v sudo >/dev/null; then
-        echo "sudo not available";
-        exit $ERROR_SUDO;
-    fi
-
-    # A quick test that forces the password prompt now.
-    sudo true || { echo "Unable to elevate privileges" >&2; exit $ERROR_SUDO; }
-}
-
-function ask_os_release() {
-    # https://www.freedesktop.org/software/systemd/man/latest/os-release.html
-    echo "$(grep -m1 '^ID=' /etc/os-release | cut -d'=' -f2)"
-}
-
-function ask_package_manager() {
-    if command -v apt >/dev/null; then
-        echo "apt"; # debian
-    elif command -v dnf >/dev/null; then
-        echo "dnf"; # fedora
-    elif command -v pacman >/dev/null; then
-        echo "pacman"; # arch
-    else
-        echo "$(ask_os_release)"; # unsupported os
-    fi
-}
-
-function ask_llama_dependencies() {
-    manager="$(ask_package_manager)"
-    case $manager in
-        apt)
-            # https://packages.debian.org/search
-            # https://packages.ubuntu.com/search
-            echo "gcc g++ gdb make cmake pkg-config git"
-            ;;
-        dnf)
-            # https://packages.fedoraproject.org/search?query=vulkan
-            echo "gcc make cmake pkgconf-pkg-config git"
-            ;;
-        pacman)
-            # https://archlinux.org/packages
-            echo "gcc g++ gdb make cmake pkgconf"
-            ;;
-        *)
-            echo "Unsupported os release: ${manager}"
-            exit $ERROR_DIST
-            ;;
-    esac
-}
-
-function install_llama_dependencies() {
-    manager="$(ask_package_manager)"
-    packages="$(ask_llama_dependencies)"
-    case $manager in
-        apt|dnf)
-            sudo $manager install $packages
-            ;;
-        pacman)
-            sudo $manager -S $packages
-            ;;
-        *)
-            echo "Unsupported package manager: ${cmd}"
-            echo "Attempted to install: ${pkg}"
-            exit $ERROR_PKGS
-            ;;
-    esac
-}
 
 # if there is no existing repo, clone from src path to dst path.
 if [ ! -d "$GIT_REPO" ]; then
