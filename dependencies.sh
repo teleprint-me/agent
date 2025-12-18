@@ -1,39 +1,51 @@
 #!/usr/bin/env bash
 
 #
-# dependencies.sh
+# File:          dependencies.sh
+# Author(s):     Austin Berrio 
+# Project:       agent / llama.cpp Vulkan dependency installer
+# License:       AGPL-3.0-or-later  (see LICENSE file in repo)
 #
-# NOTE: The user is responsible for installing their own drivers if necessary.
+# Version:       v0.1   # bump when you change the API or add new commands.
+# Last‑Updated:  2025‑12‑18
 #
-# Fedora provides the drivers out of the box.
-# Debian based distros may require extra steps.
-# Arch based distros require explicit installation.
+# Description:
+#     This script pulls **only** the build prerequisites for llama.cpp’s Vulkan backend –
+#     i.e., a C/C++ toolchain and the Vulkan development headers/ICD loader.  
+#     
+#     Driver installation is *explicitly* left out; users must have their GPU drivers
+#     installed beforehand (the package manager already ships them on Fedora, but not
+#     Arch or Debian‑based distros).
 #
-# See your respective distribution documentation for more information.
-#
-# DISCLAIMER:
-# This script simply installs the core vulkan dependencies to enable building the llama.cpp vulkan backend.
-# In most cases, running this is harmless, but you are encouraged to do your own research before executing this script.
-# In some rare cases, you may corrupt your current installation, so run this script with absolute caution.
-# This script is simply a convenience script. I offer no guarentee that it will work or operate as expected.
+# Usage:
+#   source packages.sh          # make the helper functions available.
+#   ./dependencies.sh           # run to install all required deps in one go.
 #
 
-set -euo pipefail # fail fast
+set -euo pipefail  # fail fast on unset vars, errors and pipelines.
 
-if [ -e packages.sh ]; then
-    source packages.sh
-else
-    echo "Failed to import source files."
-    exit $ERROR_SRCS
+# Dependency import
+if [[ ! -f "./packages.sh" ]]; then
+    echo "❌ Could not locate ./packages.sh – aborting." >&2
+    exit $ERROR_SRCS   # the helper file defines its own error codes.
 fi
 
-function main() {
-    ask_root
-    ask_permission
-    ask_sudo
+# Import all utility / install helpers.  
+source "./packages.sh"
+
+# Main entry point
+main() {
+    ask_root            # fail if run as root (we want to stay in user space).
+    ask_permission      # display unified disclaimer & confirm intent.
+    ask_sudo            # cache sudo credentials for the duration of this script.
+
+    echo "🚀 Installing build‑toolchain dependencies..."
     install_llama_dependencies
+
+    echo "🔧 Installing Vulkan development packages..."
     install_vulkan_packages
 }
 
+# Execute
 main
 
