@@ -6,7 +6,7 @@
 # Project:       agent / llama.cpp Vulkan dependency installer
 # License:       AGPL-3.0-or-later  (see LICENSE file in repo)
 #
-# Version:       v0.1   # bump when you change the API or add new commands.
+# Version:       v0.2   # bump when you change the API or add new commands.
 # Last‑Updated:  2025‑12‑18
 #
 # Description:
@@ -40,7 +40,7 @@ main() {
     ask_sudo            # cache sudo credentials for the duration of this script.
 
     echo "🚀 Installing build‑toolchain dependencies..."
-    install_llama_dependencies
+    install_build_dependencies
 
     echo "🔧 Installing Vulkan development packages..."
     install_vulkan_packages

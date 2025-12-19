@@ -6,7 +6,7 @@
 # Project:       agent / llama.cpp Vulkan dependency installer
 # License:       AGPL-3.0-or-later  (see LICENSE file in repo)
 #
-# Version:       v0.1 # <-- bump when you make a breaking change
+# Version:       v0.2          # bump when updating or making breaking changes
 # Last‑Updated:  2025‑12‑18
 #
 # Description:
@@ -15,23 +15,21 @@
 #     
 #     The script is *intended* for end users who already have their GPU drivers
 #     installed.  It will **never** touch driver installation – this responsibility
-#     remains on the user or a higher‑level installer (e.g., your RAG pipeline).
+#     remains on the user or a higher‑level installer.
 #
 # Usage:
-#   source packages.sh          # Import functions into current shell.
+#   source packages.sh         - Import functions into current shell.
 #
 # Functions exported by default:
-#   ask_root            - abort if script is run as root
-#   ask_permission      - display disclaimer & confirm continuation
-#   ask_sudo            - cache sudo privileges for the session
-#   install_vulkan_packages  – installs distro‑specific Vulkan dev packages
-#   install_llama_dependencies – generic build tools (gcc, cmake …)
+#   ask_root                   - abort if script is run as root
+#   ask_permission             - display disclaimer & confirm continuation
+#   ask_sudo                   - cache sudo privileges for the session
+#   install_vulkan_packages    – installs distro‑specific Vulkan dev packages
+#   install_build_dependencies – generic build tools (gcc, cmake …)
 #
 # Notes:
 # * The script automatically detects your package manager via `apt`, `dnf`,
 #   or `pacman`. If none of these are found it falls back to `/etc/os-release`.
-# * Duplicate definitions for any function will cause the last one defined
-#   (in this file) to be used.  Remove duplicates before committing.
 #
 
 set -euo pipefail # fail fast
@@ -172,7 +170,7 @@ function install_vulkan_packages() {
 
 # --- Compiler Dependencies ---
 
-function ask_llama_dependencies() {
+function ask_build_dependencies() {
     manager="$(ask_package_manager)"
     case $manager in
         apt)
@@ -195,9 +193,9 @@ function ask_llama_dependencies() {
     esac
 }
 
-function install_llama_dependencies() {
+function install_build_dependencies() {
     manager="$(ask_package_manager)"
-    packages="$(ask_llama_dependencies)"
+    packages="$(ask_build_dependencies)"
     case $manager in
         apt|dnf)
             sudo $manager install $packages
