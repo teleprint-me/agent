@@ -27,7 +27,7 @@ set -euo pipefail  # fail fast on unset vars, errors and pipelines.
 # Dependency import
 if [[ ! -f "./packages.sh" ]]; then
     echo "❌ Could not locate ./packages.sh – aborting." >&2
-    exit $ERROR_SRCS   # the helper file defines its own error codes.
+    exit 1 # the helper file defines its own error codes.
 fi
 
 # Import all utility / install helpers.  
@@ -40,7 +40,7 @@ main() {
     ask_sudo            # cache sudo credentials for the duration of this script.
 
     echo "🚀 Installing build‑toolchain dependencies..."
-    install_build_dependencies
+    install_build_packages
 
     echo "🔧 Installing Vulkan development packages..."
     install_vulkan_packages

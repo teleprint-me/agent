@@ -24,15 +24,13 @@
 #   ask_root                   - abort if script is run as root
 #   ask_permission             - display disclaimer & confirm continuation
 #   ask_sudo                   - cache sudo privileges for the session
-#   install_vulkan_packages    – installs distro‑specific Vulkan dev packages
-#   install_build_dependencies – generic build tools (gcc, cmake …)
+#   install_vulkan_packages    - installs distro‑specific Vulkan dev packages
+#   install_build_packages     - generic build tools (gcc, cmake …)
 #
 # Notes:
 # * The script automatically detects your package manager via `apt`, `dnf`,
 #   or `pacman`. If none of these are found it falls back to `/etc/os-release`.
 #
-
-set -euo pipefail # fail fast
 
 # Error Codes (by power of 2):
 ERROR_SRCS=1 # failed to import source file
@@ -170,7 +168,7 @@ function install_vulkan_packages() {
 
 # --- Compiler Dependencies ---
 
-function ask_build_dependencies() {
+function ask_build_packages() {
     manager="$(ask_package_manager)"
     case $manager in
         apt)
@@ -193,9 +191,9 @@ function ask_build_dependencies() {
     esac
 }
 
-function install_build_dependencies() {
+function install_build_packages() {
     manager="$(ask_package_manager)"
-    packages="$(ask_build_dependencies)"
+    packages="$(ask_build_packages)"
     case $manager in
         apt|dnf)
             sudo $manager install $packages
