@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+#
+# requirements.sh - install pip dependencies for agent
+#
+
 # Virtual Environment
 python -m venv .venv
 source .venv/bin/activate
