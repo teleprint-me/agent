@@ -151,7 +151,7 @@ function ask_vulkan_packages() {
 function install_vulkan_packages() {
     manager="$(ask_package_manager)"
     packages="$(ask_vulkan_packages)"
-    case $cmd in
+    case $manager in
         apt|dnf)
             sudo $manager install $packages
             ;;
@@ -202,8 +202,8 @@ function install_build_packages() {
             sudo $manager -S $packages
             ;;
         *)
-            echo "Unsupported package manager: ${cmd}"
-            echo "Attempted to install: ${pkg}"
+            echo "Unsupported package manager: ${manager}"
+            echo "Attempted to install: ${packages}"
             exit $ERROR_PKGS
             ;;
     esac
