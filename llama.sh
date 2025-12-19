@@ -6,9 +6,9 @@
 # NOTE: You can modify this script to fit your requirements.
 #
 ## Purpose ---------------------------------------------------------------
-# Automates the process of building `llama.cpp` from source on a fresh system:
-#   * Installs only minimal development tools (gcc, g++, make,
-#     cmake, pkgconf) when they are missing.
+# Automates the process of building and installing `llama.cpp` from source:
+#   * Installs only minimal development tools
+#     (gcc, g++, make, cmake, pkgconf) when they are missing.
 #   * Clones or updates a local copy in `${SRC_DIR}` – defaults to
 #     `<script‑dir>/../src`.
 #
@@ -16,13 +16,12 @@
 #  ./llama.sh [cpu|vulkan|cuda] [/usr/local]
 #    cpu      * (default) build for CPU only (no GPU driver required).
 #    vulkan   * builds the Vulkan backend. Requires a working graphics stack.
-#    cuda     * attempt an NVIDIA‑CUDA build if `nvcc`/drivers are present.
+#    cuda     * attempt an CUDA build if `nvcc`/drivers are present.
 #
 ## Distribution notes -----------------------------------------------------
 # * Fedora ships all needed tools out of the box – no action required.
 # * Debian / Ubuntu: you may need to run e.g.:
 #       apt install gcc g++ make cmake pkgconf libvulkan-dev
-#   (and `nvidia-driver` for CUDA).
 # * Arch users must explicitly pacman‑install those packages and any GPU
 #   drivers they intend to use.
 #
@@ -40,7 +39,7 @@
 # * The script runs with elevated privileges if needed; proceed at your own risk.
 #   It is a convenience wrapper, not guaranteed to work on every system.
 #
-## Miscellaneous ----------------------------------------------------------
+## Targets ----------------------------------------------------------
 # * This helper targets Vulkan as the primary backend (used by our agent
 #   project), but CPU and CUDA builds are also supported via flags above.
 # * The Agent uses the latest GitHub commit; distro‑packaged releases may be older,
@@ -66,6 +65,9 @@ if [[ ! -f "./packages.sh" ]]; then
     exit $ERROR_SRCS   # the helper file defines its own error codes.
 fi
 
+# Save current working directory
+CWD="$PWD"
+
 # GIT
 GIT_BASE='https://github.com'
 GIT_REPO='ggml-org/llama.cpp'
@@ -79,29 +81,53 @@ GIT_URL="${GIT_BASE}/${GIT_REPO}.git@${GIT_BRANCH}"
 GGML_BACKEND="${1:-cpu}"
 
 # CMAKE
-CMAKE_BUILD=('-DCMAKE_BUILD_TYPE=Release' '-DGGML_DEBUG=0' '-DBUILD_SHARED_LIBS=1' '-DLLAMA_BUILD_TESTS=0')
 CMAKE_PREFIX="${2:-/usr/local}" # default to /usr/local
+CMAKE_BUILD=(
+    '-DCMAKE_BUILD_TYPE=Release'
+    '-DBUILD_SHARED_LIBS=1'
+    '-DGGML_DEBUG=0'
+    '-DLLAMA_BUILD_TESTS=0'
+)
 
 # if there is no existing repo, clone from src path to dst path.
-if [ ! -d "$GIT_REPO" ]; then
-    git clone "$GIT_URL" "$GIT_REPO"
-fi
+function git_clone() {
+    if [ ! -d "$GIT_REPO" ]; then
+        git clone "$GIT_URL" "$GIT_REPO"
+    fi
+}
 
-# enter the build path
-cd "$GIT_REPO"
+function git_update() {
+    # enter the build path
+    cd "$CWD/$GIT_REPO"
+    # update the repo if it already existed
+    git pull origin "$GIT_BRANCH"
+}
 
-# update the repo if it already existed
-git pull origin "$GIT_BRANCH"
+function cmake_build() {
+    # generate build files
+    if [ "cpu" == "$GGML_BACKEND" ]; then
+        cmake -B build ${CMAKE_BUILD[@]} # cpu has no argument
+    elif [ "cuda" == "$GGML_BACKEND" ]; then
+        cmake -B build ${CMAKE_BUILD[@]} -DGGML_CUDA=1
+    elif [ "vulkan" == "GGML_BACKEND" ]; then
+        cmake -B build ${CMAKE_BUILD[@]} -DGGML_VULKAN=1
+    fi
+    
+    # compile from source (use all available cores)
+    cmake --build build -j $(nproc)
+}
 
-# generate build files
-if [ "cpu" == "$GGML_BACKEND" ]; then
-    cmake -B build ${CMAKE_BUILD[@]} # cpu has no argument
-elif [ "cuda" == "$GGML_BACKEND" ]; then
-    cmake -B build ${CMAKE_BUILD[@]} -DGGML_CUDA=1
-elif [ "vulkan" == "GGML_BACKEND" ]; then
-    cmake -B build ${CMAKE_BUILD[@]} -DGGML_VULKAN=1
-fi
+function cmake_install() {
+    # needs sudo to install system level
+    DESTDIR="$CMAKE_PREFIX" cmake --install build
+}
 
-# compile from source (use all available cores)
-cmake --build build -j $(nproc)
+function main() {
+    ask_root # ensure script is not executed as root
+    ask_permission # ask user for explicit permission
+    ask_sudo # enable sudo at runtime, e.g. sudo true || exit $ERROR
+    return # todo
+}
+
+main
 
