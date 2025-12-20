@@ -114,7 +114,6 @@ build() {
 
 # Install files into the makepkg staging dir
 package() {
-  local build="$srcdir/llama.cpp/build"
-  DESTDIR="$pkgdir" cmake --install "$build"
+  DESTDIR="$pkgdir" cmake --install "$srcdir/llama.cpp/build"
 }
 
