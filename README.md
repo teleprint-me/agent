@@ -70,6 +70,7 @@ Then create and install the development environment.
 ```sh
 chmod +x requirements.sh
 ./requirements.sh
+source .venv/bin/activate
 ```
 
 This will install the required dependencies for agent.
