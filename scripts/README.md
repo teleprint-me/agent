@@ -6,7 +6,7 @@ following binaries to be present on the target system:
 | Binary | Purpose |
 |--------|---------|
 | `llama-server`   | The server process that serves model queries. |
-| `llama-quantize` | Utility for quantising Hugging‑Face checkpoints into GGUF format. |
+| `llama-quantize` | Utility for quantising GGUF weights (requires f32, f16, or bf16). |
 | `convert_hf_to_gguf.py` | Convert pickled / safetensor weights to GGUF format |
 
 If any of these are missing, Agent will abort.
@@ -15,28 +15,14 @@ If any of these are missing, Agent will abort.
 > ggml‑org supplies prebuilt binaries for most platforms.  For full control
 > (CUDA / ROCm / Vulkan), build from source – see the sections below.
 
-## Quick start
+## Manual build
+
+> Vulkan is the most portable option – it works on NVIDIA, AMD, and Intel GPUs,
+> even older cards such as RX 580.
 
 ```sh
-# Clone this repository and run the helper scripts.
-git clone https://github.com/youruser/python-agent.git agent
-cd agent/scripts
-
-# Install required build tools first …
-chmod +x install-packages.sh && ./install-packages.sh
-
-# …then compile & install llama‑cpp binaries into /usr/local.
-chmod +x install-llama.sh   && ./install-llama.sh
-```
-
-> **Always read the scripts before executing** – they perform a full system
-> modification.
-
-## Manual build (any distro)
-
-```sh
-git clone https://github.com/ggml-org/llama.cpp.git ~/builds/llama.cpp
-cd ~/builds/llama.cpp
+git clone https://github.com/ggml-org/llama.cpp.git ggml-org/llama.cpp
+cd ggml-org/llama.cpp
 
 # Configure for Vulkan backend and shared libs.
 cmake -B build \
@@ -51,32 +37,6 @@ cmake --build build -j "$(nproc)"
 DESTDIR=/usr/local cmake install --build build
 ```
 
-> Vulkan is the most portable option – it works on NVIDIA, AMD and Intel GPUs,
-> even older cards such as RX 580.
-
-## Arch Linux
-
-I provide a personal PKGBUILD that builds `llama.cpp` from source with Vulkan.
-To use it:
-
-```sh
-cd scripts    # contains my custom PKGBUILD
-makepkg -Ccsi # clean build, install & resolve dependencies automatically
-```
-
-> **⚠️** Review the PKGBUILD *before* installing – you’re building a package that will replace any existing `llama.cpp` packages on your system.
-
-## Distro‑specific installers
-
-| Distribution | Command |
-|--------------|---------|
-| Debian (unstable) | ```sudo apt install llama.cpp``` |
-| Fedora            | ```sudo dnf install llama.cpp``` |
-| Arch / AUR        | ```yay -S llama.cpp```, optionally with `-cuda`/`-hip`/`-vulkan` suffixes |
-
-> Packages on the official repositories are typically limited to CPU
-> builds.  For GPU support, compile from source as described above.
-
 ## Script utilities
 
 | File               | Purpose |
@@ -88,13 +48,55 @@ makepkg -Ccsi # clean build, install & resolve dependencies automatically
 > None of these are automatically run – you must call them manually after
 > reviewing their contents.
 
-## Uninstallation
+### Automated build
+
+> **Always read the scripts before executing** – they perform a full system
+> modification.
+
+```sh
+cd scripts
+
+# (Optional) Install required build tools first
+chmod +x install-packages.sh
+./install-packages.sh
+
+# Compile & install llama‑cpp binaries into /usr/local.
+chmod +x install-llama.sh
+./install-llama.sh
+```
+
+## Arch Linux
+
+I provide a personal PKGBUILD that builds `llama.cpp` from source with Vulkan.
+
+> **⚠️** Review the PKGBUILD *before* installing – you’re building a package that
+> will replace any existing `llama.cpp` packages on your system.
+
+To use it:
+
+```sh
+cd scripts    # contains my custom PKGBUILD
+makepkg -Ccsi # clean build, install & resolve dependencies automatically
+```
+
+## Distro‑specific installers
+
+| Distribution | Command |
+|--------------|---------|
+| Debian (unstable) | ```sudo apt install llama.cpp``` |
+| Fedora (official) | ```sudo dnf install llama.cpp``` |
+| Arch   (aur)      | ```yay -S llama.cpp```, optionally with `-cuda`/`-hip`/`-vulkan` suffixes |
+
+> Packages on the official repositories are typically limited to CPU
+> builds? For GPU support, compile from source as described above.
+
+## Removal
 
 If you installed via CMake:
 
 ```sh
-cd ~/builds/llama.cpp          # or wherever the source lives
-make uninstall                   # uses install_manifest.txt internally
+cd ggml-org/llama.cpp # or wherever the source lives
+make uninstall        # uses install_manifest.txt internally
 ```
 
 For a PKGBUILD installation, use pacman:
