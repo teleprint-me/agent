@@ -8,6 +8,7 @@ tags
 .agent/
 ggml-org/
 llama.cpp/
+pkg/
 data/
 
 # Byte-compiled / optimized / DLL files
