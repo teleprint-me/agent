@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 #
-## llama.sh – Portable installer / build helper for ggml‑org/llama.cpp.
+## install-llama.sh – Portable installer / build helper for ggml‑org/llama.cpp.
 #
 # NOTE: You can modify this script to fit your requirements.
 #
