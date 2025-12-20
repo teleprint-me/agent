@@ -3,17 +3,42 @@
 `Agent` uses **llama‑cpp** as its inference backend, and it requires the
 following binaries to be present on the target system:
 
-| Binary | Purpose |
-|--------|---------|
-| `llama-server`   | The server process that serves model queries. |
-| `llama-quantize` | Utility for quantising GGUF weights (requires f32, f16, or bf16). |
-| `convert_hf_to_gguf.py` | Convert pickled / safetensor weights to GGUF format |
+- **llama-server**: The server process that serves model queries.
+- **llama-quantize**: Utility for quantising GGUF weights (requires f32, f16, or bf16).
+- **convert_hf_to_gguf.py**: Convert pickled / safetensor weights to GGUF format.
 
 If any of these are missing, Agent will abort.
 
 > **Tip:**  
 > ggml‑org supplies prebuilt binaries for most platforms.  For full control
 > (CUDA / ROCm / Vulkan), build from source – see the sections below.
+
+## Distro‑specific installers
+
+> Users should prefer packages distributed by their OS of choice.
+
+- Debian (unstable) 
+
+```sh
+sudo apt install llama.cpp
+```
+
+- Fedora (official) 
+
+```sh
+sudo dnf install llama.cpp
+```
+
+- Arch (aur)
+
+Optionally with `-cuda`/`-hip`/`-vulkan` suffixes.
+
+```sh
+yay -S llama.cpp
+```
+
+> Packages on the official repositories are typically limited to CPU
+> builds? For GPU support, compile from source as described below.
 
 ## Manual build
 
@@ -37,13 +62,25 @@ cmake --build build -j "$(nproc)"
 DESTDIR=/usr/local cmake install --build build
 ```
 
+## Arch Linux
+
+I provide a personal PKGBUILD that builds `llama.cpp` from source with Vulkan.
+
+> **⚠️** Review the PKGBUILD *before* installing – you’re building a package that
+> will replace any existing `llama.cpp` packages on your system.
+
+To use it:
+
+```sh
+cd scripts    # contains my custom PKGBUILD
+makepkg -Ccsi # clean build, install & resolve dependencies automatically
+```
+
 ## Script utilities
 
-| File               | Purpose |
-|--------------------|---------|
-| **packages.sh**         | Shared helper functions used by all scripts (never executed directly). |
-| **install-packages.sh** | Installs build‑time dependencies required for the Vulkan backend. |
-| **install-llama.sh**    | Builds and installs `llama.cpp` binaries into `/usr/local`. |
+- **packages.sh**: Shared helper functions used by all scripts (never executed directly).
+- **install-packages.sh**: Installs build‑time dependencies required for the Vulkan backend.
+- **install-llama.sh**: Builds and installs `llama.cpp` binaries into `/usr/local`.
 
 > None of these are automatically run – you must call them manually after
 > reviewing their contents.
@@ -64,31 +101,6 @@ chmod +x install-packages.sh
 chmod +x install-llama.sh
 ./install-llama.sh
 ```
-
-## Arch Linux
-
-I provide a personal PKGBUILD that builds `llama.cpp` from source with Vulkan.
-
-> **⚠️** Review the PKGBUILD *before* installing – you’re building a package that
-> will replace any existing `llama.cpp` packages on your system.
-
-To use it:
-
-```sh
-cd scripts    # contains my custom PKGBUILD
-makepkg -Ccsi # clean build, install & resolve dependencies automatically
-```
-
-## Distro‑specific installers
-
-| Distribution | Command |
-|--------------|---------|
-| Debian (unstable) | ```sudo apt install llama.cpp``` |
-| Fedora (official) | ```sudo dnf install llama.cpp``` |
-| Arch   (aur)      | ```yay -S llama.cpp```, optionally with `-cuda`/`-hip`/`-vulkan` suffixes |
-
-> Packages on the official repositories are typically limited to CPU
-> builds? For GPU support, compile from source as described above.
 
 ## Removal
 
