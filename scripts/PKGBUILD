@@ -100,15 +100,15 @@ pkgver() {
 build() {
   cd "$srcdir/llama.cpp"
   cmake -B build \
-    -DCMAKE_BUILD_TYPE=Release \ # Debug mode degrades performance
-    -DGGML_VULKAN=1 \ # Build using Vulkan backend
-    -DGGML_VULKAN_DEBUG=0 \ # Disable Vulkan debug mode
-    -DGGML_DEBUG=OFF \ # disable symbols (enabling this degrades performance)
-    -DLLAMA_BUILD_TESTS=OFF \ # disable tests (only useful for dev builds)
-    -DLLAMA_BUILD_EXAMPLES=OFF \ # disable example bins (extra, not required)
-    -DLLAMA_BUILD_COMMON=ON \ # tools depends on common (enables curl)
-    -DLLAMA_BUILD_TOOLS=ON \ # enable tools (llama-server, llama-quantize, etc)
-    -DBUILD_SHARED_LIBS=ON # required prereq (static builds are optional)
+    -DCMAKE_BUILD_TYPE=Release \
+    -DGGML_VULKAN=1 \
+    -DGGML_VULKAN_DEBUG=0 \
+    -DGGML_DEBUG=0 \
+    -DLLAMA_BUILD_TESTS=0 \
+    -DLLAMA_BUILD_EXAMPLES=0 \
+    -DLLAMA_BUILD_COMMON=1 \
+    -DLLAMA_BUILD_TOOLS=1 \
+    -DBUILD_SHARED_LIBS=1
   cmake --build build -j "$(nproc)"
 }
 
