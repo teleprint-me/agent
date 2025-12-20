@@ -41,6 +41,39 @@ just experimenting as I go.
 
 ## Setup
 
+### Agent
+
+Agent is still under active development and is **not** intended for general
+installation yet. While it is possible to use it locally, this is not
+recommended at the moment.
+
+Agents are autonomous and may continue running actions until interrupted. Treat
+this project as a development tool, not a production-ready package.
+
+No special package manager or environment tooling is required - `venv` keeps
+the setup simple and predictable.
+
+### Cloning
+
+First clone the repository from source.
+
+```sh
+git clone https://github.com/teleprint-me/agent.git teleprint-me/agent
+cd teleprint-me/agent
+```
+
+Then create and install the development environment.
+
+> It's good practice to review scripts before executing them.
+> You're encouraged to review the contents of requirements.sh script and its dependencies.
+
+```sh
+chmod +x requirements.sh
+./requirements.sh
+```
+
+This will install the required dependencies for agent.
+
 ### llama.cpp
 
 Agent depends on the **llama.cpp** backend. You must install it to enable the
@@ -53,136 +86,23 @@ over backend support (CUDA, ROCm, Vulkan, etc.).
 
 Agent specifically relies on the **`llama-server`** binary.
 
-### Install from source
+See [scripts](scripts) for more information.
+Setup instructions can be found in the provided [README.md](scripts/README.md).
 
-Create a local workspace:
+> Vulkan is recommended because it works across **NVIDIA, AMD, and Intel**,
+> including older cards such as the RX 580.
 
-```sh
-mkdir -p /mnt/source/cpp
-git clone https://github.com/ggml-org/llama.cpp /mnt/source/cpp/llama.cpp
-cd /mnt/source/cpp/llama.cpp
-```
-
-Then build from source:
+Ensure the llama-server binary is available from your system path.
 
 ```sh
-cmake -B build -DCMAKE_BUILD_TYPE=Debug \
-      -DGGML_DEBUG=0 \
-      -DBUILD_SHARED_LIBS=1 \
-      -DGGML_VULKAN=1
-
-cmake --build build -j $(nproc)
-```
-
-Vulkan is recommended because it works across **NVIDIA, AMD, and Intel**,
-including older cards such as the RX 580.
-
-### Add `llama-server` to your PATH
-
-```sh
-cd ~
-echo "export PATH=${PATH}:/mnt/source/cpp/llama.cpp/build/bin" >> ~/.bashrc
-```
-
-If you use `zsh` or another shell, add the same line to the appropriate rc
-file. Restart your shell and verify:
-
-```sh
-which llama-server
+command -v llama-server
 ```
 
 You should see the absolute path to the binary.
 
-### Quantization
-
-llama.cpp includes a Python-based utility for converting vendor-released model
-weights into GGUF format and applying quantization. This step is required
-before Agent can run any model locally.
-
-Because the conversion script lives inside the llama.cpp repository, you must
-have llama.cpp installed **before** performing these steps.
-
-### Setup the conversion environment
-
-The conversion utilities require a small Python environment:
-
-```sh
-cd /mnt/source/cpp/llama.cpp
-python -m venv .venv
-source .venv/bin/activate
-
-pip install -U pip
-pip install -r requirements.txt
-```
-
-Quantization runs entirely on the **CPU**. There is **no benefit** to
-quantizing on a GPU - system memory is usually larger than VRAM and avoids
-out-of-memory issues.
-
-### Convert vendor weights to GGUF
-
-Before converting, download the raw vendor weights (see the Hugging Face
-section). Once you have the model directory, you can invoke the converter.
-
-Help:
-
-```sh
-python convert_hf_to_gguf.py -h
-```
-
-Example conversion:
-
-```sh
-python convert_hf_to_gguf.py \
-    /mnt/models/openai/gpt-oss-20b \
-    --outtype q8_0 \
-    --outfile /mnt/models/openai/gpt-oss-20b/ggml-model-q8_0.gguf
-```
-
-Once the conversion completes, you can leave the virtual environment:
-
-```sh
-deactivate
-cd ~
-```
-
-Your GGUF weights are now ready for use with `llama-server`.
-
-### agent
-
-Agent is still under active development and is **not** intended for general
-installation yet. While it is possible to use it locally, this is not
-recommended at the moment.
-
-Agents are autonomous and may continue running actions until interrupted. Treat
-this project as a development tool, not a production-ready package.
-
-### Clone the repository
-
-```sh
-mkdir -p /mnt/source/python
-git clone https://github.com/teleprint-me/agent /mnt/source/python/agent
-cd /mnt/source/python/agent
-```
-
-### Create a Python environment
-
-Use a dedicated virtual environment to isolate the agent’s dependencies:
-
-```sh
-python -m venv .venv
-source .venv/bin/activate
-
-pip install -U pip
-pip install -r requirements.txt
-```
-
-No special package manager or environment tooling is required - `venv` keeps
-the setup simple and predictable.
-
 ### model downloads
 
-Both **huggingface-hub** and **ggml-org** hide downloaded weights behind an
+Both **huggingface-hub** and **llama-server** hide downloaded weights behind an
 internal cache path. The directories are hashed, symlinked, and usually live
 inside the user’s home directory. This makes it hard to track where weights
 actually end up, and models can silently consume large amounts of disk space
@@ -291,7 +211,47 @@ locally.
 Pick a model that supports the features required by your task - otherwise
 you’ll see degraded performance.
 
-### config
+### Quantization
+
+llama.cpp includes a Python-based utility for converting vendor-released model
+weights into GGUF format and applying quantization. This step is required
+before Agent can run any model locally.
+
+Because the conversion script lives inside the llama.cpp repository, you must
+have llama.cpp installed **before** performing these steps.
+
+### Convert vendor weights to GGUF
+
+Before converting, download the raw vendor weights (see the Hugging Face
+section). Once you have the model directory, you can invoke the converter.
+
+Help:
+
+```sh
+convert_hf_to_gguf.py -h
+```
+
+Example conversion:
+
+```sh
+convert_hf_to_gguf.py \
+    /mnt/models/openai/gpt-oss-20b \
+    --outfile /mnt/models/openai/gpt-oss-20b/ggml-model-f16.gguf \
+    --outtype f16
+```
+
+You can further quantize the model. GPT-OSS supports MXFP4 and was tuned with FP4 QAT.
+
+```sh
+llama-quantize \
+    /mnt/models/openai/gpt-oss-20b/ggml-model-f16.gguf \
+    /mnt/models/openai/gpt-oss-20b/ggml-model-f4.gguf \
+    MXFP4_MOE
+```
+
+Your GGUF weights are now ready for use with `llama-server`.
+
+### Config
 
 Agent automatically generates a local configuration and cache directory. Right
 now the cache path is fixed, but future versions will allow custom paths.
