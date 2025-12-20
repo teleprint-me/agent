@@ -294,7 +294,7 @@ rm -rf .agent
 If something behaves unexpectedly, wiping this folder is the first thing to
 try - it has been the most common source of issues during development.
 
-### tools
+### Tools
 
 The agent exposes a small, intentionally restricted set of tools. These
 limitations are by design. They help prevent uncontrolled behavior while still
@@ -321,7 +321,7 @@ after another, until it determines the objective is complete.
 
 After the task is finished, control is returned to you.
 
-### usage
+### Usage
 
 Agent is still in its early stages, and only the core functionality is
 implemented. The interface is simple, and the workflow revolves around the CLI
