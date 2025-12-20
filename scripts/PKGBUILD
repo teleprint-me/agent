@@ -1,58 +1,94 @@
-# PKGBUILD for llama.cpp vulkan from git
-# I have no plans to upload and officially support this source.
-# I use this script for my personal builds.
-# Note that the build complains because $pkgdir and $srcdir are used within package() 
-# This ends up copying artifacts into the system.
-pkgname=llama-cpp
-# will be overridden by pkgver()
+# PKGBUILD for llama‑cpp built from source using the Vulkan backend.
+#
+# This is a personal build script; it does not aim to be an official package,
+# but it should compile reproducibly on any Arch system that has the listed
+# dependencies installed.
+
+#
+# Metadata
+#
+
+# name of the generated package (no hyphens)
+pkgname=llama-cpp 
+# overridden by pkgver() – short Git SHA
 pkgver=cdbada8d10
+# release number for this repo snapshot
 pkgrel=1
-pkgdesc="Port of Facebook's LLaMA model in C/C++ (using Vulkan backend)"
+# supported architectures
 arch=('x86_64')
+# source url
 url='https://github.com/ggml-org/llama.cpp'
+# source license
 license=('MIT')
 
-# Skip stripping so we keep debug symbols (optional)
-depends=('curl' 'gcc-libs' 'glibc' 'python' 'vulkan-icd-loader')
-makedepends=('cmake' 'git' 'shaderc' 'vulkan-headers')
+#
+# Description
+#
+
+pkgdesc="Port of Facebook's LLaMA model in C/C++ (using Vulkan backend)"
+
+#
+# Dependencies
+#
+
+# Packages required at build time
+makedepends=(
+  cmake          # configure & compile the project
+  git            # to fetch source from VCS
+  shaderc        # optional: for compiling GLSL shaders
+  vulkan-headers # compiler headers; needed by CMake's FindVulkan.cmake
+)
+
+# Runtime dependencies (the package will pull these in automatically)
+depends=(
+  glibc             # the base system libc
+  gcc-libs          # runtime libgcc, etc.
+  python            # Python interpreter for optional utilities
+  vulkan-icd-loader # Vulkan loader on Linux
+  curl              # used by llama.cpp tools to fetch model files
+)
+
+# Optional extras – users can choose whether they want them or not
 optdepends=(
   'vulkan-tools: Vulkan tools and utilities'
-  'vulkan-validation-layers: Vulkan validation layers'
-  'python-numpy: Scientific tools for Python'
-  'python-pytorch: Tensors and dynamic neural networks in Python'
-  'python-safetensors: Simple, safe way to store and distribute tensors (aur)'
-  'python-sentencepiece: Unsupervised text tokenizer for Neural Network-based text generation (aur)'
-  'python-transformers: Model‑definition framework for state‑of‑the‑art machine learning models (aur)'
-  'python-gguf: Write binary files to the GGUF (GGML Universal File) format in Python (aur)'
+  'vulkan-validation-layers: Validation layers for debugging GPU code'
+  'python-numpy: Scientific Python package (used by quantize)'
+  'python-pytorch: Torch tensors & dynamic neural nets'
+  'python-safetensors: Simple, safe way to store/distribute tensors (aur)'
+  'python-sentencepiece: Tokenizer for neural‑network text generation (aur)'
+  'python-transformers: State‑of‑the art ML model framework (aur)'
+  'python-gguf: GGUF file format writer in Python (aur)'
 )
 
+# Provide the same name as the package itself
 provides=("$pkgname")
 
-# NOTE: There are other packages (they keep multiplying)
-# Listing every possible package here seems unreasonable.
+# Avoid multiple builds of different variants clashing on /usr
+# NOTEs: 
+#   - There are other packages (they keep multiplying)
+#   - Listing every possible variant here seems unreasonable.
 conflicts=(
     "$pkgname"
-    'ggml'
-    'ggml-git'
-    'libggml'
-    'libggml-git'
-    'llama.cpp'
-    'llama.cpp-git'
-    'llama.cpp-cuda'
-    'llama.cpp-cuda-git'
-    'llama.cpp-hip'
-    'llama.cpp-hip-git'
-    'llama.cpp-vulkan'
-    'llama.cpp-vulkan-git'
+    ggml ggml-git
+    libggml libggml-git
+    llama.cpp llama.cpp-git
+    llama.cpp-cuda llama.cpp-cuda-git
+    llama.cpp-hip llama.cpp-hip-git
+    llama.cpp-vulkan llama.cpp-vulkan-git
 )
 
+#
+# Source
+#
+
+# VCS source – the short SHA is taken from pkgver()
 source=("git+https://github.com/ggml-org/llama.cpp.git")
 
-# Override default flags (can conflict with cmake flags)
-#CFLAGS=()
-#CXXFLAGS=()
-#CPPFLAGS=()
-#LDFLAGS=()
+# SKIP because this is a rolling git build
+sha256sums=('SKIP')
+
+# No debug info, strip binaries by default
+options=('!debug' 'strip')
 
 # Override the version with the short git SHA
 pkgver() {
@@ -82,5 +118,3 @@ package() {
   DESTDIR="$pkgdir" cmake --install "$build"
 }
 
-options=('!debug' 'strip')
-sha256sums=('SKIP')
