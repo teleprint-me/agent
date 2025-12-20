@@ -1,9 +1,13 @@
 # Files
 *.db
+*.pkg.tar.zst
+*.pkg.tar.zst.sig
 tags
 
 # Paths
 .agent/
+ggml-org/
+llama.cpp/
 data/
 
 # Byte-compiled / optimized / DLL files
