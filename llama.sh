@@ -48,10 +48,27 @@
 ## References ------------------------------------------------------------
 # NOTE: llama.cpp is under review for official distribution support.
 #
+# IMPORTANT: Installing an agent on a non-sandboxed system is a security risk.
+# Users may prefer a container to isolate enabled capabilities.
+# Agents are able to reason and act which may be capable of escape.
+#
+# NOTE: I personally don't see how a container resolves this issue.
+# It's probably better to give the agent user permissions and treat them as you
+# would any other user.
+#
 # SEE:
 #   * Debian Unstable: https://packages.debian.org/search?keywords=llama.cpp
+#       # note that this requires enabling unstable repos
+#       # not available in ubuntu packages.
+#       sudo apt install llama.cpp
 #   * Fedora Packages: https://packages.fedoraproject.org/pkgs/llama-cpp
+#       # note that silverblue may require special setups due to immutability.
+#       # users may prefer to use the supported package.
+#       sudo dnf install llama.cpp
 #   * Arch User Repository: https://aur.archlinux.org/packages?O=0&K=llama.cpp
+#       # note that this installs an optional service and config.
+#       # an automated service may be undesirable for some setups.
+#       yay -S llama.cpp-vulkan
 #
 
 set -euo pipefail # fail fast
@@ -65,14 +82,17 @@ if [[ ! -f "./packages.sh" ]]; then
     exit $ERROR_SRCS   # the helper file defines its own error codes.
 fi
 
-# Save current working directory
-CWD="$PWD"
-
 # GIT
+# Base URL
 GIT_BASE='https://github.com'
+# <org>/<dir>
 GIT_REPO='ggml-org/llama.cpp'
+# Uses master (does not use main)
 GIT_BRANCH='master' # latest version
+# Absolute URL reference
 GIT_URL="${GIT_BASE}/${GIT_REPO}.git@${GIT_BRANCH}"
+# Add absolute path to track root path
+GIT_PATH="${PWD}/${GIT_REPO}"
 
 # GGML
 # backend can be specified if installed drivers are supported and dependencies are met.
@@ -82,51 +102,70 @@ GGML_BACKEND="${1:-cpu}"
 
 # CMAKE
 CMAKE_PREFIX="${2:-/usr/local}" # default to /usr/local
+# NOTE: Some flags are backend specific. e.g. DGGML_VULKAN_DEBUG
+# Not all backends support debug flags, e.g. no CUDA debug flag is available.
 CMAKE_BUILD=(
-    '-DCMAKE_BUILD_TYPE=Release'
-    '-DBUILD_SHARED_LIBS=1'
-    '-DGGML_DEBUG=0'
-    '-DLLAMA_BUILD_TESTS=0'
+    '-DCMAKE_BUILD_TYPE=Release' # Debug mode degrades performance
+    '-DGGML_DEBUG=OFF' # disable symbols (enabling this degrades performance)
+    '-DLLAMA_BUILD_TESTS=OFF' # disable tests (only useful for dev builds)
+    '-DLLAMA_BUILD_EXAMPLES=OFF' # disable example bins (extra, not required)
+    '-DLLAMA_BUILD_COMMON=ON' # tools depends on common (enables curl)
+    '-DLLAMA_BUILD_TOOLS=ON' # enable tools (llama-server, llama-quantize, etc)
+    '-DBUILD_SHARED_LIBS=ON' # required prereq (static builds are optional)
+    "-DCMAKE_INSTALL_PREFIX=${CMAKE_PREFIX}" # defaults to /usr/local
 )
 
 # if there is no existing repo, clone from src path to dst path.
-function git_clone() {
-    if [ ! -d "$GIT_REPO" ]; then
-        git clone "$GIT_URL" "$GIT_REPO"
+function clone() {
+    if [ ! -d "$GIT_PATH" ]; then
+        git clone "$GIT_URL" "$GIT_PATH"
     fi
 }
 
-function git_update() {
-    # enter the build path
-    cd "$CWD/$GIT_REPO"
-    # update the repo if it already existed
+function update() {
+    cd "$GIT_PATH"
     git pull origin "$GIT_BRANCH"
 }
 
-function cmake_build() {
-    # generate build files
+function build() {
+    cd "$GIT_PATH"
+
     if [ "cpu" == "$GGML_BACKEND" ]; then
         cmake -B build ${CMAKE_BUILD[@]} # cpu has no argument
     elif [ "cuda" == "$GGML_BACKEND" ]; then
         cmake -B build ${CMAKE_BUILD[@]} -DGGML_CUDA=1
-    elif [ "vulkan" == "GGML_BACKEND" ]; then
+    elif [ "vulkan" == "$GGML_BACKEND" ]; then
         cmake -B build ${CMAKE_BUILD[@]} -DGGML_VULKAN=1
     fi
     
-    # compile from source (use all available cores)
     cmake --build build -j $(nproc)
 }
 
-function cmake_install() {
-    # needs sudo to install system level
+# if installed, do not remove build path!
+# removal requires build/install_manifest.txt
+function package() {
     DESTDIR="$CMAKE_PREFIX" cmake --install build
+}
+
+# https://askubuntu.com/a/942740
+# can be manually removed using xargs:
+#   xargs rm < build/install_manifest.txt
+function uninstall() {
+    # prefer using cmake over manual intervention
+    cd "$GIT_PATH"
+    # cmake automatically generates this at build time
+    make uninstall
 }
 
 function main() {
     ask_root # ensure script is not executed as root
     ask_permission # ask user for explicit permission
     ask_sudo # enable sudo at runtime, e.g. sudo true || exit $ERROR
-    return # todo
+    clone
+    update
+    build
+    # todo: install
+    # note: install is disabled for now
 }
 
 main
