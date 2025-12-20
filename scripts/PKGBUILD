@@ -1,0 +1,86 @@
+# PKGBUILD for llama.cpp vulkan from git
+# I have no plans to upload and officially support this source.
+# I use this script for my personal builds.
+# Note that the build complains because $pkgdir and $srcdir are used within package() 
+# This ends up copying artifacts into the system.
+pkgname=llama-cpp
+# will be overridden by pkgver()
+pkgver=cdbada8d10
+pkgrel=1
+pkgdesc="Port of Facebook's LLaMA model in C/C++ (using Vulkan backend)"
+arch=('x86_64')
+url='https://github.com/ggml-org/llama.cpp'
+license=('MIT')
+
+# Skip stripping so we keep debug symbols (optional)
+depends=('curl' 'gcc-libs' 'glibc' 'python' 'vulkan-icd-loader')
+makedepends=('cmake' 'git' 'shaderc' 'vulkan-headers')
+optdepends=(
+  'vulkan-tools: Vulkan tools and utilities'
+  'vulkan-validation-layers: Vulkan validation layers'
+  'python-numpy: Scientific tools for Python'
+  'python-pytorch: Tensors and dynamic neural networks in Python'
+  'python-safetensors: Simple, safe way to store and distribute tensors (aur)'
+  'python-sentencepiece: Unsupervised text tokenizer for Neural Network-based text generation (aur)'
+  'python-transformers: Model‑definition framework for state‑of‑the‑art machine learning models (aur)'
+  'python-gguf: Write binary files to the GGUF (GGML Universal File) format in Python (aur)'
+)
+
+provides=("$pkgname")
+
+# NOTE: There are other packages (they keep multiplying)
+# Listing every possible package here seems unreasonable.
+conflicts=(
+    "$pkgname"
+    'ggml'
+    'ggml-git'
+    'libggml'
+    'libggml-git'
+    'llama.cpp'
+    'llama.cpp-git'
+    'llama.cpp-cuda'
+    'llama.cpp-cuda-git'
+    'llama.cpp-hip'
+    'llama.cpp-hip-git'
+    'llama.cpp-vulkan'
+    'llama.cpp-vulkan-git'
+)
+
+source=("git+https://github.com/ggml-org/llama.cpp.git")
+
+# Override default flags (can conflict with cmake flags)
+#CFLAGS=()
+#CXXFLAGS=()
+#CPPFLAGS=()
+#LDFLAGS=()
+
+# Override the version with the short git SHA
+pkgver() {
+  cd "$srcdir/llama.cpp"
+  echo "$(git rev-parse --short HEAD)"
+}
+
+# Build the project
+build() {
+  cd "$srcdir/llama.cpp"
+  cmake -B build \
+    -DCMAKE_BUILD_TYPE=Release \ # Debug mode degrades performance
+    -DGGML_VULKAN=1 \ # Build using Vulkan backend
+    -DGGML_VULKAN_DEBUG=0 \ # Disable Vulkan debug mode
+    -DGGML_DEBUG=OFF \ # disable symbols (enabling this degrades performance)
+    -DLLAMA_BUILD_TESTS=OFF \ # disable tests (only useful for dev builds)
+    -DLLAMA_BUILD_EXAMPLES=OFF \ # disable example bins (extra, not required)
+    -DLLAMA_BUILD_COMMON=ON \ # tools depends on common (enables curl)
+    -DLLAMA_BUILD_TOOLS=ON \ # enable tools (llama-server, llama-quantize, etc)
+    -DBUILD_SHARED_LIBS=ON # required prereq (static builds are optional)
+  cmake --build build -j "$(nproc)"
+}
+
+# Install files into the makepkg staging dir
+package() {
+  local build="$srcdir/llama.cpp/build"
+  DESTDIR="$pkgdir" cmake --install "$build"
+}
+
+options=('!debug' 'strip')
+sha256sums=('SKIP')
