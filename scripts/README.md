@@ -40,10 +40,24 @@ yay -S llama.cpp
 > Packages on the official repositories are typically limited to CPU
 > builds? For GPU support, compile from source as described below.
 
+## Arch Linux
+
+I provide a personal PKGBUILD that builds `llama.cpp` from source with Vulkan.
+
+> **Review the PKGBUILD *before* installing** – you’re building a package that
+> will replace any existing `llama.cpp` packages on your system.
+
+To use it:
+
+```sh
+cd scripts  # contains my custom PKGBUILD
+makepkg -si # install & resolve dependencies automatically
+```
+
 ## Manual build
 
-> Vulkan is the most portable option – it works on NVIDIA, AMD, and Intel GPUs,
-> even older cards such as RX 580.
+Vulkan is the most portable option – it works on NVIDIA, AMD, and Intel GPUs,
+even older cards such as RX 580.
 
 ```sh
 git clone https://github.com/ggml-org/llama.cpp.git ggml-org/llama.cpp
@@ -62,33 +76,19 @@ cmake --build build -j "$(nproc)"
 DESTDIR=/usr/local cmake install --build build
 ```
 
-## Arch Linux
-
-I provide a personal PKGBUILD that builds `llama.cpp` from source with Vulkan.
-
-> **⚠️** Review the PKGBUILD *before* installing – you’re building a package that
-> will replace any existing `llama.cpp` packages on your system.
-
-To use it:
-
-```sh
-cd scripts    # contains my custom PKGBUILD
-makepkg -Ccsi # clean build, install & resolve dependencies automatically
-```
-
 ## Script utilities
 
 - **packages.sh**: Shared helper functions used by all scripts (never executed directly).
 - **install-packages.sh**: Installs build‑time dependencies required for the Vulkan backend.
 - **install-llama.sh**: Builds and installs `llama.cpp` binaries into `/usr/local`.
 
-> None of these are automatically run – you must call them manually after
+> **None of these are automatically run** – you must call them manually after
 > reviewing their contents.
 
 ### Automated build
 
-> **Always read the scripts before executing** – they perform a full system
-> modification.
+> **Always read the scripts before executing** – they perform 
+> system-wide modifications.
 
 ```sh
 cd scripts
@@ -114,7 +114,7 @@ make uninstall        # uses install_manifest.txt internally
 For a PKGBUILD installation, use pacman:
 
 ```bash
-sudo pacman -Rns llama-cpp   # removes package and orphaned deps if you wish.
+sudo pacman -Rcs llama-cpp # removes package and installed dependencies
 ```
 
 ## Further reading
