@@ -10,6 +10,7 @@ ggml-org/
 llama.cpp/
 pkg/
 data/
+models/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
