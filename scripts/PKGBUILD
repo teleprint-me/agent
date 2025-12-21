@@ -11,7 +11,7 @@
 # name of the generated package (no hyphens)
 pkgname=llama-cpp 
 # overridden by pkgver() – short Git SHA
-pkgver=74e05131e9
+pkgver=9496bbb808
 # release number for this repo snapshot
 pkgrel=1
 # supported architectures
