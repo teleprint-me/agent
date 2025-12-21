@@ -195,18 +195,21 @@ class LlamaCppRequest:
         response.raise_for_status()
 
         for line in response.iter_lines():
-            if line:
-                chunk = line[len("data: ") :]
-                if chunk == b"[DONE]":
-                    self.logger.debug("Streaming complete: [DONE] signal received.")
-                    break
-                try:
-                    decoded_chunk = json.loads(chunk)
-                    self.logger.debug(f"Stream chunk received: {decoded_chunk}")
-                    yield decoded_chunk
-                except json.JSONDecodeError as e:
-                    self.logger.error(f"Failed to decode JSON chunk: {chunk}")
-                    raise e
+            if not line:
+                continue
+
+            chunk = line[len("data: ") :]
+            if chunk == b"[DONE]":
+                self.logger.debug("Streaming complete: [DONE] signal received.")
+                break
+
+            try:
+                decoded_chunk = json.loads(chunk)
+                self.logger.debug(f"Stream chunk received: {decoded_chunk}")
+                yield decoded_chunk
+            except json.JSONDecodeError as e:
+                self.logger.error(f"Failed to decode JSON chunk: {chunk}")
+                raise e
 
 
 if __name__ == "__main__":
