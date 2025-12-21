@@ -22,8 +22,9 @@ class LlamaCppServer:
         self.logger.debug("Initialized LlamaCppServer instance.")
 
     def _wait(self, timeout: float = 30.0) -> bool:
+        """Poll the health endpoint until it reports `ok` or time-outs."""
         start = time.time()
-        while time.time() - start < timeout:
+        while (time.time() - start) < timeout:
             try:
                 health = self.request.health()
                 if health.get("status") == "ok":
@@ -33,7 +34,7 @@ class LlamaCppServer:
             time.sleep(0.25)
         return False
 
-    def _execute(cmd: List[str]) -> Popen:
+    def _execute(self, cmd: List[str]) -> Popen:
         try:
             # Non-blocking, background process
             return Popen(
@@ -46,15 +47,19 @@ class LlamaCppServer:
         except OSError as e:
             raise RuntimeError(f"Could not spawn llama-server: {e}") from e
 
-    def path(self) -> Path:
-        return Path(shutil.which("llama-server"))
+    def path(self) -> str:
+        """Absolute path to llama-server, raising if not found."""
+        bin_path = shutil.which("llama-server") or str()
+        if bin_path:
+            return bin_path
+        raise FileNotFoundError("'llama-server' binary missing from $PATH")
 
     def exists(self) -> bool:
-        return self.path().exists()
+        return bool(self.path())
 
     def start(self, cmd: List[str], timeout: float = 30.0) -> None:
         self.logger.info("waiting for llama-server")
-        self.process = self._execute()
+        self.process = self._execute(cmd)
         if not self._wait(timeout):
             health = self.request.health()
             if health.get("error"):
@@ -77,7 +82,7 @@ class LlamaCppServer:
         return True
 
     def restart(self, cmd: List[str], timeout: float = 30.0) -> None:
-        """Convenience helper to kill and start again."""
+        """Convenience helper to stop and start again."""
         self.stop()
         time.sleep(1)
         self.start(cmd, timeout)
