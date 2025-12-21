@@ -15,7 +15,7 @@ from typing import Any, Dict, Generator, Optional, Union
 import requests
 from requests.exceptions import ConnectionError
 
-from agent.config import config
+from agent.config import ConfigurationManager, config
 
 
 class StreamNotAllowedError(Exception):
@@ -29,11 +29,12 @@ class StreamNotAllowedError(Exception):
 class LlamaCppRequest:
     def __init__(
         self,
-        scheme: str = "http",
-        domain: str = "127.0.0.1",
-        port: str = "8080",
+        *,
+        scheme: Optional[str] = None,
+        domain: Optional[str] = None,
+        port: Optional[str] = None,
         headers: Optional[Dict[str, str]] = None,
-    ):
+    ) -> None:
         """
         Create a request helper that talks to the local Llama-CPP REST endpoint.
 
@@ -48,14 +49,21 @@ class LlamaCppRequest:
             Extra HTTP headers to include with every request. If omitted a minimal header set
             containing only `"Content-Type": "application/json"` is used.
 
+        See agent/config/__init__.py for details.
         The instance builds the base URL lazily from *scheme*, *domain* and *port*.
-        It also configures an internal logger via :pyfunc:`config.get_logger`.
+        It also configures an internal logger via :pyfunc:`config.get_logger(key, name)`.
         """
-        self.scheme = scheme
-        self.domain = domain
-        self.port = port
 
-        self.headers = headers or {"Content-Type": "application/json"}
+        if scheme and isinstance(scheme, str):
+            self.scheme = scheme
+        if domain and isinstance(domain, str):
+            self.domain = domain
+        if port and isinstance(port, str):
+            self.port = str(port)
+        if headers and isinstance(headers, dict):
+            self.headers = headers
+
+        # … logger …
         self.logger = config.get_logger("logger", self.__class__.__name__)
         self.logger.debug("Initialized LlamaCppRequest instance.")
 
@@ -74,6 +82,45 @@ class LlamaCppRequest:
             return response.json()
         except JSONDecodeError:  # json decode failed
             return response.text
+
+    @property
+    def config(self) -> ConfigurationManager:
+        return config
+
+    @property
+    def scheme(self) -> str:
+        return self.config.get_value("requests.scheme", "http")
+
+    @scheme.setter
+    def scheme(self, value: str):
+        self.config.set_value("requests.scheme", value)
+
+    @property
+    def domain(self) -> str:
+        return self.config.get_value("requests.domain", "127.0.0.1")
+
+    @domain.setter
+    def domain(self, value: str):
+        self.config.set_value("requests.domain", value)
+
+    @property
+    def port(self) -> str:
+        return self.config.get_value("requests.port", "8080")
+
+    @port.setter
+    def port(self, value: str) -> str:
+        self.config.set_value("requests.port", value)
+
+    @property
+    def headers(self) -> Dict[str, str]:
+        return self.config.get_value(
+            "requests.headers",
+            {"Content-Type": "application/json"},
+        )
+
+    @headers.setter
+    def headers(self, value: Dict[str, str]):
+        self.config.set_value("requests.headers", value)
 
     @property
     def base_url(self) -> str:
@@ -184,9 +231,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Initialize the LlamaCppRequest instance
-    llama_requests = LlamaCppRequest(scheme="http", domain="127.0.0.1", port="8080")
+    llama_request = LlamaCppRequest(scheme="http", domain="127.0.0.1", port="8080")
 
-    llama_health = llama_requests.health()
+    llama_health = llama_request.health()
     if llama_health.get("error"):
         print("Server is unavailable.")
         exit(1)
@@ -198,7 +245,7 @@ if __name__ == "__main__":
     data = {"prompt": args.prompt, "n_predict": args.n_predict, "stream": True}
 
     # Generate the model's response
-    generator = llama_requests.stream("/completion", data=data)
+    generator = llama_request.stream("/completion", data=data)
 
     # Handle the model's generated response
     content = ""
