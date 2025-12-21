@@ -3,9 +3,10 @@
 
 import shutil
 import time
+from logging import Logger
 from pathlib import Path
 from subprocess import Popen
-from typing import Optional
+from typing import List, Optional
 
 from requests.exceptions import HTTPError
 
@@ -16,8 +17,8 @@ from agent.llama.requests import LlamaCppRequest
 class LlamaCppServer:
     def __init__(self, request: Optional[LlamaCppRequest] = None):
         self.request = request if request else LlamaCppRequest()
-        self.process = None
-        self.logger = config.get_logger("logger", self.__class__.__name__)
+        self.process: Optional[Popen] = None
+        self.logger: Logger = config.get_logger("logger", self.__class__.__name__)
         self.logger.debug("Initialized LlamaCppServer instance.")
 
     def _wait(self, timeout: float = 30.0) -> bool:
@@ -32,30 +33,28 @@ class LlamaCppServer:
             time.sleep(0.25)
         return False
 
+    def _execute(cmd: List[str]) -> Popen:
+        try:
+            # Non-blocking, background process
+            return Popen(
+                cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                stdin=subprocess.DEVNULL,
+                start_new_session=True,  # important
+            )
+        except OSError as e:
+            raise RuntimeError(f"Could not spawn llama-server: {e}") from e
+
     def path(self) -> Path:
         return Path(shutil.which("llama-server"))
 
     def exists(self) -> bool:
         return self.path().exists()
 
-    def build(cmd: list[str]) -> None:
-        # Non-blocking, background process
-        self.process = Popen(
-            cmd,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            stdin=subprocess.DEVNULL,
-            start_new_session=True,  # important
-        )
-
-    def kill(self) -> bool:
-        if self.process:
-            self.process.kill()
-            return True
-        return False
-
-    def poll(self, timeout: float = 30.0) -> None:
+    def start(self, cmd: List[str], timeout: float = 30.0) -> None:
         self.logger.info("waiting for llama-server")
+        self.process = self._execute()
         if not self._wait(timeout):
             health = self.request.health()
             if health.get("error"):
@@ -63,9 +62,25 @@ class LlamaCppServer:
                 error_msg = health["error"]["message"]
                 self.logger.error(f"Error ({error_code}): {error_msg}")
             self.logger.error("Server failed to become ready.")
-            self.kill()
-            exit(1)
-        self.logger.info(f"llama-server (pid): {self.process.pid}")
+            self.stop()
+            return False
+        self.logger.info(f"started pid: {self.process.pid}")
+        return True
+
+    def stop(self) -> bool:
+        if self.process is None:
+            self.logger.info("no process currently exists")
+            return False
+        self.logger.info(f"stopping pid: {self.process.pid}")
+        self.process.kill()
+        self.process = None
+        return True
+
+    def restart(self, cmd: List[str], timeout: float = 30.0) -> None:
+        """Convenience helper to kill and start again."""
+        self.stop()
+        time.sleep(1)
+        self.start(cmd, timeout)
 
 
 # usage example
