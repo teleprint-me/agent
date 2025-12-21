@@ -7,10 +7,13 @@ Description: Module for handling low-level requests to the LlamaCpp REST API.
 """
 
 import json
+import sys
+import traceback
 from json import JSONDecodeError
-from typing import Any, Dict, Generator, Optional
+from typing import Any, Dict, Generator, Optional, Union
 
 import requests
+from requests.exceptions import ConnectionError
 
 from agent.config import config
 
@@ -26,18 +29,32 @@ class StreamNotAllowedError(Exception):
 class LlamaCppRequest:
     def __init__(
         self,
-        base_url: str = "http://127.0.0.1",
+        scheme: str = "http",
+        domain: str = "127.0.0.1",
         port: str = "8080",
         headers: Optional[Dict[str, str]] = None,
     ):
         """
-        Initialize the LlamaCppRequest instance.
+        Create a request helper that talks to the local Llama-CPP REST endpoint.
 
-        :param base_url: The base URL of the server.
-        :param port: The port number to use.
-        :param headers: Optional headers to include in requests.
+        :param scheme: str, optional
+            URL scheme (`http` or `https`). Defaults to `"http"`.
+        :param domain: str, optional
+            Hostname/IP of the server. Default is `"127.0.0.1"` for a local instance.
+        :param port: int | str, optional
+            TCP port on which the endpoint listens; can be passed as an integer or string.
+            The default value is `8080` (matching Llama-CPP's built-in choice).
+        :param headers: dict[str, str] | None, optional
+            Extra HTTP headers to include with every request. If omitted a minimal header set
+            containing only `"Content-Type": "application/json"` is used.
+
+        The instance builds the base URL lazily from *scheme*, *domain* and *port*.
+        It also configures an internal logger via :pyfunc:`config.get_logger`.
         """
-        self.base_url = f"{base_url}:{port}"
+        self.scheme = scheme
+        self.domain = domain
+        self.port = port
+
         self.headers = headers or {"Content-Type": "application/json"}
         self.logger = config.get_logger("logger", self.__class__.__name__)
         self.logger.debug("Initialized LlamaCppRequest instance.")
@@ -58,6 +75,10 @@ class LlamaCppRequest:
         except JSONDecodeError:  # json decode failed
             return response.text
 
+    @property
+    def base_url(self) -> str:
+        return f"{self.scheme}://{self.domain}:{self.port}"
+
     def error(
         self, code: int, message: Union[str, Exception], type: str
     ) -> Dict[str, Any]:
@@ -68,10 +89,10 @@ class LlamaCppRequest:
         """Check the health status of the API."""
         try:
             self.logger.debug("Fetching health status")
-            return self.request.get("/health")
+            return self.get("/health")  # {"status": "ok"}
         except ConnectionError as e:
             self.logger.debug(f"Connection error while fetching health status: {e}")
-            return self.error(500, e, "unavailable_error")
+            return self.error(500, str(e), "unavailable_error")
 
     def get(self, endpoint: str, params: Optional[Dict[str, Any]] = None) -> Any:
         """
@@ -143,6 +164,7 @@ class LlamaCppRequest:
 
 if __name__ == "__main__":
     import argparse
+    import json
     import sys
 
     parser = argparse.ArgumentParser()
@@ -154,21 +176,26 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "-n",
-        "--predict",
+        "--n-predict",
         help="Tokens generated.",
-        default=-1,
+        default=256,
         type=int,
     )
     args = parser.parse_args()
 
     # Initialize the LlamaCppRequest instance
-    llama_requests = LlamaCppRequest(base_url="http://127.0.0.1", port="8080")
+    llama_requests = LlamaCppRequest(scheme="http", domain="127.0.0.1", port="8080")
+
+    llama_health = llama_requests.health()
+    if llama_health.get("error"):
+        print("Server is unavailable.")
+        exit(1)
 
     # Define the prompt for the model
     print(args.prompt, end="")
 
     # Prepare data for streaming request
-    data = {"prompt": args.prompt, "n_predict": args.predict, "stream": True}
+    data = {"prompt": args.prompt, "n_predict": args.n_predict, "stream": True}
 
     # Generate the model's response
     generator = llama_requests.stream("/completion", data=data)
