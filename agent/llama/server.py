@@ -22,7 +22,7 @@ class LlamaCppServer:
         self.logger.debug("Initialized LlamaCppServer instance.")
 
     def _wait(self, timeout: float = 30.0) -> bool:
-        """Poll the health endpoint until it reports `ok` or time-outs."""
+        """Poll the health endpoint until it reports ok or time-outs."""
         start = time.time()
         while (time.time() - start) < timeout:
             try:
@@ -35,6 +35,7 @@ class LlamaCppServer:
         return False
 
     def _execute(self, cmd: List[str]) -> Popen:
+        """Start a background process."""
         try:
             # Non-blocking, background process
             return Popen(
@@ -54,32 +55,36 @@ class LlamaCppServer:
             return bin_path
         raise FileNotFoundError("'llama-server' binary missing from $PATH")
 
-    def exists(self) -> bool:
-        return bool(self.path())
-
     def start(self, cmd: List[str], timeout: float = 30.0) -> None:
-        self.logger.info("waiting for llama-server")
-        self.process = self._execute(cmd)
+        """Launch the server and wait until it reports healthy."""
+        self.logger.info("Starting llama-server …")
+
+        try:
+            self.process = self._execute(cmd)
+        except RuntimeError as e:
+            self.logger.error(e)
+            return False
+
         if not self._wait(timeout):
             health = self.request.health()
+            error_info = "(unknown)"
             if health.get("error"):
-                error_code = health["error"]["code"]
-                error_msg = health["error"]["message"]
-                self.logger.error(f"Error ({error_code}): {error_msg}")
-            self.logger.error("Server failed to become ready.")
+                error_info = f"({health["error"]["code"]}) {health["error"]["message"]}"
+            self.logger.error(f"Server failed to become ready: {error_info}")
             self.stop()
             return False
-        self.logger.info(f"started pid: {self.process.pid}")
+
+        self.logger.info(f"Launched pid={self.process.pid} (ready)")
         return True
 
     def stop(self) -> bool:
-        if self.process is None:
-            self.logger.info("no process currently exists")
-            return False
-        self.logger.info(f"stopping pid: {self.process.pid}")
-        self.process.kill()
-        self.process = None
-        return True
+        if self.process:
+            self.logger.info(f"stopping pid: {self.process.pid}")
+            self.process.kill()
+            self.process = None
+            return True
+        self.logger.info("no process currently exists")
+        return False
 
     def restart(self, cmd: List[str], timeout: float = 30.0) -> None:
         """Convenience helper to stop and start again."""
