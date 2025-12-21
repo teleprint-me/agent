@@ -17,7 +17,8 @@ from agent.config import config
 
 class StreamNotAllowedError(Exception):
     def __init__(
-        self, message="Streaming not allowed for this request. Set 'stream' to False."
+        self,
+        message="Streaming not allowed for this request. Set 'stream' to False.",
     ):
         super().__init__(message)
 
@@ -56,6 +57,21 @@ class LlamaCppRequest:
             return response.json()
         except JSONDecodeError:  # json decode failed
             return response.text
+
+    def error(
+        self, code: int, message: Union[str, Exception], type: str
+    ) -> Dict[str, Any]:
+        """Return a dictionary representing an error response."""
+        return {"error": {"code": code, "message": message, "type": type}}
+
+    def health(self) -> Dict[str, Any]:
+        """Check the health status of the API."""
+        try:
+            self.logger.debug("Fetching health status")
+            return self.request.get("/health")
+        except ConnectionError as e:
+            self.logger.debug(f"Connection error while fetching health status: {e}")
+            return self.error(500, e, "unavailable_error")
 
     def get(self, endpoint: str, params: Optional[Dict[str, Any]] = None) -> Any:
         """

@@ -36,21 +36,9 @@ class LlamaCppAPI:
         self.logger = config.get_logger("logger", self.__class__.__name__)
         self.logger.debug("Initialized LlamaCppAPI instance.")
 
-    def error(
-        self, code: int, message: Union[str, Exception], type: str
-    ) -> Dict[str, Any]:
-        """Return a dictionary representing an error response."""
-        return {"error": {"code": code, "message": message, "type": type}}
-
-    @property
     def health(self) -> Dict[str, Any]:
         """Check the health status of the API."""
-        try:
-            self.logger.debug("Fetching health status")
-            return self.request.get("/health")
-        except ConnectionError as e:
-            self.logger.debug(f"Connection error while fetching health status: {e}")
-            return self.error(500, e, "unavailable_error")
+        return self.request.health()
 
     @property
     def metrics(self) -> Dict[str, Any]:
@@ -90,7 +78,7 @@ class LlamaCppAPI:
             return data
         except HTTPError as e:
             self.logger.debug("Error fetching server metrics")
-            return self.error(501, e, "unavailable_error")
+            return self.request.error(501, e, "unavailable_error")
 
     @property
     def slots(self) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
@@ -100,7 +88,7 @@ class LlamaCppAPI:
             return self.request.get("/slots")
         except HTTPError as e:
             self.logger.debug("Error fetching slot states")
-            return self.error(501, e, "unavailable_error")
+            return self.request.error(501, e, "unavailable_error")
 
     @property
     def models(self) -> dict[str, Any]:
