@@ -84,43 +84,49 @@ class LlamaCppRequest:
             return response.text
 
     @property
-    def config(self) -> ConfigurationManager:
-        return config
-
-    @property
     def scheme(self) -> str:
-        return self.config.get_value("requests.scheme", "http")
+        return config.get_value("requests.scheme", "http")
 
     @scheme.setter
     def scheme(self, value: str):
-        self.config.set_value("requests.scheme", value)
+        config.set_value("requests.scheme", value)
 
     @property
     def domain(self) -> str:
-        return self.config.get_value("requests.domain", "127.0.0.1")
+        return config.get_value("requests.domain", "127.0.0.1")
 
     @domain.setter
     def domain(self, value: str):
-        self.config.set_value("requests.domain", value)
+        config.set_value("requests.domain", value)
 
     @property
     def port(self) -> str:
-        return self.config.get_value("requests.port", "8080")
+        return config.get_value("requests.port", "8080")
 
     @port.setter
     def port(self, value: str) -> str:
-        self.config.set_value("requests.port", value)
+        config.set_value("requests.port", value)
 
     @property
     def headers(self) -> Dict[str, str]:
-        return self.config.get_value(
+        return config.get_value(
             "requests.headers",
-            {"Content-Type": "application/json"},
+            {
+                "Content-Type": "application/json",
+            },
         )
 
     @headers.setter
     def headers(self, value: Dict[str, str]):
-        self.config.set_value("requests.headers", value)
+        config.set_value("requests.headers", value)
+
+    @property
+    def timeout(self) -> int:
+        return config.get_value("requests.timeout", 30.0)
+
+    @timeout.setter
+    def timeout(self, value: int):
+        config.set_value("requests.timeout", value)
 
     @property
     def base_url(self) -> str:
@@ -154,7 +160,12 @@ class LlamaCppRequest:
 
         url = f"{self.base_url}{endpoint}"
         self.logger.debug(f"GET request to {url} with params: {params}")
-        response = requests.get(url, params=params, headers=self.headers)
+        response = requests.get(
+            url,
+            params=params,
+            headers=self.headers,
+            timeout=self.timeout,
+        )
         return self._handle_response(response)
 
     def post(self, endpoint: str, data: Optional[Dict[str, Any]] = None) -> Any:
@@ -170,7 +181,12 @@ class LlamaCppRequest:
 
         url = f"{self.base_url}{endpoint}"
         self.logger.debug(f"POST request to {url} with data: {data}")
-        response = requests.post(url, json=data, headers=self.headers)
+        response = requests.post(
+            url,
+            json=data,
+            headers=self.headers,
+            timeout=self.timeout,
+        )
         return self._handle_response(response)
 
     def stream(
