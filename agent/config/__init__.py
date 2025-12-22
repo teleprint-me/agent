@@ -12,7 +12,7 @@ from jsonpycraft import (
 from agent.config.style import style_dark
 from agent.tools import tools
 
-DEFAULT_PATH_LOGS = ".agent/model.log"
+DEFAULT_PATH_LOGS = ".agent/data.log"
 DEFAULT_PATH_CONF = ".agent/settings.json"
 DEFAULT_PATH_MSGS = ".agent/messages.json"
 DEFAULT_PATH_STOR = ".agent/storage.sqlite3"
