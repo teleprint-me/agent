@@ -86,8 +86,6 @@ class LlamaCppServer:
         else:
             self.process = self._execute(self._command())
 
-        self.logger.debug(self.process.stdout.read())
-
         if not self._wait():
             error_info = "(unknown)"
             health = self.request.health()
@@ -111,18 +109,18 @@ class LlamaCppServer:
 
         pid = self.process.pid
         self.process.terminate()
-        self.process.wait(30.0)
+        self.process.wait(timeout=self.request.timeout)
         code = self.process.poll()  # returns None or exit status
         self.logger.debug(f"{pid} stopped with {code}")
         self.process = None
 
         return True
 
-    def restart(self, cmd: List[str], timeout: float = 30.0) -> None:
+    def restart(self, command: Optional[List[str]] = None) -> bool:
         """Convenience helper to stop and start again."""
         self.stop()
-        time.sleep(1)
-        self.start(cmd, timeout)
+        time.sleep(0.25)
+        return self.start(command)
 
 
 # usage example
