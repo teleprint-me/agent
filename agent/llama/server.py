@@ -210,13 +210,15 @@ if __name__ == "__main__":
         sys.stdout.flush()
     print()
 
+    # smoke test starting the server
     assert llama_server.start(command), "Failed to start server."
+    assert llama_server.request.health().get("status") == "ok", "Server is unhealthy"
     print(f"Launched server with pid: {llama_server.pid}")
 
+    # smoke test restarting the server
     assert llama_server.restart(command), "Failed to restart server"
-    print(f"Restarted server with pid: {llama_server.pid}")
-
     assert llama_server.request.health().get("status") == "ok", "Server is unhealthy"
+    print(f"Restarted server with pid: {llama_server.pid}")
 
     # the alias for the model to load
     model = "gpt-oss-20b-mxfp4"
