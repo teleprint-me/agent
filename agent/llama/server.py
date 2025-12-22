@@ -1,13 +1,11 @@
 # agent/llama/server.py
 """Automate llama-server management"""
 
-import os
 import shutil
 import time
 from logging import Logger
-from pathlib import Path
 from subprocess import DEVNULL, Popen
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from requests.exceptions import HTTPError
 
