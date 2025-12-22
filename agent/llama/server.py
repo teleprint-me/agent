@@ -149,6 +149,11 @@ if __name__ == "__main__":
         help="Number of layers stored in VRAM (default: -1)",
     )
     parser.add_argument(
+        "--model",
+        default=None,
+        help="Path to GGUF model file (default: None)",
+    )
+    parser.add_argument(
         "--models-dir",
         default=None,
         help="Model directory used by the router (default: None)",
@@ -163,36 +168,42 @@ if __name__ == "__main__":
     llama_request = LlamaCppRequest(port=args.port)
     llama_server = LlamaCppServer(llama_request)
 
-    # I'm not sure how to handle dynamic context size at runtime
-    # --ctx-size: size of the prompt context (default: 0, 0 = loaded from model)
-    command = [
-        # /usr/local/bin/llama-server
-        llama_server.path,
-        # whether to use jinja template engine for chat (default: enabled)
-        "--jinja",
-        # enable prometheus compatible metrics endpoint (default: disabled)
-        "--metrics",
-        # enable changing global properties via POST /props (default: disabled)
-        "--props",
-        # expose slots monitoring endpoint (default: enabled)
-        "--slots",
-        # use single unified KV buffer shared across all sequences (default: enabled if number of slots is auto)
-        "--kv-unified",
-        # port to listen (default: 8080)
-        "--port",
-        str(args.port),
-        # number of layers to store in VRAM (default: -1)
-        "--n-gpu-layers",
-        str(args.n_gpu_layers),
-    ]
+    # /usr/local/bin/llama-server
+    command = [llama_server.path]
 
-    # directory containing models for the router server (default: disabled)
-    if args.models_dir:
+    if args.model:
+        # model path to load
+        command.extend(["--model", str(args.model)])
+    elif args.models_dir:
+        # directory containing models for the router server (default: disabled)
         command.extend(["--models-dir", str(args.models_dir)])
 
     # path to INI file containing model presets for the router server (default: disabled)
     if args.models_preset:
         command.extend(["--models-preset", str(args.models_preset)])
+    else:
+        # I'm not sure how to handle dynamic context size at runtime
+        # --ctx-size: size of the prompt context (default: 0, 0 = loaded from model)
+        command.extend(
+            [
+                # whether to use jinja template engine for chat (default: enabled)
+                "--jinja",  # note that the default jinja template injects a system prompt
+                # enable prometheus compatible metrics endpoint (default: disabled)
+                "--metrics",
+                # enable changing global properties via POST /props (default: disabled)
+                "--props",
+                # expose slots monitoring endpoint (default: enabled)
+                "--slots",
+                # use single unified KV buffer shared across all sequences (default: enabled if number of slots is auto)
+                "--kv-unified",
+                # port to listen (default: 8080)
+                "--port",
+                str(args.port),
+                # number of layers to store in VRAM (default: -1)
+                "--n-gpu-layers",
+                str(args.n_gpu_layers),
+            ]
+        )
 
     for token in command:
         print(token, end=" ")
@@ -204,6 +215,47 @@ if __name__ == "__main__":
 
     assert llama_server.restart(command), "Failed to restart server"
     print(f"Restarted server with pid: {llama_server.pid}")
+
+    assert llama_server.request.health().get("status") == "ok", "Server is unhealthy"
+
+    # the alias for the model to load
+    model = "gpt-oss-20b-mxfp4"
+
+    # the model has to be loaded first
+    response = llama_request.post("/models/load", {"model": model})
+    assert response.get("success") is True, f"Failed to load {model}"
+
+    # Define the prompt for the model
+    prompt = "Once upon a time,"
+    print(prompt, end="")
+
+    # Prepare data for streaming request
+    data = {
+        "prompt": prompt,
+        "n_predict": 128,
+        "stream": True,
+        "model": model,
+    }
+
+    # Generate the model's response
+    generator = llama_request.stream("/completion", data=data)
+
+    # Handle the model's generated response
+    content = ""
+    for response in generator:
+        if "content" in response:
+            token = response["content"]
+            content += token
+            # Print each token to the user
+            print(token, end="")
+            sys.stdout.flush()
+
+    # Add padding to the model's output
+    print()
+
+    # release occupied vram
+    response = llama_request.post("/models/unload", {"model": model})
+    assert response.get("success") is True, f"Failed to unload {model}"
 
     assert llama_server.stop(), "Failed to stop server"
     print("Terminated server.")
