@@ -24,14 +24,46 @@ class LlamaCppServer:
         self.logger: Logger = config.get_logger("logger", self.__class__.__name__)
         self.logger.debug("Initialized LlamaCppServer instance.")
 
-    @property
-    def config(self) -> ConfigurationManager:
-        return config
+    def _bin(self) -> str:
+        """Absolute path to llama-server, raising if not found."""
+        path = shutil.which("llama-server")
+        if path is None:
+            raise FileNotFoundError("'llama-server' binary missing from $PATH")
+        return path
 
-    def _wait(self, timeout: float = 30.0) -> bool:
+    def _options(self) -> List[str]:
+        options = []
+        pairs = config.get_value("server", {})
+        for key, value in pairs.items():
+            if isinstance(value, bool) and value:
+                options.append(f"--{key}")
+            else:
+                options.extend((f"--{key}", f"{value}"))
+        return options
+
+    def _command(self, path: Optional[str] = None) -> List[str]:
+        command = [path or self._bin()]
+        command.extend(self._options())
+        return command
+
+    def _execute(self, command: List[str]) -> Popen:
+        """Start a background process."""
+        try:
+            # Non-blocking, background process
+            return Popen(
+                command,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                stdin=subprocess.DEVNULL,
+                start_new_session=True,  # important
+            )
+        except OSError as e:
+            raise RuntimeError(f"Could not spawn llama-server: {e}") from e
+
+    def _wait(self) -> bool:
         """Poll the health endpoint until it reports ok or time-outs."""
         start = time.time()
-        while (time.time() - start) < timeout:
+        while (time.time() - start) < self.request.timeout:
             try:
                 health = self.request.health()
                 if health.get("status") == "ok":
@@ -41,28 +73,7 @@ class LlamaCppServer:
             time.sleep(0.25)
         return False
 
-    def _execute(self, cmd: List[str]) -> Popen:
-        """Start a background process."""
-        try:
-            # Non-blocking, background process
-            return Popen(
-                cmd,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                stdin=subprocess.DEVNULL,
-                start_new_session=True,  # important
-            )
-        except OSError as e:
-            raise RuntimeError(f"Could not spawn llama-server: {e}") from e
-
-    def path(self) -> str:
-        """Absolute path to llama-server, raising if not found."""
-        bin_path = shutil.which("llama-server") or str()
-        if not bin_path:
-            raise FileNotFoundError("'llama-server' binary missing from $PATH")
-        return bin_path
-
-    def start(self, cmd: List[str], timeout: float = 30.0) -> None:
+    def start(self, command: Optional[List[str]] = None) -> bool:
         """Launch the server and wait until it reports healthy."""
         self.logger.info("Starting llama-server")
 
@@ -70,10 +81,14 @@ class LlamaCppServer:
             self.logger.info(f"Using pid={self.process.pid} (running)")
             return False
 
-        self.process = self._execute(cmd)
+        if command:
+            self.process = self._execute(command)
+        else:
+            self.process = self._execute(self._command())
+
         self.logger.debug(self.process.stdout.read())
 
-        if not self._wait(timeout):
+        if not self._wait():
             error_info = "(unknown)"
             health = self.request.health()
             if health.get("error"):
@@ -87,17 +102,21 @@ class LlamaCppServer:
         return True
 
     def stop(self) -> bool:
-        """Kill the process group if it exists."""
-        if self.process:
-            self.process.terminate()
-            self.process.wait(30.0)
-            self.logger.debug(
-                f"Stopped {self.process.pid} with exit code {self.process.poll()}"
-            )
-            self.process = None
-            return True
-        self.logger.debug("No process currently exists. Ignoring service request.")
-        return False
+        """Kill the process if it exists."""
+
+        # no running process
+        if not self.process:
+            self.logger.debug("No active llama-server process.")
+            return False
+
+        pid = self.process.pid
+        self.process.terminate()
+        self.process.wait(30.0)
+        code = self.process.poll()  # returns None or exit status
+        self.logger.debug(f"{pid} stopped with {code}")
+        self.process = None
+
+        return True
 
     def restart(self, cmd: List[str], timeout: float = 30.0) -> None:
         """Convenience helper to stop and start again."""
