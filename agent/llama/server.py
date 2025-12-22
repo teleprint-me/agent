@@ -137,7 +137,8 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    llama_server = LlamaCppServer()
+    llama_request = LlamaCppRequest(port=args.port)
+    llama_server = LlamaCppServer(llama_request)
     if not llama_server.exists():
         print("llama-server is not available in the system PATH variable")
         exit(1)
