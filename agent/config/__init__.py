@@ -51,6 +51,7 @@ DEFAULT_CONF = {
         "headers": {
             "Content-Type": "application/json",
         },
+        "timeout": 30,
     },
     "server": {
         "metrics": True,
@@ -64,7 +65,6 @@ DEFAULT_CONF = {
         "models-preset": "models/config.ini",
         "ctx-size": 0,
         "n-gpu-layers": -1,
-        "timeout": 30,
     },
     "model": {
         "prompt": "",
