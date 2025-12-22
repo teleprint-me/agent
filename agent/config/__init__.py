@@ -86,15 +86,17 @@ DEFAULT_CONF = {
 }
 
 
-def load_or_init_config(path: str, defaults: JSONMap):
+def load_or_init_config(path: str, defaults: JSONMap) -> ConfigurationManager:
     config = ConfigurationManager(path, initial_data=defaults)
-    config.mkdir()
+
     try:
+        config.mkdir()
         config.load()
     except (JSONFileErrorHandler, JSONDecodeErrorHandler):
         config.save()
+
     return config
 
 
 # NOTE: Do not assign to `config` in any function; it is a top-level singleton.
-config = load_or_init_config(DEFAULT_PATH_CONF, DEFAULT_CONF)
+config: ConfigurationManager = load_or_init_config(DEFAULT_PATH_CONF, DEFAULT_CONF)
