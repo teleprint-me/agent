@@ -6,8 +6,8 @@ import shutil
 import time
 from logging import Logger
 from pathlib import Path
-from subprocess import Popen
-from typing import List, Optional
+from subprocess import DEVNULL, Popen
+from typing import Any, Dict, List, Optional
 
 from requests.exceptions import HTTPError
 
@@ -52,9 +52,9 @@ class LlamaCppServer:
             # Non-blocking, background process
             return Popen(
                 command,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                stdin=subprocess.DEVNULL,
+                stdout=DEVNULL,
+                stderr=DEVNULL,
+                stdin=DEVNULL,
                 start_new_session=True,  # important
             )
         except OSError as e:
@@ -72,6 +72,14 @@ class LlamaCppServer:
                 pass  # polling server
             time.sleep(0.25)
         return False
+
+    @property
+    def path(self) -> str:
+        return self._bin()
+
+    @property
+    def pid(self) -> Optional[int]:
+        return self.process.pid if self.process else None
 
     def start(self, command: Optional[List[str]] = None) -> bool:
         """Launch the server and wait until it reports healthy."""
@@ -156,15 +164,12 @@ if __name__ == "__main__":
 
     llama_request = LlamaCppRequest(port=args.port)
     llama_server = LlamaCppServer(llama_request)
-    if not llama_server.exists():
-        print("llama-server is not available in the system PATH variable")
-        exit(1)
 
     # I'm not sure how to handle dynamic context size at runtime
     # --ctx-size: size of the prompt context (default: 0, 0 = loaded from model)
-    cmd = [
+    command = [
         # /usr/local/bin/llama-server
-        llama_server.path(),
+        llama_server.path,
         # whether to use jinja template engine for chat (default: enabled)
         "--jinja",
         # enable prometheus compatible metrics endpoint (default: disabled)
@@ -185,13 +190,22 @@ if __name__ == "__main__":
 
     # directory containing models for the router server (default: disabled)
     if args.models_dir:
-        cmd.extend(["--models-dir", str(args.models_dir)])
+        command.extend(["--models-dir", str(args.models_dir)])
 
     # path to INI file containing model presets for the router server (default: disabled)
     if args.models_preset:
-        cmd.extend(["--models-preset", str(args.models_preset)])
+        command.extend(["--models-preset", str(args.models_preset)])
 
-    for token in cmd:
+    for token in command:
         print(token, end=" ")
         sys.stdout.flush()
     print()
+
+    assert llama_server.start(command), "Failed to start server."
+    print(f"Launched server with pid: {llama_server.pid}")
+
+    assert llama_server.restart(command), "Failed to restart server"
+    print(f"Restarted server with pid: {llama_server.pid}")
+
+    assert llama_server.stop(), "Failed to stop server"
+    print("Terminated server.")
