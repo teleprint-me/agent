@@ -5,8 +5,9 @@ Client side interface for model routing.
 
 import json
 import logging
+from functools import lru_cache
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Any
+from typing import Any, Dict, Iterable, List, Optional
 
 from agent.config import config
 from agent.llama.requests import LlamaCppRequest
@@ -25,29 +26,28 @@ class LlamaCppRouter:
         self.logger = config.get_logger("logger", self.__class__.__name__)
         self.logger.debug("Initialized LlamaCppRouter instance.")
 
+    @lru_cache
     def models(self) -> List[Dict[str, Any]]:
         """
         Listing all models in cache.
         Metadata includes a field to indicate the status of the model.
         """
         self.logger.debug("Fetching models list")
-        response = self.request.get("/models")
-        if response.get("object") and response["object"] == "list":
-            return response["data"]
+        return self.request.get("/models")["data"]
 
+    @lru_cache
     def aliases(self) -> List[str]:
         """Returns a list of cached model aliases."""
         self.logger.debug("Fetching model aliases")
-        labels = []
-        for model in self.models():
-            labels.append(model["id"])
-        return labels
+        return [model["id"] for model in self.models()]
 
     def load(self, alias: str) -> str:
         self.logger.debug(f"Loading {alias} from cache")
-        response = self.request.get("/models", {"model": alias})
-        if error
+        return self.request.get("/models", {"model": alias})
 
+    def unload(self, alias: str) -> str:
+        self.logger.debug(f"Unloading {alias} to cache")
+        return self.request.post("/models", {"model", alias})
 
 
 if __name__ == "__main__":
@@ -55,11 +55,11 @@ if __name__ == "__main__":
 
     parser = ArgumentParser()
     parser.add_argument("--port", type=int, default=8080)
-    parser.add_argument("--n-predict", type=int, default=8080)
+    parser.add_argument("--n-predict", type=int, default=-1)  # model chooses
+    parser.add_argument("--n-ctx", type=int, default=0)  # uses full context
     args = parser.parse_args()
 
     llama_request = LlamaCppRequest(port=args.port)
     llama_router = LlamaCppRouter(llama_request)
     models = llama_router.models()
     print(json.dumps(models, indent=2))
-
