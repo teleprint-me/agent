@@ -7,15 +7,13 @@ Description: Module for handling low-level requests to the LlamaCpp REST API.
 """
 
 import json
-import sys
-import traceback
 from json import JSONDecodeError
 from typing import Any, Dict, Generator, Optional, Union
 
 import requests
 from requests.exceptions import ConnectionError
 
-from agent.config import ConfigurationManager, config
+from agent.config import config
 
 
 class StreamNotAllowedError(Exception):
@@ -104,7 +102,7 @@ class LlamaCppRequest:
         return config.get_value("requests.port", "8080")
 
     @port.setter
-    def port(self, value: str) -> str:
+    def port(self, value: str):
         config.set_value("requests.port", value)
 
     @property
@@ -223,14 +221,13 @@ class LlamaCppRequest:
                 decoded_chunk = json.loads(chunk)
                 self.logger.debug(f"Stream chunk received: {decoded_chunk}")
                 yield decoded_chunk
-            except json.JSONDecodeError as e:
+            except JSONDecodeError as e:
                 self.logger.error(f"Failed to decode JSON chunk: {chunk}")
                 raise e
 
 
 if __name__ == "__main__":
     import argparse
-    import json
     import sys
 
     parser = argparse.ArgumentParser()
