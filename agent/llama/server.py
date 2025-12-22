@@ -1,6 +1,7 @@
 # agent/llama/server.py
 """Automate llama-server management"""
 
+import os
 import shutil
 import time
 from logging import Logger
@@ -15,11 +16,17 @@ from agent.llama.requests import LlamaCppRequest
 
 
 class LlamaCppServer:
+    """Thin wrapper around llama-server binary."""
+
     def __init__(self, request: Optional[LlamaCppRequest] = None):
-        self.request = request if request else LlamaCppRequest()
+        self.request = request or LlamaCppRequest()
         self.process: Optional[Popen] = None
         self.logger: Logger = config.get_logger("logger", self.__class__.__name__)
         self.logger.debug("Initialized LlamaCppServer instance.")
+
+    @property
+    def config(self) -> ConfigurationManager:
+        return config
 
     def _wait(self, timeout: float = 30.0) -> bool:
         """Poll the health endpoint until it reports ok or time-outs."""
@@ -51,39 +58,45 @@ class LlamaCppServer:
     def path(self) -> str:
         """Absolute path to llama-server, raising if not found."""
         bin_path = shutil.which("llama-server") or str()
-        if bin_path:
-            return bin_path
-        raise FileNotFoundError("'llama-server' binary missing from $PATH")
+        if not bin_path:
+            raise FileNotFoundError("'llama-server' binary missing from $PATH")
+        return bin_path
 
     def start(self, cmd: List[str], timeout: float = 30.0) -> None:
         """Launch the server and wait until it reports healthy."""
-        self.logger.info("Starting llama-server …")
+        self.logger.info("Starting llama-server")
 
-        try:
-            self.process = self._execute(cmd)
-        except RuntimeError as e:
-            self.logger.error(e)
+        if self.process:
+            self.logger.info(f"Using pid={self.process.pid} (running)")
             return False
 
+        self.process = self._execute(cmd)
+        self.logger.debug(self.process.stdout.read())
+
         if not self._wait(timeout):
-            health = self.request.health()
             error_info = "(unknown)"
+            health = self.request.health()
             if health.get("error"):
                 error_info = f"({health["error"]["code"]}) {health["error"]["message"]}"
-            self.logger.error(f"Server failed to become ready: {error_info}")
+
             self.stop()
+            self.logger.error(f"Server failed to become ready: {error_info}")
             return False
 
         self.logger.info(f"Launched pid={self.process.pid} (ready)")
         return True
 
     def stop(self) -> bool:
+        """Kill the process group if it exists."""
         if self.process:
-            self.logger.info(f"stopping pid: {self.process.pid}")
-            self.process.kill()
+            self.process.terminate()
+            self.process.wait(30.0)
+            self.logger.debug(
+                f"Stopped {self.process.pid} with exit code {self.process.poll()}"
+            )
             self.process = None
             return True
-        self.logger.info("no process currently exists")
+        self.logger.debug("No process currently exists. Ignoring service request.")
         return False
 
     def restart(self, cmd: List[str], timeout: float = 30.0) -> None:
