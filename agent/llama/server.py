@@ -70,7 +70,7 @@ class LlamaCppServer:
                     return True
             except HTTPError:
                 pass  # polling server
-            time.sleep(0.25)
+            time.sleep(0.5)
         return False
 
     @property
@@ -86,7 +86,7 @@ class LlamaCppServer:
         self.logger.info("Starting llama-server")
 
         if self.process:
-            self.logger.info(f"Using pid={self.process.pid} (running)")
+            self.logger.warning(f"Using pid={self.process.pid} (running)")
             return False
 
         if command:
@@ -112,14 +112,14 @@ class LlamaCppServer:
 
         # no running process
         if not self.process:
-            self.logger.debug("No active llama-server process.")
+            self.logger.warning("No active llama-server process.")
             return False
 
         pid = self.process.pid
         self.process.terminate()
         self.process.wait(timeout=self.request.timeout)
         code = self.process.poll()  # returns None or exit status
-        self.logger.debug(f"{pid} stopped with {code}")
+        self.logger.info(f"Stopped {pid} (exit {code})")
         self.process = None
 
         return True
@@ -142,23 +142,23 @@ if __name__ == "__main__":
     parser.add_argument(
         "--port",
         default="8080",
-        help="Port the server listens from",
+        help="Port the server listens from (default: 8080)",
     )
     parser.add_argument(
         "--n-gpu-layers",
         type=int,
         default=-1,
-        help="Number of layers stored in VRAM",
+        help="Number of layers stored in VRAM (default: -1)",
     )
     parser.add_argument(
         "--models-dir",
         default=None,
-        help="Model directory used by the router",
+        help="Model directory used by the router (default: None)",
     )
     parser.add_argument(
         "--models-preset",
         default=None,
-        help="File used to configure the router",
+        help="File used to configure the router (default: None)",
     )
     args = parser.parse_args()
 
