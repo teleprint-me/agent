@@ -5,7 +5,7 @@ import shutil
 import time
 from logging import Logger
 from subprocess import DEVNULL, Popen
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from requests.exceptions import HTTPError
 
@@ -13,43 +13,36 @@ from agent.config import config
 from agent.llama.requests import LlamaCppRequest
 
 
-class LlamaCppServer:
-    """Thin wrapper around llama-server binary."""
+class LlamaCppServerOptions:
+    @property
+    def config(self) -> Dict[str, Any]:
+        return config.get_value("server", {})
 
-    def __init__(self, request: Optional[LlamaCppRequest] = None):
-        self.request = request or LlamaCppRequest()
-        self.process: Optional[Popen] = None
-        self.logger: Logger = config.get_logger("logger", self.__class__.__name__)
-        self.logger.debug("Initialized LlamaCppServer instance.")
-
-    def _bin(self) -> str:
+    @property
+    def path(self) -> str:
         """Absolute path to llama-server, raising if not found."""
-        path = shutil.which("llama-server")
-        if path is None:
+        which = shutil.which("llama-server")
+        if which is None:
             raise FileNotFoundError("'llama-server' binary missing from $PATH")
-        return path
+        return which
 
-    def _options(self) -> List[str]:
-        options = []
-        pairs = config.get_value("server", {})
-        for key, value in pairs.items():
-            if isinstance(value, bool) and value:
-                options.append(f"--{key}")
+    @property
+    def args(self) -> List[str]:
+        options = [self.path]
+        for k, v in self.config.items():
+            if isinstance(v, bool):
+                if v:
+                    options.append(f"--{k}")
             else:
-                options.extend((f"--{key}", f"{value}"))
+                options.extend((f"--{k}", str(v)))
         return options
 
-    def _command(self, path: Optional[str] = None) -> List[str]:
-        command = [path or self._bin()]
-        command.extend(self._options())
-        return command
-
-    def _execute(self, command: List[str]) -> Popen:
+    def execute(self, args: Optional[List[str]] = None) -> Popen:
         """Start a background process."""
         try:
             # Non-blocking, background process
             return Popen(
-                command,
+                self.args if args is None else args,
                 stdout=DEVNULL,
                 stderr=DEVNULL,
                 stdin=DEVNULL,
@@ -58,51 +51,66 @@ class LlamaCppServer:
         except OSError as e:
             raise RuntimeError(f"Could not spawn llama-server: {e}") from e
 
-    def _wait(self) -> bool:
-        """Poll the health endpoint until it reports ok or time-outs."""
-        start = time.time()
-        while (time.time() - start) < self.request.timeout:
-            try:
-                health = self.request.health()
-                if health.get("status") == "ok":
-                    return True
-            except HTTPError:
-                pass  # polling server
-            time.sleep(0.5)
-        return False
+
+class LlamaCppServer:
+    """Thin wrapper around llama-server binary."""
+
+    def __init__(self, request: Optional[LlamaCppRequest] = None):
+        self.request = request or LlamaCppRequest()
+        self.options = LlamaCppServerOptions()
+        self.process: Optional[Popen] = None
+        self.logger: Logger = config.get_logger("logger", self.__class__.__name__)
+        self.logger.debug("Initialized LlamaCppServer instance.")
 
     @property
-    def path(self) -> str:
-        return self._bin()
+    def timeout(self) -> int:
+        return self.request.timeout
+
+    @property
+    def health(self) -> Dict[str, Any]:
+        return self.request.health()
 
     @property
     def pid(self) -> Optional[int]:
         return self.process.pid if self.process else None
 
-    def start(self, command: Optional[List[str]] = None) -> bool:
+    @property
+    def path(self) -> str:
+        return self.options.path
+
+    def _wait(self) -> bool:
+        """Poll the health endpoint until it reports ok or time-outs."""
+        start = time.time()
+        while (time.time() - start) < self.timeout:
+            try:
+                if self.health.get("status") == "ok":
+                    return True
+            except HTTPError:
+                pass  # polling server
+            time.sleep(0.25)
+        return False
+
+    def start(self, args: Optional[List[str]] = None) -> bool:
         """Launch the server and wait until it reports healthy."""
         self.logger.info("Starting llama-server")
 
         if self.process:
-            self.logger.warning(f"Using pid={self.process.pid} (running)")
+            self.logger.warning(f"Using pid={self.pid} (running)")
             return False
 
-        if command:
-            self.process = self._execute(command)
-        else:
-            self.process = self._execute(self._command())
-
+        self.process = self.options.execute(args)
         if not self._wait():
             error_info = "(unknown)"
-            health = self.request.health()
-            if health.get("error"):
-                error_info = f"({health["error"]["code"]}) {health["error"]["message"]}"
+            if self.health.get("error"):
+                error_code = self.health["error"]["code"]
+                error_message = self.health["error"]["message"]
+                error_info = f"({error_code}) {error_message}"
 
             self.stop()
             self.logger.error(f"Server failed to become ready: {error_info}")
             return False
 
-        self.logger.info(f"Launched pid={self.process.pid} (ready)")
+        self.logger.info(f"Launched pid={self.pid} (ready)")
         return True
 
     def stop(self) -> bool:
@@ -115,8 +123,8 @@ class LlamaCppServer:
 
         pid = self.process.pid
         self.process.terminate()
-        self.process.wait(timeout=self.request.timeout)
-        code = self.process.poll()  # returns None or exit status
+        self.process.wait(timeout=self.timeout)
+        code = self.process.poll()  # returns exit status or None
         self.logger.info(f"Stopped {pid} (exit {code})")
         self.process = None
 
@@ -137,95 +145,42 @@ if __name__ == "__main__":
     from argparse import ArgumentParser
 
     parser = ArgumentParser()
-    parser.add_argument(
-        "--port",
-        default="8080",
-        help="Port the server listens from (default: 8080)",
-    )
-    parser.add_argument(
-        "--n-gpu-layers",
-        type=int,
-        default=-1,
-        help="Number of layers stored in VRAM (default: -1)",
-    )
-    parser.add_argument(
-        "--model",
-        default=None,
-        help="Path to GGUF model file (default: None)",
-    )
-    parser.add_argument(
-        "--models-dir",
-        default=None,
-        help="Model directory used by the router (default: None)",
-    )
-    parser.add_argument(
-        "--models-preset",
-        default=None,
-        help="File used to configure the router (default: None)",
-    )
+    parser.add_argument("model", help="The models filename (e.g. gpt-oss-20b-mxfp4)")
     args = parser.parse_args()
 
-    llama_request = LlamaCppRequest(port=args.port)
+    llama_request = LlamaCppRequest()
     llama_server = LlamaCppServer(llama_request)
 
     # /usr/local/bin/llama-server
-    command = [llama_server.path]
-
-    if args.model:
-        # model path to load
-        command.extend(["--model", str(args.model)])
-    elif args.models_dir:
-        # directory containing models for the router server (default: disabled)
-        command.extend(["--models-dir", str(args.models_dir)])
-
-    # path to INI file containing model presets for the router server (default: disabled)
-    if args.models_preset:
-        command.extend(["--models-preset", str(args.models_preset)])
-    else:
-        # I'm not sure how to handle dynamic context size at runtime
-        # --ctx-size: size of the prompt context (default: 0, 0 = loaded from model)
-        command.extend(
-            [
-                # whether to use jinja template engine for chat (default: enabled)
-                "--jinja",  # note that the default jinja template injects a system prompt
-                # enable prometheus compatible metrics endpoint (default: disabled)
-                "--metrics",
-                # enable changing global properties via POST /props (default: disabled)
-                "--props",
-                # expose slots monitoring endpoint (default: enabled)
-                "--slots",
-                # use single unified KV buffer shared across all sequences (default: enabled if number of slots is auto)
-                "--kv-unified",
-                # port to listen (default: 8080)
-                "--port",
-                str(args.port),
-                # number of layers to store in VRAM (default: -1)
-                "--n-gpu-layers",
-                str(args.n_gpu_layers),
-            ]
-        )
-
-    for token in command:
+    for token in llama_server.options.args:
         print(token, end=" ")
         sys.stdout.flush()
     print()
 
     # smoke test starting the server
-    assert llama_server.start(command), "Failed to start server."
-    assert llama_server.request.health().get("status") == "ok", "Server is unhealthy"
+    assert llama_server.start(), "Failed to start server."
+    assert llama_server.health.get("status") == "ok", "Server is unhealthy"
     print(f"Launched server with pid: {llama_server.pid}")
 
     # smoke test restarting the server
-    assert llama_server.restart(command), "Failed to restart server"
-    assert llama_server.request.health().get("status") == "ok", "Server is unhealthy"
+    assert llama_server.restart(), "Failed to restart server"
+    assert llama_server.health.get("status") == "ok", "Server is unhealthy"
     print(f"Restarted server with pid: {llama_server.pid}")
 
-    # the alias for the model to load
-    model = "gpt-oss-20b-mxfp4"
+    response = llama_request.get("/models")
+    models = response.get("data")
+    if models is None:
+        print("Error retrieving models")
+        print(f"Error: {response.get('error', {}).get('message')}")
+        llama_server.stop()
+        exit(1)
+
+    for model in models:
+        print(model["id"])
 
     # the model has to be loaded first
-    response = llama_request.post("/models/load", {"model": model})
-    assert response.get("success") is True, f"Failed to load {model}"
+    response = llama_request.post("/models/load", {"model": args.model})
+    assert response.get("success") is True, f"Failed to load {args.model}"
 
     # Define the prompt for the model
     prompt = "Once upon a time,"
@@ -233,10 +188,10 @@ if __name__ == "__main__":
 
     # Prepare data for streaming request
     data = {
+        "model": args.model,
         "prompt": prompt,
         "n_predict": 128,
         "stream": True,
-        "model": model,
     }
 
     # Generate the model's response
@@ -256,8 +211,8 @@ if __name__ == "__main__":
     print()
 
     # release occupied vram
-    response = llama_request.post("/models/unload", {"model": model})
-    assert response.get("success") is True, f"Failed to unload {model}"
+    response = llama_request.post("/models/unload", {"model": args.model})
+    assert response.get("success") is True, f"Failed to unload {args.model}"
 
     assert llama_server.stop(), "Failed to stop server"
     print("Terminated server.")
