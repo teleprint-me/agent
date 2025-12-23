@@ -40,16 +40,19 @@ class LlamaCppRouter:
         self.logger.debug("Fetching models list")
         return self.request.get("/models")["data"]
 
+    @property
     def ids(self) -> List[str]:
         """Returns a list of cached model ids."""
         self.logger.debug("Fetching model ids")
         return [model["id"] for model in self.data()]
 
+    @property
     def args(self) -> List[str]:
         """Returns a list of parameters used to configure the model."""
         self.logger.debug("Fetching model args")
         return [model["status"]["args"] for model in self.data()]
 
+    @property
     def presets(self) -> List[str]:
         """Returns a list of configurable model presets."""
         # note that this is read from and or written to a ini file.
@@ -112,18 +115,18 @@ if __name__ == "__main__":
 
     server.start()
 
-    if model_id not in router.ids():
+    if model_id not in router.ids:
         print(f"Error: Invalid model id '{model_id}'")
         server.stop()
         exit(1)
 
     print("Available model ids:")
-    for id in router.ids():
+    for id in router.ids:
         print(id)
 
     print(f"Selected: {model_id}")
     # -> ['--model', 'models/gpt‑...']
-    print(f"Arguments:\n{router.args_by_id[model_id]}")
+    print(f"Arguments: {router.args_by_id[model_id]}")
     # -> preset text block
     print(f"Presets:\n{router.presets_by_id[model_id]}")
 
