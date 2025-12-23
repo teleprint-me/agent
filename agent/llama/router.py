@@ -3,7 +3,7 @@
 Client side interface for model routing.
 """
 
-from functools import lru_cache
+import time
 from typing import Any, Dict, List, Optional
 
 from agent.config import config
@@ -24,14 +24,8 @@ class LlamaCppRouter:
         self.logger = config.get_logger("logger", self.__class__.__name__)
         self.logger.debug("Initialized LlamaCppRouter instance.")
 
-    def _invalidate_cache(self):
-        """Clear all cached values after a state change."""
-        try:  # the lru_cache decorator exposes `cache_clear`
-            type(self).data.cache_clear()
-        except AttributeError:  # if you ever remove @lru_cache
-            self.logger.debug("Missing LlamaCppRouter cache")
-
-    @lru_cache
+    # NOTE: Do NOT use a cache mechanism for method!
+    # Caching blocks updates from the server.
     def data(self) -> List[Dict[str, Any]]:
         """
         Listing all models in cache.
@@ -50,18 +44,18 @@ class LlamaCppRouter:
     def args(self) -> List[str]:
         """Returns a list of parameters used to configure the model."""
         self.logger.debug("Fetching model args")
-        return [model["status"]["args"] for model in self.data()]
+        return [model["status"]["args"] for model in self.status()]
 
     @property
     def presets(self) -> List[str]:
         """Returns a list of configurable model presets."""
         # note that this is read from and or written to a ini file.
         self.logger.debug("Fetching model presets")
-        return [model["status"]["preset"] for model in self.data()]
+        return [model["status"]["preset"] for model in self.status()]
 
     @property
     def args_by_id(self) -> Dict[str, List[str]]:
-        """Map: id to launch-args list."""
+        """Map: id to args list."""
         self.logger.debug("Fetching model args")
         return {m["id"]: m["status"]["args"] for m in self.data()}
 
@@ -72,16 +66,29 @@ class LlamaCppRouter:
         self.logger.debug("Fetching model presets")
         return {m["id"]: m["status"]["preset"] for m in self.data()}
 
+    @property
+    def loaded_by_id(self) -> Dict[str, str]:
+        """Map: id to status value string ("loaded" or "unloaded")"""
+        return {m["id"]: m["status"]["value"] for m in self.data()}
+
     def load(self, model: str) -> Dict[str, Any]:
         self.logger.debug(f"Loading {model} from cache")
         resp = self.request.post("/models/load", data=dict(model=model))
-        self._invalidate_cache()
+
+        # poll the models status
+        while self.loaded_by_id[model] != "loaded":
+            time.sleep(0.25)  # wait for allocation
+
         return resp
 
     def unload(self, model: str) -> Dict[str, Any]:
         self.logger.debug(f"Unloading {model} to cache")
         resp = self.request.post("/models/unload", data=dict(model=model))
-        self._invalidate_cache()
+
+        # # poll the models status
+        while self.loaded_by_id[model] != "unloaded":
+            time.sleep(0.25)  # wait for deallocation
+
         return resp
 
 
@@ -93,6 +100,8 @@ if __name__ == "__main__":
     from argparse import ArgumentParser
     from pathlib import Path
 
+    from requests.exceptions import HTTPError
+
     # stub for now (maybe accept a model id?)
     parser = ArgumentParser()
     parser.add_argument(
@@ -102,21 +111,16 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # original: args.model could be "gpt-oss-20b-mxfp4.gguf" or just "gpt-oss-20b-mxfp4"
-    model_id = str(Path(args.model).stem)  # removes ".gguf"
+    model = str(Path(args.model).stem)  # removes ".gguf"
 
     request = LlamaCppRequest()
     server = LlamaCppServer(request)
     router = LlamaCppRouter(request)
 
-    # server.start()
-    # data = router.data()
-    # print(json.dumps(data, indent=2))
-    # server.stop()
-
     server.start()
 
-    if model_id not in router.ids:
-        print(f"Error: Invalid model id '{model_id}'")
+    if model not in router.ids:
+        print(f"Error: Invalid model id '{model}'")
         server.stop()
         exit(1)
 
@@ -124,10 +128,31 @@ if __name__ == "__main__":
     for id in router.ids:
         print(id)
 
-    print(f"Selected: {model_id}")
+    print(f"Selected: {model}")
     # -> ['--model', 'models/gpt‑...']
-    print(f"Arguments: {router.args_by_id[model_id]}")
+    print(f"Arguments: {router.args_by_id[model]}")
     # -> preset text block
-    print(f"Presets:\n{router.presets_by_id[model_id]}")
+    print(f"Presets:\n{router.presets_by_id[model]}")
+
+    try:
+        # first load the model and report status
+        print(f"Status: Loading {model}.")
+        status = router.load(model)
+        print(f"{model} -> {router.loaded_by_id[model]}")
+        print(f"success? {status['success']}")
+    except KeyboardInterrupt:  # If the program hangs, enable clean exit
+        server.stop()  # clean up
+        exit(1)  # no traceback needed
+
+    # then unload the model and report status
+    try:
+        print(f"Status: Unloading {model}.")
+        router.unload(model)
+        status = router.load(model)
+        print(f"{model} -> {router.loaded_by_id[model]}")
+        print(f"success? {status['success']}")
+    except (KeyboardInterrupt, HTTPError) as e:  # server reporting "loading"?
+        server.stop()  # clean up
+        raise Exception(e) from e  # output traceback
 
     server.stop()
