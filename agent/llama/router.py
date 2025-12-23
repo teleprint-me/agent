@@ -48,13 +48,26 @@ class LlamaCppRouter:
     def args(self) -> List[str]:
         """Returns a list of parameters used to configure the model."""
         self.logger.debug("Fetching model args")
-        return [model["args"] for model in self.data()]
+        return [model["status"]["args"] for model in self.data()]
 
     def presets(self) -> List[str]:
         """Returns a list of configurable model presets."""
         # note that this is read from and or written to a ini file.
         self.logger.debug("Fetching model presets")
-        return [model["preset"] for model in self.data()]
+        return [model["status"]["preset"] for model in self.data()]
+
+    @property
+    def args_by_id(self) -> Dict[str, List[str]]:
+        """Map: id to launch-args list."""
+        self.logger.debug("Fetching model args")
+        return {m["id"]: m["status"]["args"] for m in self.data()}
+
+    @property
+    def presets_by_id(self) -> Dict[str, str]:
+        """Map: id to preset string (inherits from args if not defined)."""
+        # note that this is read from and or written to a ini file.
+        self.logger.debug("Fetching model presets")
+        return {m["id"]: m["status"]["preset"] for m in self.data()}
 
     def load(self, model: str) -> Dict[str, Any]:
         self.logger.debug(f"Loading {model} from cache")
@@ -75,10 +88,18 @@ class LlamaCppRouter:
 if __name__ == "__main__":
     import json
     from argparse import ArgumentParser
+    from pathlib import Path
 
     # stub for now (maybe accept a model id?)
     parser = ArgumentParser()
+    parser.add_argument(
+        "model",
+        help="Path to the model file (e.g. models/gpt-oss-20b-mxfp4.gguf)",
+    )
     args = parser.parse_args()
+
+    # original: args.model could be "gpt-oss-20b-mxfp4.gguf" or just "gpt-oss-20b-mxfp4"
+    model_id = str(Path(args.model).stem)  # removes ".gguf"
 
     request = LlamaCppRequest()
     server = LlamaCppServer(request)
@@ -90,6 +111,20 @@ if __name__ == "__main__":
     # server.stop()
 
     server.start()
-    for model_id in router.ids():
-        print(model_id)
+
+    if model_id not in router.ids():
+        print(f"Error: Invalid model id '{model_id}'")
+        server.stop()
+        exit(1)
+
+    print("Available model ids:")
+    for id in router.ids():
+        print(id)
+
+    print(f"Selected: {model_id}")
+    # -> ['--model', 'models/gpt‑...']
+    print(f"Arguments:\n{router.args_by_id[model_id]}")
+    # -> preset text block
+    print(f"Presets:\n{router.presets_by_id[model_id]}")
+
     server.stop()
