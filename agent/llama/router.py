@@ -3,11 +3,8 @@
 Client side interface for model routing.
 """
 
-import json
-import logging
 from functools import lru_cache
-from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, List, Optional
 
 from agent.config import config
 from agent.llama.requests import LlamaCppRequest
@@ -28,7 +25,7 @@ class LlamaCppRouter:
         self.logger.debug("Initialized LlamaCppRouter instance.")
 
     @lru_cache
-    def models(self) -> List[Dict[str, Any]]:
+    def data(self) -> List[Dict[str, Any]]:
         """
         Listing all models in cache.
         Metadata includes a field to indicate the status of the model.
@@ -36,35 +33,52 @@ class LlamaCppRouter:
         self.logger.debug("Fetching models list")
         return self.request.get("/models")["data"]
 
-    @lru_cache
     def ids(self) -> List[str]:
-        """Returns a list of cached model aliases."""
-        self.logger.debug("Fetching model aliases")
-        return [model["id"] for model in self.models()]
+        """Returns a list of cached model ids."""
+        self.logger.debug("Fetching model ids")
+        return [model["id"] for model in self.data()]
 
-    def load(self, model: str) -> str:
+    def args(self) -> List[str]:
+        """Returns a list of parameters used to configure the model."""
+        self.logger.debug("Fetching model args")
+        return [model["args"] for model in self.data()]
+
+    def presets(self) -> List[str]:
+        """Returns a list of configurable model presets."""
+        # note that this is read from and or written to a ini file.
+        self.logger.debug("Fetching model presets")
+        return [model["preset"] for model in self.data()]
+
+    def load(self, model: str) -> Dict[str, Any]:
         self.logger.debug(f"Loading {model} from cache")
-        return self.request.post("/models/load", {"model": model})
+        return self.request.post("/models/load", data=dict(model=model))
 
-    def unload(self, model: str) -> str:
+    def unload(self, model: str) -> Dict[str, Any]:
         self.logger.debug(f"Unloading {model} to cache")
-        return self.request.post("/models/unload", {"model", model})
+        return self.request.post("/models/unload", data=dict(model=model))
 
 
+# usage example
+# note that each model may be configured individually.
+# this allows tuning each model according to its abilities.
 if __name__ == "__main__":
+    import json
     from argparse import ArgumentParser
 
+    # stub for now (maybe accept a model id?)
     parser = ArgumentParser()
-    parser.add_argument("--port", type=int, default=8080)
-    parser.add_argument("--n-predict", type=int, default=-1)  # model chooses
-    parser.add_argument("--ctx-size", type=int, default=0)  # uses full context
     args = parser.parse_args()
 
-    request = LlamaCppRequest(port=args.port)
+    request = LlamaCppRequest()
     server = LlamaCppServer(request)
     router = LlamaCppRouter(request)
 
+    # server.start()
+    # data = router.data()
+    # print(json.dumps(data, indent=2))
+    # server.stop()
+
     server.start()
-    models = router.models()
-    print(json.dumps(models, indent=2))
+    for model_id in router.ids():
+        print(model_id)
     server.stop()
