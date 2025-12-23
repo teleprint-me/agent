@@ -24,8 +24,7 @@ class LlamaCppRouter:
         self.logger = config.get_logger("logger", self.__class__.__name__)
         self.logger.debug("Initialized LlamaCppRouter instance.")
 
-    # NOTE: Do NOT use a cache mechanism for method!
-    # Caching blocks updates from the server.
+    # NOTE: Caching blocks updates from the server.
     def data(self) -> List[Dict[str, Any]]:
         """
         Listing all models in cache.
@@ -85,7 +84,7 @@ class LlamaCppRouter:
         self.logger.debug(f"Unloading {model} to cache")
         resp = self.request.post("/models/unload", data=dict(model=model))
 
-        # # poll the models status
+        # poll the models status
         while self.loaded_by_id[model] != "unloaded":
             time.sleep(0.25)  # wait for deallocation
 
