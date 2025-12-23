@@ -11,6 +11,7 @@ from typing import Any, Dict, Iterable, List, Optional
 
 from agent.config import config
 from agent.llama.requests import LlamaCppRequest
+from agent.llama.server import LlamaCppServer
 
 
 class LlamaCppRouter:
@@ -22,7 +23,7 @@ class LlamaCppRouter:
     """
 
     def __init__(self, llama_request: Optional[LlamaCppRequest] = None):
-        self.request = llama_request if llama_request else LlamaCppRequest()
+        self.request = llama_request or LlamaCppRequest()
         self.logger = config.get_logger("logger", self.__class__.__name__)
         self.logger.debug("Initialized LlamaCppRouter instance.")
 
@@ -36,18 +37,18 @@ class LlamaCppRouter:
         return self.request.get("/models")["data"]
 
     @lru_cache
-    def aliases(self) -> List[str]:
+    def ids(self) -> List[str]:
         """Returns a list of cached model aliases."""
         self.logger.debug("Fetching model aliases")
         return [model["id"] for model in self.models()]
 
-    def load(self, alias: str) -> str:
-        self.logger.debug(f"Loading {alias} from cache")
-        return self.request.get("/models", {"model": alias})
+    def load(self, model: str) -> str:
+        self.logger.debug(f"Loading {model} from cache")
+        return self.request.post("/models/load", {"model": model})
 
-    def unload(self, alias: str) -> str:
-        self.logger.debug(f"Unloading {alias} to cache")
-        return self.request.post("/models", {"model", alias})
+    def unload(self, model: str) -> str:
+        self.logger.debug(f"Unloading {model} to cache")
+        return self.request.post("/models/unload", {"model", model})
 
 
 if __name__ == "__main__":
@@ -56,10 +57,14 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--n-predict", type=int, default=-1)  # model chooses
-    parser.add_argument("--n-ctx", type=int, default=0)  # uses full context
+    parser.add_argument("--ctx-size", type=int, default=0)  # uses full context
     args = parser.parse_args()
 
-    llama_request = LlamaCppRequest(port=args.port)
-    llama_router = LlamaCppRouter(llama_request)
-    models = llama_router.models()
+    request = LlamaCppRequest(port=args.port)
+    server = LlamaCppServer(request)
+    router = LlamaCppRouter(request)
+
+    server.start()
+    models = router.models()
     print(json.dumps(models, indent=2))
+    server.stop()
