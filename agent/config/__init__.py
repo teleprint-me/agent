@@ -62,7 +62,6 @@ DEFAULT_CONF = {
         "verbose": False,
         "port": "8080",
         "models-dir": "models",
-        "models-preset": "models/config.ini",
         "pooling": "mean",
         "ctx-size": 0,
         "n-gpu-layers": -1,
