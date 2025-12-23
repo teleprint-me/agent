@@ -24,6 +24,13 @@ class LlamaCppRouter:
         self.logger = config.get_logger("logger", self.__class__.__name__)
         self.logger.debug("Initialized LlamaCppRouter instance.")
 
+    def _invalidate_cache(self):
+        """Clear all cached values after a state change."""
+        try:  # the lru_cache decorator exposes `cache_clear`
+            type(self).data.cache_clear()
+        except AttributeError:  # if you ever remove @lru_cache
+            self.logger.debug("Missing LlamaCppRouter cache")
+
     @lru_cache
     def data(self) -> List[Dict[str, Any]]:
         """
@@ -51,11 +58,15 @@ class LlamaCppRouter:
 
     def load(self, model: str) -> Dict[str, Any]:
         self.logger.debug(f"Loading {model} from cache")
-        return self.request.post("/models/load", data=dict(model=model))
+        resp = self.request.post("/models/load", data=dict(model=model))
+        self._invalidate_cache()
+        return resp
 
     def unload(self, model: str) -> Dict[str, Any]:
         self.logger.debug(f"Unloading {model} to cache")
-        return self.request.post("/models/unload", data=dict(model=model))
+        resp = self.request.post("/models/unload", data=dict(model=model))
+        self._invalidate_cache()
+        return resp
 
 
 # usage example
