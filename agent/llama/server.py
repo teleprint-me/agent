@@ -145,41 +145,47 @@ if __name__ == "__main__":
     from argparse import ArgumentParser
 
     parser = ArgumentParser()
-    parser.add_argument("model", help="The models filename (e.g. gpt-oss-20b-mxfp4)")
+    parser.add_argument("model", help="The model id (e.g. gpt-oss-20b-mxfp4)")
     args = parser.parse_args()
 
-    llama_request = LlamaCppRequest()
-    llama_server = LlamaCppServer(llama_request)
+    request = LlamaCppRequest()
+    server = LlamaCppServer(request)
 
     # /usr/local/bin/llama-server
-    for token in llama_server.options.args:
+    for token in server.options.args:
         print(token, end=" ")
         sys.stdout.flush()
     print()
 
     # smoke test starting the server
-    assert llama_server.start(), "Failed to start server."
-    assert llama_server.health.get("status") == "ok", "Server is unhealthy"
-    print(f"Launched server with pid: {llama_server.pid}")
+    assert server.start(), "Failed to start server."
+    assert server.health.get("status") == "ok", "Server is unhealthy"
+    print(f"Launched server with pid: {server.pid}")
 
-    # smoke test restarting the server
-    assert llama_server.restart(), "Failed to restart server"
-    assert llama_server.health.get("status") == "ok", "Server is unhealthy"
-    print(f"Restarted server with pid: {llama_server.pid}")
-
-    response = llama_request.get("/models")
+    response = request.get("/models")
     models = response.get("data")
     if models is None:
         print("Error retrieving models")
         print(f"Error: {response.get('error', {}).get('message')}")
-        llama_server.stop()
+        server.stop()
         exit(1)
 
-    for model in models:
-        print(model["id"])
+    model_ids = [model["id"] for model in models]
+    for id in model_ids:
+        print(f"model id: {id}")
+
+    if args.model not in model_ids:
+        print(f"Error: '{args.model}' is not a valid id!")
+        server.stop()
+        exit(1)
+
+    # smoke test restarting the server
+    assert server.restart(), "Failed to restart server"
+    assert server.health.get("status") == "ok", "Server is unhealthy"
+    print(f"Restarted server with pid: {server.pid}")
 
     # the model has to be loaded first
-    response = llama_request.post("/models/load", {"model": args.model})
+    response = request.post("/models/load", {"model": args.model})
     assert response.get("success") is True, f"Failed to load {args.model}"
 
     # Define the prompt for the model
@@ -190,12 +196,12 @@ if __name__ == "__main__":
     data = {
         "model": args.model,
         "prompt": prompt,
-        "n_predict": 128,
+        "n_predict": 64,
         "stream": True,
     }
 
     # Generate the model's response
-    generator = llama_request.stream("/completion", data=data)
+    generator = request.stream("/completion", data=data)
 
     # Handle the model's generated response
     content = ""
@@ -211,8 +217,8 @@ if __name__ == "__main__":
     print()
 
     # release occupied vram
-    response = llama_request.post("/models/unload", {"model": args.model})
+    response = request.post("/models/unload", {"model": args.model})
     assert response.get("success") is True, f"Failed to unload {args.model}"
 
-    assert llama_server.stop(), "Failed to stop server"
+    assert server.stop(), "Failed to stop server"
     print("Terminated server.")
