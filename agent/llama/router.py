@@ -41,19 +41,6 @@ class LlamaCppRouter:
         return [model["id"] for model in self.data()]
 
     @property
-    def args(self) -> List[str]:
-        """Returns a list of parameters used to configure the model."""
-        self.logger.debug("Fetching model args")
-        return [model["status"]["args"] for model in self.status()]
-
-    @property
-    def presets(self) -> List[str]:
-        """Returns a list of configurable model presets."""
-        # note that this is read from and or written to a ini file.
-        self.logger.debug("Fetching model presets")
-        return [model["status"]["preset"] for model in self.status()]
-
-    @property
     def args_by_id(self) -> Dict[str, List[str]]:
         """Map: id to args list."""
         self.logger.debug("Fetching model args")
@@ -71,8 +58,8 @@ class LlamaCppRouter:
         """Map: id to status value string ("loaded" or "unloaded")"""
         return {m["id"]: m["status"]["value"] for m in self.data()}
 
-    def wait(self, model: str, stop: str):
-        """poll the models cache status"""
+    def _wait(self, model: str, stop: str):
+        """Poll the cached model loading status"""
         while self.loaded_by_id[model] != stop:
             print(".", end="")
             sys.stdout.flush()
@@ -80,20 +67,22 @@ class LlamaCppRouter:
         print()
 
     def load(self, model: str) -> Dict[str, Any]:
+        """Load a cached model into memory"""
         self.logger.debug(f"Loading {model} from cache")
         resp = self.request.post("/models/load", data=dict(model=model))
 
         if resp.get("success", False):
-            self.wait(model, "loaded")
+            self._wait(model, "loaded")
 
         return resp
 
     def unload(self, model: str) -> Dict[str, Any]:
+        """Unload a cached model from memory"""
         self.logger.debug(f"Unloading {model} to cache")
         resp = self.request.post("/models/unload", data=dict(model=model))
 
         if resp.get("success", False):  # returns True if successful
-            self.wait(model, "unloaded")
+            self._wait(model, "unloaded")
 
         return resp
 
