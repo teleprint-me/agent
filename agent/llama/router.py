@@ -3,6 +3,7 @@
 Client side interface for model routing.
 """
 
+import sys
 import time
 from typing import Any, Dict, List, Optional
 
@@ -70,13 +71,20 @@ class LlamaCppRouter:
         """Map: id to status value string ("loaded" or "unloaded")"""
         return {m["id"]: m["status"]["value"] for m in self.data()}
 
+    def wait(self, model: str, stop: str):
+        """poll the models cache status"""
+        while self.loaded_by_id[model] != stop:
+            print(".", end="")
+            sys.stdout.flush()
+            time.sleep(0.25)  # wait for (de)allocation
+        print()
+
     def load(self, model: str) -> Dict[str, Any]:
         self.logger.debug(f"Loading {model} from cache")
         resp = self.request.post("/models/load", data=dict(model=model))
 
-        # poll the models status
-        while self.loaded_by_id[model] != "loaded":
-            time.sleep(0.25)  # wait for allocation
+        if resp.get("success", False):
+            self.wait(model, "loaded")
 
         return resp
 
@@ -84,9 +92,8 @@ class LlamaCppRouter:
         self.logger.debug(f"Unloading {model} to cache")
         resp = self.request.post("/models/unload", data=dict(model=model))
 
-        # poll the models status
-        while self.loaded_by_id[model] != "unloaded":
-            time.sleep(0.25)  # wait for deallocation
+        if resp.get("success", False):  # returns True if successful
+            self.wait(model, "unloaded")
 
         return resp
 
@@ -147,7 +154,6 @@ if __name__ == "__main__":
     try:
         print(f"Status: Unloading {model}.")
         router.unload(model)
-        status = router.load(model)
         print(f"{model} -> {router.loaded_by_id[model]}")
         print(f"success? {status['success']}")
     except (KeyboardInterrupt, HTTPError) as e:  # server reporting "loading"?
