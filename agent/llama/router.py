@@ -1,5 +1,6 @@
 # agent/llama/router.py
 """
+Copyright © 2025 Austin Berrio
 Client side interface for model routing.
 """
 

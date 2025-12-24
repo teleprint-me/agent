@@ -1,9 +1,7 @@
+# agent/llama/requests.py
 """
-Copyright © 2023 Austin Berrio
-
-Module: agent.backend.llama.requests
-
-Description: Module for handling low-level requests to the LlamaCpp REST API.
+Copyright © 2025 Austin Berrio
+Module for handling low-level requests to the LlamaCpp REST API.
 """
 
 import json

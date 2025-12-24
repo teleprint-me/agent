@@ -1,5 +1,8 @@
 # agent/llama/server.py
-"""Automate llama-server management"""
+"""
+Copyright © 2025 Austin Berrio
+Automate llama-server management
+"""
 
 import shutil
 import time
