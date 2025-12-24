@@ -63,7 +63,7 @@ class LlamaCppRouter:
         while self.loaded_by_id[model] != stop:
             print(".", end="")
             sys.stdout.flush()
-            time.sleep(0.25)  # wait for (de)allocation
+            time.sleep(0.25)  # sleep ~250ms while (de)allocating
         print()
 
     def load(self, model: str) -> Dict[str, Any]:
@@ -114,20 +114,30 @@ if __name__ == "__main__":
 
     server.start()
 
+    # Ensure input is a registered model id
     if model not in router.ids:
         print(f"Error: Invalid model id '{model}'")
         server.stop()
         exit(1)
 
-    print("Available model ids:")
-    for id in router.ids:
-        print(id)
+    # Input model id is validated
+    print(f"Selected ID: {model}\n")
 
-    print(f"Selected: {model}")
-    # -> ['--model', 'models/gpt‑...']
-    print(f"Arguments: {router.args_by_id[model]}")
-    # -> preset text block
-    print(f"Presets:\n{router.presets_by_id[model]}")
+    # Output model ids
+    print("Model IDs:")
+    for id in router.ids:
+        print(f"  {id}")
+    print()
+
+    # Output model preset text block
+    print(f"Model Preset:")
+    for line in router.presets_by_id[model].strip().splitlines(keepends=True):
+        line = line.strip()
+        if line.startswith("[") and line.endswith("]"):
+            print(line)
+        else:
+            print(f"  {line}")
+    print()
 
     try:
         # first load the model and report status
@@ -135,6 +145,7 @@ if __name__ == "__main__":
         status = router.load(model)
         print(f"{model} -> {router.loaded_by_id[model]}")
         print(f"success? {status['success']}")
+        print()  # pad output
     except KeyboardInterrupt:  # If the program hangs, enable clean exit
         server.stop()  # clean up
         exit(1)  # no traceback needed
