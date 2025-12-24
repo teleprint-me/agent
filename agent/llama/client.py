@@ -60,12 +60,19 @@ if __name__ == "__main__":
     router = LlamaCppRouter(request)  # manages models
 
     # start the server
-    server.start()  # optionally accepts args (overrides internal config)
+    if not server.start():  # optionally accepts args (overrides internal config)
+        raise RuntimeError("Failed to start server")
 
     # the challenge here is deciding how to handle model routing
     # every endpoint will require a model id reference once a model is selected
     # for now, i just employ models/gpt-oss-20b-mxfp4.gguf
     model = str(Path(args.model).stem)
+    if model not in router.ids:  # model ref does not exist
+        print(f"[Model Identifiers]")
+        for id in router.ids:
+            print(f"  {id}")
+        server.stop()
+        raise ValueError(f"Invalid model selected: {model}")
 
     # once the model is selected, we can load it
     router.load(model)
