@@ -6,15 +6,15 @@ High-level client for performing language model inference.
 """
 
 from agent.config import config
-from agent.requests import LlamaCppRequest
-from agent.router import LlamaCppRouter
-from agent.server import LlamaCppServer
+from agent.llama.requests import LlamaCppRequest
+from agent.llama.router import LlamaCppRouter
+from agent.llama.server import LlamaCppServer
 
 
 class LlamaCppClient:
-    pass
+    raise NotImplementedError()
 
 
 # usage example
 if __name__ == "__main__":
-    pass
+    raise NotImplementedError()
