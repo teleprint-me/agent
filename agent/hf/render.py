@@ -98,6 +98,8 @@ def render_chat_template(
 
         try:
             formatted_template = template.render(
+                model_identity="I am GPT-OSS, a large language model trained by OpenAI.",
+                reasoning_effort="low",
                 messages=messages,
                 bos_token=bos_token,
                 eos_token=eos_token,
