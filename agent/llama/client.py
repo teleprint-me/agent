@@ -43,33 +43,23 @@ class LlamaCppCompletion:
         self.logger = config.get_logger("logger", self.__class__.__name__)
         self.logger.debug("Initialized LlamaCppAPI instance.")
 
-    # i have no idea what i'm doing here :p
-    def select(self, model: str):
-        # we can't mutate the internal payload, so make a copy
-        data = self.data.copy()
-        # probably should verify the model is available in the router
-        # TODO
-        # we need to add the model to the payload
-        data["model"] = model
-        return data  # profit ???
-
     # maybe allow overriding n-predict?
     def completion(self, model: str, prompt: str) -> Any:
         """Send a completion request to the API using the given prompt."""
-        self.logger.debug(f"Sending completion request with prompt: {prompt}")
+        # probably should verify the model is available in the router
+        # TODO
+        self.data["model"] = model
         self.data["prompt"] = prompt
-        self.logger.debug(f"Completion request payload: {self.data}")
 
-        # don't mutate internal data!
-        data = self.select(model)  # this feels weird and dishonest :|
+        self.logger.debug(f"Completion request payload: {self.data}")
 
         endpoint = "/v1/completions"
         if self.data.get("stream"):
             self.logger.debug("Streaming completion request")
-            return self.request.stream(endpoint=endpoint, data=data)
+            return self.request.stream(endpoint=endpoint, data=self.data)
         else:
             self.logger.debug("Sending non-streaming completion request")
-            return self.request.post(endpoint=endpoint, data=data)
+            return self.request.post(endpoint=endpoint, data=self.data)
 
     # TODO chat_completion(model, messages)
 
