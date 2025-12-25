@@ -27,8 +27,8 @@ class LlamaCppRequest:
         self,
         *,
         scheme: Optional[str] = None,
-        domain: Optional[str] = None,
-        port: Optional[str] = None,
+        host: Optional[str] = None,
+        port: Optional[Union[int, str]] = None,
         headers: Optional[Dict[str, str]] = None,
     ) -> None:
         """
@@ -36,7 +36,7 @@ class LlamaCppRequest:
 
         :param scheme: str, optional
             URL scheme (`http` or `https`). Defaults to `"http"`.
-        :param domain: str, optional
+        :param host: str, optional
             Hostname/IP of the server. Default is `"127.0.0.1"` for a local instance.
         :param port: int | str, optional
             TCP port on which the endpoint listens; can be passed as an integer or string.
@@ -46,14 +46,14 @@ class LlamaCppRequest:
             containing only `"Content-Type": "application/json"` is used.
 
         See agent/config/__init__.py for details.
-        The instance builds the base URL lazily from *scheme*, *domain* and *port*.
+        The instance builds the base URL lazily from *scheme*, *host* and *port*.
         It also configures an internal logger via :pyfunc:`config.get_logger(key, name)`.
         """
 
         if scheme and isinstance(scheme, str):
             self.scheme = scheme
-        if domain and isinstance(domain, str):
-            self.domain = domain
+        if host and isinstance(host, str):
+            self.host = host
         if port and isinstance(port, str):
             self.port = str(port)
         if headers and isinstance(headers, dict):
@@ -88,12 +88,12 @@ class LlamaCppRequest:
         config.set_value("requests.scheme", value)
 
     @property
-    def domain(self) -> str:
-        return config.get_value("requests.domain", "127.0.0.1")
+    def host(self) -> str:
+        return config.get_value("requests.host", "127.0.0.1")
 
-    @domain.setter
-    def domain(self, value: str):
-        config.set_value("requests.domain", value)
+    @host.setter
+    def host(self, value: str):
+        config.set_value("requests.host", value)
 
     @property
     def port(self) -> str:
@@ -126,7 +126,7 @@ class LlamaCppRequest:
 
     @property
     def base_url(self) -> str:
-        return f"{self.scheme}://{self.domain}:{self.port}"
+        return f"{self.scheme}://{self.host}:{self.port}"
 
     def error(
         self, code: int, message: Union[str, Exception], type: str
@@ -245,7 +245,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Initialize the LlamaCppRequest instance
-    llama_request = LlamaCppRequest(scheme="http", domain="127.0.0.1", port="8080")
+    llama_request = LlamaCppRequest(scheme="http", host="127.0.0.1", port="8080")
 
     llama_health = llama_request.health()
     if llama_health.get("error"):
