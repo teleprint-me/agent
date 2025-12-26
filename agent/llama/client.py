@@ -14,15 +14,15 @@ from agent.llama.server import LlamaCppServer
 
 
 class LlamaCppBase:
-    def __init__(self, request: Optional[LlamaCppRequest], **kwargs):
+    def __init__(self, request: Optional[LlamaCppRequest] = None, **kwargs):
         # Get the name of the current class
         cls_name = self.__class__.__name__
         # Set the base component for server communication
-        self.request = request
+        self.request = request or LlamaCppRequest()
         # Instance for managing llama-server processes
-        self.server = LlamaCppServer(request)  # e.g. start(), stop(), restart()
+        self.server = LlamaCppServer(self.request)  # e.g. start(), stop(), restart()
         # Instance for managing model (de)allocation
-        self.router = LlamaCppRouter(request)  # e.g. load() and unload()
+        self.router = LlamaCppRouter(self.request)  # e.g. load() and unload()
         # Set the models hyperparameters (mutable dict[str, any])
         self.data = config.get_value("parameters")
         # Sanity check hyperparameters
@@ -49,7 +49,7 @@ class LlamaCppBase:
 
 class LlamaCppTokenizer(LlamaCppBase):
     def __init__(self, request: Optional[LlamaCppRequest], **kwargs):
-        super().__init__(request, kwargs)
+        super().__init__(request, **kwargs)
 
     def encode(
         self,
@@ -109,9 +109,9 @@ class LlamaCppTokenizer(LlamaCppBase):
         return response.get("content", "")
 
 
-class LlamaCppEmbedding:
+class LlamaCppEmbedding(LlamaCppBase):
     def __init__(self, request: Optional[LlamaCppRequest], **kwargs):
-        super().__init__(request, kwargs)
+        super().__init__(request, **kwargs)
 
 
 # The primary issue is that we have to pass in the model id for every request
@@ -119,9 +119,9 @@ class LlamaCppEmbedding:
 #   - data: we need to pass in the payload configuring the request
 #   - model: we need to specify the model the request will be routed to
 #   - router: if the model is not loaded, we must unload a model, then load the selected model
-class LlamaCppCompletion:
+class LlamaCppCompletion(LlamaCppBase):
     def __init__(self, request: Optional[LlamaCppRequest], **kwargs):
-        super().__init__(request, kwargs)
+        super().__init__(request, **kwargs)
 
     @property
     def prompt(self) -> Optional[Union[str, List[str]]]:
@@ -140,16 +140,17 @@ class LlamaCppCompletion:
         self.data["messages"] = value
 
     # TODO infill(model, prompt)
+    # Qwen2.5-Coder TR: https://arxiv.org/pdf/2409.12186
     def infill(self, model: str, prompt: str):
+        """Accept a prefix and a suffix and return the predicted completion as stream."""
         pass  # this is complicated, see llama-server doc for info
 
     # maybe allow overriding n-predict?
     def complete(self, model: str, prompt: Union[str, List[str]]) -> Any:
         """Send a completion request to the API using the given prompt."""
-        # probably should verify the model is available in the router
-        # TODO
-        self.data["model"] = model
-        self.data["prompt"] = prompt
+        # Update relevant hyperparameters
+        self.model = model
+        self.prompt = prompt
 
         self.logger.debug(f"Completion request payload: {self.data}")
 
@@ -235,7 +236,7 @@ if __name__ == "__main__":
     # nah, i don't like that either. double shit.
     prompt = "Once upon a time,"
     print(prompt, end="")
-    generator = completion.completion(model, prompt)
+    generator = completion.complete(model, prompt)
     # hang in there
 
     # Handle the model's generated response
