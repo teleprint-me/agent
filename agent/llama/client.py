@@ -5,7 +5,7 @@ Copyright © 2025 Austin Berrio
 High-level client for performing language model inference.
 """
 
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional, Union, cast
 
 from agent.config import config
 from agent.llama.requests import LlamaCppRequest
@@ -13,14 +13,105 @@ from agent.llama.router import LlamaCppRouter
 from agent.llama.server import LlamaCppServer
 
 
-class LlamaCppTokenizer:
-    def __init__(self, request: Optional[LlamaCppRequest] = None):
-        raise NotImplementedError()  # TODO
+class LlamaCppBase:
+    def __init__(self, request: Optional[LlamaCppRequest], **kwargs):
+        # Get the name of the current class
+        cls_name = self.__class__.__name__
+        # Set the base component for server communication
+        self.request = request
+        # Instance for managing llama-server processes
+        self.server = LlamaCppServer(request)  # e.g. start(), stop(), restart()
+        # Instance for managing model (de)allocation
+        self.router = LlamaCppRouter(request)  # e.g. load() and unload()
+        # Set the models hyperparameters (mutable dict[str, any])
+        self.data = config.get_value("parameters")
+        # Sanity check hyperparameters
+        if self.data is None:
+            raise RuntimeError(f"Set {cls_name} with empty hyperparameters!")
+        # Update self.data with any additional parameters from kwargs
+        self.data.update(kwargs)
+        # Create a custom logging.Logger for the current instance
+        self.logger = config.get_logger(key="logger", logger_name=cls_name)
+        # Report instance status to logger
+        self.logger.debug(f"Initialized {cls_name} instance.")
+        # NOTE: Each request must be updated with the current model in mind
+
+    @property
+    def model(self) -> Optional[str]:
+        """Get the current model"""
+        return self.data.get("model")
+
+    @model.setter
+    def model(self, value: str):
+        """Set the current model"""
+        self.data["model"] = value
+
+
+class LlamaCppTokenizer(LlamaCppBase):
+    def __init__(self, request: Optional[LlamaCppRequest], **kwargs):
+        super().__init__(request, kwargs)
+
+    def encode(
+        self,
+        model: str,
+        content: Union[str, List[str]],
+        add_special: bool = False,
+        with_pieces: bool = False,
+    ) -> List[int]:
+        """Tokenizes a given text using the server's tokenize endpoint."""
+        self.logger.debug(f"Tokenizing: {content}")
+
+        prompts: List[str] = []
+        if isinstance(content, str):
+            self.logger.debug("Encoding str to int")
+            prompts = cast(List[str], [content])
+        elif all(isinstance(prompt, str) for prompt in content):
+            self.logger.debug("Encoding prompts to sequence")
+            prompts = cast(List[str], content)
+        else:
+            self.logger.error("Content is not a list with str")
+            raise TypeError("Content must contain str or list[str]")
+
+        data = {
+            "model": model,
+            "content": content,
+            "add_special": add_special,
+            "with_pieces": with_pieces,
+        }
+
+        response = self.request.post("/tokenize", data=data)
+        return response.get("tokens", [])
+
+    def decode(
+        self,
+        model: str,
+        pieces: List[Union[int, Dict[str, Union[int, str]]]],
+    ) -> str:
+        """Detokenizes a given sequence of token IDs using the server's detokenize endpoint."""
+        self.logger.debug(f"Decoding: {pieces}")
+        if not isinstance(pieces, list):
+            raise TypeError("Pieces must be a list")
+
+        tokens: List[int] = []
+        if all(isinstance(piece, int) for piece in pieces):
+            self.logger.debug("Decoding pieces as 'list' with 'int'")
+            tokens = cast(List[int], pieces)
+        elif all(isinstance(piece, dict) for piece in pieces):
+            self.logger.debug("Decoding pieces as 'dict' with 'id' and 'piece' keys")
+            tokens = cast(List[int], [piece["id"] for piece in pieces])
+        else:
+            self.logger.debug("Pieces is not a list with int or dict[str, int|str]")
+            raise TypeError("Pieces must contain int or dict[str, int|str]")
+        data: Dict[str, List[int]] = {"tokens": tokens}
+
+        # Pieces must resolve to a list of integers
+        response = self.request.post("/detokenize", data=data)
+        return response.get("content", "")
 
 
 class LlamaCppEmbedding:
-    def __init__(self, request: Optional[LlamaCppRequest] = None):
-        raise NotImplementedError()  # TODO
+    def __init__(self, request: Optional[LlamaCppRequest], **kwargs):
+        super().__init__(request, kwargs)
 
 
 # The primary issue is that we have to pass in the model id for every request
@@ -29,22 +120,31 @@ class LlamaCppEmbedding:
 #   - model: we need to specify the model the request will be routed to
 #   - router: if the model is not loaded, we must unload a model, then load the selected model
 class LlamaCppCompletion:
-    def __init__(self, request: Optional[LlamaCppRequest] = None, **kwargs):
-        self.request = request
+    def __init__(self, request: Optional[LlamaCppRequest], **kwargs):
+        super().__init__(request, kwargs)
 
-        # Set model hyperparameters dict[str, any]
-        self.data = config.get_value("model")
-        # Sanity check hyperparameters
-        assert self.data is not None
-        # Update self.data with any additional parameters from kwargs
-        self.data.update(kwargs)
+    @property
+    def prompt(self) -> Optional[Union[str, List[str]]]:
+        return self.data.get("prompt", "")
 
-        # Setup logger
-        self.logger = config.get_logger("logger", self.__class__.__name__)
-        self.logger.debug("Initialized LlamaCppAPI instance.")
+    @prompt.setter
+    def prompt(self, value: Union[str, List[str]]):
+        self.data["prompt"] = value
+
+    @property
+    def messages(self) -> Optional[List[Dict[str, Any]]]:
+        return self.data.get("messages", [])
+
+    @messages.setter
+    def messages(self, value: List[Dict[str, Any]]):
+        self.data["messages"] = value
+
+    # TODO infill(model, prompt)
+    def infill(self, model: str, prompt: str):
+        pass  # this is complicated, see llama-server doc for info
 
     # maybe allow overriding n-predict?
-    def completion(self, model: str, prompt: str) -> Any:
+    def complete(self, model: str, prompt: Union[str, List[str]]) -> Any:
         """Send a completion request to the API using the given prompt."""
         # probably should verify the model is available in the router
         # TODO
@@ -62,6 +162,8 @@ class LlamaCppCompletion:
             return self.request.post(endpoint=endpoint, data=self.data)
 
     # TODO chat_completion(model, messages)
+    def chat(self, model: str, messages: list[dict[str, str]]):
+        pass
 
 
 # Not sure if this should be a convenience wrapper
@@ -123,6 +225,7 @@ if __name__ == "__main__":
         raise ValueError(f"Invalid model selected: {model}")
 
     # once the model is selected, we can load it
+    print("loading", end="")
     router.load(model)  # note: this can be slow. *sigh*
 
     # this feels super weird. i don't like it.
@@ -147,6 +250,7 @@ if __name__ == "__main__":
     print()  # Add padding to the model's output
 
     # it's good hygiene to clean up (unnecessary, but good habit)
+    print("unloading", end="")
     router.unload(model)
 
     # stop the server
