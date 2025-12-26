@@ -239,7 +239,7 @@ if __name__ == "__main__":
         "-n",
         "--n-predict",
         help="Tokens generated.",
-        default=256,
+        default=128,
         type=int,
     )
     args = parser.parse_args()
