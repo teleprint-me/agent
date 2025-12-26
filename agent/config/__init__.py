@@ -66,10 +66,11 @@ DEFAULT_CONF = {
         "ctx-size": 0,
         "n-gpu-layers": -1,
     },
-    "model": {
+    "parameters": {
         "prompt": "",
         "messages": [],
         "stop": [],
+        "chat_template_kwargs": {},
         "tools": tools,
         "top_k": 50,
         "top_p": 0.90,
