@@ -5,6 +5,8 @@ Copyright © 2025 Austin Berrio
 High-level client for performing language model inference.
 """
 
+import json
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union, cast
 
 from agent.config import config
@@ -19,17 +21,18 @@ class LlamaCppBase:
         cls_name = self.__class__.__name__
         # Set the base component for server communication
         self.request = request or LlamaCppRequest()
-        # Instance for managing llama-server processes
+        # Singleton for managing llama-server processes
         self.server = LlamaCppServer(self.request)  # e.g. start(), stop(), restart()
         # Instance for managing model (de)allocation
         self.router = LlamaCppRouter(self.request)  # e.g. load() and unload()
         # Set the models hyperparameters (mutable dict[str, any])
-        self.data = config.get_value("parameters")
+        self.params = config.get_value("parameters")
         # Sanity check hyperparameters
-        if self.data is None:
+        if self.params is None:
+            self.server.stop()  # stop the server if a process exists
             raise RuntimeError(f"Set {cls_name} with empty hyperparameters!")
-        # Update self.data with any additional parameters from kwargs
-        self.data.update(kwargs)
+        # Update with any additional parameters from kwargs
+        self.params.update(kwargs)
         # Create a custom logging.Logger for the current instance
         self.logger = config.get_logger(key="logger", logger_name=cls_name)
         # Report instance status to logger
@@ -39,12 +42,12 @@ class LlamaCppBase:
     @property
     def model(self) -> Optional[str]:
         """Get the current model"""
-        return self.data.get("model")
+        return self.params.get("model")
 
     @model.setter
     def model(self, value: str):
         """Set the current model"""
-        self.data["model"] = value
+        self.params["model"] = value
 
 
 class LlamaCppTokenizer(LlamaCppBase):
@@ -113,6 +116,17 @@ class LlamaCppEmbedding(LlamaCppBase):
     def __init__(self, request: Optional[LlamaCppRequest], **kwargs):
         super().__init__(request, **kwargs)
 
+    def embeddings(self, model: str, input: Union[str, List[str]]) -> Any:
+        """Get the embedding for the given input."""
+        self.logger.debug(f"Fetching embedding for input: {input}")
+        endpoint = "/v1/embeddings"
+        data = {
+            "model": model,
+            "input": input,
+            "encoding_format": "float",
+        }
+        return self.request.post(endpoint, data)
+
 
 # The primary issue is that we have to pass in the model id for every request
 # Using the original base API simplifies a lot of issues.
@@ -125,19 +139,19 @@ class LlamaCppCompletion(LlamaCppBase):
 
     @property
     def prompt(self) -> Optional[Union[str, List[str]]]:
-        return self.data.get("prompt", "")
+        return self.params.get("prompt", "")
 
     @prompt.setter
     def prompt(self, value: Union[str, List[str]]):
-        self.data["prompt"] = value
+        self.params["prompt"] = value
 
     @property
     def messages(self) -> Optional[List[Dict[str, Any]]]:
-        return self.data.get("messages", [])
+        return self.params.get("messages", [])
 
     @messages.setter
     def messages(self, value: List[Dict[str, Any]]):
-        self.data["messages"] = value
+        self.params["messages"] = value
 
     # TODO infill(model, prompt)
     # Qwen2.5-Coder TR: https://arxiv.org/pdf/2409.12186
@@ -148,23 +162,33 @@ class LlamaCppCompletion(LlamaCppBase):
     # maybe allow overriding n-predict?
     def complete(self, model: str, prompt: Union[str, List[str]]) -> Any:
         """Send a completion request to the API using the given prompt."""
-        # Update relevant hyperparameters
         self.model = model
         self.prompt = prompt
 
-        self.logger.debug(f"Completion request payload: {self.data}")
+        self.logger.debug(f"Completion request payload: {self.params}")
 
         endpoint = "/v1/completions"
-        if self.data.get("stream"):
+        if self.params.get("stream"):
             self.logger.debug("Streaming completion request")
-            return self.request.stream(endpoint=endpoint, data=self.data)
+            return self.request.stream(endpoint=endpoint, data=self.params)
         else:
             self.logger.debug("Sending non-streaming completion request")
-            return self.request.post(endpoint=endpoint, data=self.data)
+            return self.request.post(endpoint=endpoint, data=self.params)
 
-    # TODO chat_completion(model, messages)
-    def chat(self, model: str, messages: list[dict[str, str]]):
-        pass
+    def chat(self, model: str, messages: list[dict[str, str]]) -> Any:
+        """Send a ChatML-compatible chat completion request to the API."""
+        self.model = model
+        self.messages = messages
+
+        self.logger.debug(f"Sending chat completion request with messages: {messages}")
+
+        endpoint = "/v1/chat/completions"
+        if self.params.get("stream"):
+            self.logger.debug("Streaming chat completion request")
+            return self.request.stream(endpoint=endpoint, data=self.params)
+        else:
+            self.logger.debug("Sending non-streaming chat completion request")
+            return self.request.post(endpoint=endpoint, data=self.params)
 
 
 # Not sure if this should be a convenience wrapper
@@ -196,6 +220,8 @@ if __name__ == "__main__":
     import sys
     from argparse import ArgumentParser
     from pathlib import Path
+
+    # from requests.exceptions import HTTPError
 
     parser = ArgumentParser()
     parser.add_argument("model", help="Path to the model file")
@@ -249,6 +275,14 @@ if __name__ == "__main__":
             print(token, end="")
             sys.stdout.flush()
     print()  # Add padding to the model's output
+
+    # # just in case something fails
+    # try:
+    #     print(json.dumps(request.get("/props", params=dict(model=model)), indent=2))
+    # except HTTPError as e:
+    #     router.unload(model)
+    #     server.stop()
+    #     raise Exception(e)
 
     # it's good hygiene to clean up (unnecessary, but good habit)
     print("unloading", end="")
