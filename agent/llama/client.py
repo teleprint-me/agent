@@ -9,6 +9,8 @@ import json
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union, cast
 
+import regex as re
+
 from agent.config import config
 from agent.llama.requests import LlamaCppRequest
 from agent.llama.router import LlamaCppRouter
@@ -153,11 +155,52 @@ class LlamaCppCompletion(LlamaCppBase):
     def messages(self, value: List[Dict[str, Any]]):
         self.params["messages"] = value
 
-    # TODO infill(model, prompt)
-    # Qwen2.5-Coder TR: https://arxiv.org/pdf/2409.12186
-    def infill(self, model: str, prompt: str):
+    def metrics(self, model: str) -> Dict[str, Any]:
+        """Prometheus compatible metrics exporter."""
+        # @note this format is terrible as a response object.
+        # @see https://prometheus.io/docs/instrumenting/exposition_formats/
+        self.model = model
+
+        try:
+            self.logger.debug("Fetching server metrics")
+            content: str = self.request.get("/metrics", data=dict(model=self.model))
+        except HTTPError as e:
+            self.logger.debug("Error fetching server metrics")
+            return self.request.error(501, e, "unavailable_error")
+
+        data = {}
+        for line in content.splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+
+            m = METRIC_RE.match(line)
+            if not m:
+                self.logger.debug(f"Malformed expression: {m}")
+                continue
+
+            namespace, label_text, value_text = m.groups()
+
+            # strip namespace prefix (i.e. llamacpp:)
+            name = namespace.split(":")[-1]
+            value = float(value_text) if "." in value_text else int(value_text)
+
+            if label_text:
+                labels = {}
+                for item in label_text.split(","):
+                    k, v = item.split("=", 1)
+                    labels[k] = v.strip('"')
+                data[name] = {"value": value, "labels": labels}
+            else:
+                data[name] = value
+
+        return data
+
+    # TODO
+    def infill(self, model: str, context: Dict[str, Any]) -> Any:
         """Accept a prefix and a suffix and return the predicted completion as stream."""
-        pass  # this is complicated, see llama-server doc for info
+        # @see Qwen2.5-Coder TR: https://arxiv.org/pdf/2409.12186
+        pass  # @see llama-server doc for additional info
 
     # maybe allow overriding n-predict?
     def complete(self, model: str, prompt: Union[str, List[str]]) -> Any:
