@@ -10,6 +10,7 @@ from logging import Logger
 from subprocess import DEVNULL, Popen
 from typing import Any, Dict, List, Optional, Set
 
+from jsonpycraft.core import Singleton
 from requests.exceptions import HTTPError
 
 from agent.config import config
@@ -55,7 +56,7 @@ class LlamaCppServerOptions:
             raise RuntimeError(f"Could not spawn llama-server: {e}") from e
 
 
-class LlamaCppServer:
+class LlamaCppServer(Singleton):
     """Thin wrapper around llama-server binary."""
 
     def __init__(self, request: Optional[LlamaCppRequest] = None):
