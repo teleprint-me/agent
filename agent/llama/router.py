@@ -21,8 +21,8 @@ class LlamaCppRouter:
     This client lets you query that registry and load/unload models at runtime.
     """
 
-    def __init__(self, llama_request: Optional[LlamaCppRequest] = None):
-        self.request = llama_request or LlamaCppRequest()
+    def __init__(self, request: Optional[LlamaCppRequest] = None):
+        self.request = request or LlamaCppRequest()
         self.logger = config.get_logger("logger", self.__class__.__name__)
         self.logger.debug("Initialized LlamaCppRouter instance.")
 
