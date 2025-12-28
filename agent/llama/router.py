@@ -26,38 +26,39 @@ class LlamaCppRouter:
         self.logger = config.get_logger("logger", self.__class__.__name__)
         self.logger.debug("Initialized LlamaCppRouter instance.")
 
-    # NOTE: Caching blocks updates from the server.
+    @property
     def data(self) -> List[Dict[str, Any]]:
         """
         Listing all models in cache.
         Metadata includes a field to indicate the status of the model.
         """
         self.logger.debug("Fetching models list")
-        return self.request.get("/models")["data"]
+        resp = self.request.get("/models")
+        return resp.get("data", [])
 
     @property
     def ids(self) -> List[str]:
         """Returns a list of cached model ids."""
         self.logger.debug("Fetching model ids")
-        return [model["id"] for model in self.data()]
+        return [model["id"] for model in self.data]
 
     @property
     def args_by_id(self) -> Dict[str, List[str]]:
         """Map: id to args list."""
         self.logger.debug("Fetching model args")
-        return {m["id"]: m["status"]["args"] for m in self.data()}
+        return {m["id"]: m["status"]["args"] for m in self.data}
 
     @property
     def presets_by_id(self) -> Dict[str, str]:
         """Map: id to preset string (inherits from args if not defined)."""
         # note that this is read from and or written to a ini file.
         self.logger.debug("Fetching model presets")
-        return {m["id"]: m["status"]["preset"] for m in self.data()}
+        return {m["id"]: m["status"]["preset"] for m in self.data}
 
     @property
     def loaded_by_id(self) -> Dict[str, str]:
         """Map: id to status value string ("loaded" or "unloaded")"""
-        return {m["id"]: m["status"]["value"] for m in self.data()}
+        return {m["id"]: m["status"]["value"] for m in self.data}
 
     def _wait(self, model: str, stop: str):
         """Poll the cached model loading status"""
