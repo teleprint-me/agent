@@ -155,19 +155,11 @@ class LlamaCppCompletion(LlamaCppBase):
     def messages(self, value: List[Dict[str, Any]]):
         self.params["messages"] = value
 
-    def metrics(self, model: str) -> Dict[str, Any]:
-        """Prometheus compatible metrics exporter."""
+    # maybe abstract this into its own private helper function?
+    @staticmethod
+    def _parse_metrics(content: str) -> Dict[str, Any]:
         # @note this format is terrible as a response object.
         # @see https://prometheus.io/docs/instrumenting/exposition_formats/
-        self.model = model
-
-        try:
-            self.logger.debug("Fetching server metrics")
-            content: str = self.request.get("/metrics", data=dict(model=self.model))
-        except HTTPError as e:
-            self.logger.debug("Error fetching server metrics")
-            return self.request.error(501, e, "unavailable_error")
-
         data = {}
         for line in content.splitlines():
             line = line.strip()
@@ -195,6 +187,18 @@ class LlamaCppCompletion(LlamaCppBase):
                 data[name] = value
 
         return data
+
+    def metrics(self, model: str) -> Dict[str, Any]:
+        """Prometheus compatible metrics exporter."""
+        self.model = model
+
+        try:
+            self.logger.debug("Fetching server metrics")
+            content: str = self.request.get("/metrics", data=dict(model=self.model))
+            return self._parse_metrics(content)
+        except HTTPError as e:
+            self.logger.debug("Error fetching server metrics")
+            return self.request.error(501, e, "unavailable_error")
 
     # TODO
     def infill(self, model: str, context: Dict[str, Any]) -> Any:
