@@ -71,7 +71,6 @@ DEFAULT_CONF = {
         "messages": [],
         "stop": [],
         "chat_template_kwargs": {},
-        "tools": tools,
         "top_k": 50,
         "top_p": 0.90,
         "min_p": 0.1,
@@ -83,6 +82,12 @@ DEFAULT_CONF = {
         "seed": 1337,
         "stream": True,
         "cache_prompt": True,
+        "tools": tools,
+    },
+    "models": {
+        "agent": "gpt-oss-20b-mxfp4",
+        "embedder": "qwen3-embedding-0.6b-q8_0",
+        "coder": "qwen25-coder-1.5b-f16",
     },
 }
 
