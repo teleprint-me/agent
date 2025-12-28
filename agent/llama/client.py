@@ -246,7 +246,7 @@ class LlamaCppCompletion(LlamaCppBase):
         self.model = model
         self.prompt = prompt
 
-        self.logger.debug(f"Completion request payload: {self.params}")
+        self.logger.debug(f"Completion request payload: {json.dumps(prompt, indent=2)}")
 
         endpoint = "/v1/completions"
         if self.params.get("stream"):
@@ -261,7 +261,9 @@ class LlamaCppCompletion(LlamaCppBase):
         self.model = model
         self.messages = messages
 
-        self.logger.debug(f"Sending chat completion request with messages: {messages}")
+        self.logger.debug(
+            f"Sending chat completion request with messages: {json.dumps(messages, indent=2)}"
+        )
 
         endpoint = "/v1/chat/completions"
         if self.params.get("stream"):
