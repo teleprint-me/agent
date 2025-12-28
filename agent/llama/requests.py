@@ -155,7 +155,9 @@ class LlamaCppRequest:
             raise StreamNotAllowedError()
 
         url = f"{self.base_url}{endpoint}"
-        self.logger.debug(f"GET request to {url} with params: {params}")
+        self.logger.debug(
+            f"GET request to {url} with params: {json.dumps(params, indent=2)}"
+        )
         response = requests.get(
             url,
             params=params,
@@ -176,7 +178,9 @@ class LlamaCppRequest:
             raise StreamNotAllowedError()
 
         url = f"{self.base_url}{endpoint}"
-        self.logger.debug(f"POST request to {url} with data: {data}")
+        self.logger.debug(
+            f"POST request to {url} with data: {json.dumps(data, indent=2)}"
+        )
         response = requests.post(
             url,
             json=data,
@@ -201,7 +205,9 @@ class LlamaCppRequest:
             raise ValueError("Stream must be set to True for streaming requests.")
 
         url = f"{self.base_url}{endpoint}"
-        self.logger.debug(f"Streaming request to {url} with data: {data}")
+        self.logger.debug(
+            f"Streaming request to {url} with data: {json.dumps(data, indent=2)}"
+        )
 
         response = requests.post(url, json=data, headers=self.headers, stream=True)
         response.raise_for_status()
@@ -217,7 +223,9 @@ class LlamaCppRequest:
 
             try:
                 decoded_chunk = json.loads(chunk)
-                self.logger.debug(f"Stream chunk received: {decoded_chunk}")
+                self.logger.debug(
+                    f"Stream chunk received: {json.dumps(decoded_chunk, indent=2)}"
+                )
                 yield decoded_chunk
             except JSONDecodeError as e:
                 self.logger.error(f"Failed to decode JSON chunk: {chunk}")
