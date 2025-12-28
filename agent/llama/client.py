@@ -7,9 +7,11 @@ High-level client for performing language model inference.
 
 import json
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Any, Dict, List, Optional, Union, cast
 
 import regex as re
+from requests.exceptions import HTTPError
 
 from agent.config import config
 from agent.llama.requests import LlamaCppRequest
@@ -23,10 +25,6 @@ class LlamaCppBase:
         cls_name = self.__class__.__name__
         # Set the base component for server communication
         self.request = request or LlamaCppRequest()
-        # Singleton for managing llama-server processes
-        self.server = LlamaCppServer(self.request)  # e.g. start(), stop(), restart()
-        # Instance for managing model (de)allocation
-        self.router = LlamaCppRouter(self.request)  # e.g. load() and unload()
         # Set the models hyperparameters (mutable dict[str, any])
         self.params = config.get_value("parameters")
         # Sanity check hyperparameters
@@ -155,18 +153,23 @@ class LlamaCppCompletion(LlamaCppBase):
     def messages(self, value: List[Dict[str, Any]]):
         self.params["messages"] = value
 
+    @property
+    @lru_cache
+    def _metrics_re(self) -> re.Regex:
+        return re.compile(r"^([^ {]+)(?:\{([^}]*)\})?\s+([+-]?\d+(?:\.\d+)?)$")
+
     # maybe abstract this into its own private helper function?
-    @staticmethod
-    def _parse_metrics(content: str) -> Dict[str, Any]:
+    def _metrics_parse(self, content: str) -> Dict[str, Any]:
         # @note this format is terrible as a response object.
         # @see https://prometheus.io/docs/instrumenting/exposition_formats/
         data = {}
+
         for line in content.splitlines():
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
 
-            m = METRIC_RE.match(line)
+            m = self._metrics_re.match(line)
             if not m:
                 self.logger.debug(f"Malformed expression: {m}")
                 continue
@@ -194,8 +197,8 @@ class LlamaCppCompletion(LlamaCppBase):
 
         try:
             self.logger.debug("Fetching server metrics")
-            content: str = self.request.get("/metrics", data=dict(model=self.model))
-            return self._parse_metrics(content)
+            content: str = self.request.get("/metrics", params=dict(model=self.model))
+            return self._metrics_parse(content)
         except HTTPError as e:
             self.logger.debug("Error fetching server metrics")
             return self.request.error(501, e, "unavailable_error")
@@ -242,13 +245,14 @@ class LlamaCppCompletion(LlamaCppBase):
 # or possibly a dataclass that groups instances for semi-convience?
 class LlamaCppClient:
     def __init__(self, request: Optional[LlamaCppRequest] = None):
-        # something like this?
-        # self.request = request or LlamaCppRequest() # maybe this should be ephemeral?
-        # self.server = LlamaCppServer(self.request)
-        # self.router = LlamaCppRouter(self.request)
-        # self.tokenizer = LlamaCppCompletion(self.request)
-        # self.embedding = LlamaCppEmbedding(self.request)
-        # self.completion = LlamaCppCompletion(self.request)
+        self.request = request or LlamaCppRequest()  # maybe this should be ephemeral?
+        # Singleton for managing llama-server processes
+        self.server = LlamaCppServer(self.request)  # e.g. start(), stop(), restart()
+        # Instance for managing model (de)allocation
+        self.router = LlamaCppRouter(self.request)  # e.g. load() and unload()
+        self.tokenizer = LlamaCppCompletion(self.request)
+        self.embedding = LlamaCppEmbedding(self.request)
+        self.completion = LlamaCppCompletion(self.request)
         # this feels kinda crowded? maybe expose via read-only properties?
         raise NotImplementedError()  # TODO
 
@@ -323,13 +327,24 @@ if __name__ == "__main__":
             sys.stdout.flush()
     print()  # Add padding to the model's output
 
-    # # just in case something fails
-    # try:
-    #     print(json.dumps(request.get("/props", params=dict(model=model)), indent=2))
-    # except HTTPError as e:
-    #     router.unload(model)
-    #     server.stop()
-    #     raise Exception(e)
+    prompt = completion.metrics(model)["prompt_tokens_total"]
+    generated = completion.metrics(model)["tokens_predicted_total"]
+
+    # track deltas
+    previous_prompt = 0
+    previous_gen = 0
+
+    dp = prompt - previous_prompt
+    dg = generated - previous_gen
+
+    previous_prompt = prompt
+    previous_gen = generated
+
+    print(f"\nmetrics:")
+    print(f"  prompt tokens    +{dp}")
+    print(f"  generated tokens +{dg}")
+    print(f"  total: {prompt + generated}")
+    print()  # add padding
 
     # it's good hygiene to clean up (unnecessary, but good habit)
     print("unloading", end="")
