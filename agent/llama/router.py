@@ -6,6 +6,7 @@ Client side interface for model routing.
 
 import sys
 import time
+from logging import Logger
 from typing import Any, Dict, List, Optional
 
 from agent.config import config
@@ -23,7 +24,7 @@ class LlamaCppRouter:
 
     def __init__(self, request: Optional[LlamaCppRequest] = None):
         self.request = request or LlamaCppRequest()
-        self.logger = config.get_logger("logger", self.__class__.__name__)
+        self.logger: Logger = config.get_logger("logger", self.__class__.__name__)
         self.logger.debug("Initialized LlamaCppRouter instance.")
 
     @property
