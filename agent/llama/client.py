@@ -53,32 +53,53 @@ class LlamaCppBase:
 # Not sure if this should be in the router?
 # the server must have been started with `--props` flag enabled.
 # otherwise, the server returns an error.
-class LlamaCppProperties(LlamaCppBase):
-    def __init__(self, request: Optional[LlamaCppRequest], **kwargs):
-        super().__init__(request, **kwargs)
+class LlamaCppProperties:
+    """Wrapper for querying model properties"""
+
+    def __init__(self, request: Optional[LlamaCppRequest]):
+        self.request = request or LlamaCppRequest()
+        self.logger: Logger = config.get_logger("logger", self.__class__.__name__)
+        self.logger.debug("Initialized LlamaCppProperties instance.")
 
     def props(self, model: str) -> Dict[str, Any]:
+        """Query model properties"""
         return self.request.get("/props", params=dict(model=model))
 
-    def model_path(self, model: str) -> Optional[str]:
-        props = self.props(model)
-        return props.get("model_path")
+    def alias(self, model: str) -> Optional[str]:
+        """Get the models id"""
+        return self.props(model).get("model_alias")
+
+    def path(self, model: str) -> Optional[str]:
+        """Get the models absolute path"""
+        return self.props(model).get("model_path")
 
     def max_seq_len(self, model: str) -> Optional[int]:
+        """Get the models maximum sequence length"""
         props = self.props(model)
         settings = props.get("default_generation_settings", {})
         return settings.get("n_ctx")
 
-    def chat_template(self, model: str) -> Optional[str]:
+    def template(self, model: str) -> Optional[str]:
         """Get the models jinja template."""
         # not sure if should return a jinja.Template or let the caller handle it.
         # it's easier to just return it as a raw string for now.
-        props = self.props(model)
-        return props.get("chat_template")
+        return self.props(model).get("chat_template")
+
+    def has_slots(self, model: str) -> Optional[bool]:
+        """True if --slots is set, else False"""
+        return self.props(model).get("endpoint_slots")
+
+    def has_props(self, model: str) -> Optional[bool]:
+        """True if --props is set, else False"""
+        return self.props(model).get("endpoint_props")
+
+    def has_metrics(self, model: str) -> Optional[bool]:
+        """True if --metrics is set, else False"""
+        return self.props(model).get("endpoint_metrics")
 
     def is_sleeping(self, model: str) -> Optional[bool]:
-        props = self.props(model)
-        return props.get("is_sleeping")
+        """True if the model is sleeping, else False"""
+        return self.props(model).get("is_sleeping")
 
 
 class LlamaCppTokenizer(LlamaCppBase):
@@ -251,7 +272,7 @@ class LlamaCppClient:
         # Instance for managing model (de)allocation
         self.router = LlamaCppRouter(request)  # e.g. load() and unload()
         # Get model specific properties based on server configuration
-        self.properties = LlamaCppProperties(request, **kwargs)
+        self.properties = LlamaCppProperties(request)
         # Convenience wrappers for managing models
         self.tokenizer = LlamaCppCompletion(request, **kwargs)
         self.embedding = LlamaCppEmbedding(request, **kwargs)
@@ -277,10 +298,13 @@ if __name__ == "__main__":
 
     parser = ArgumentParser()
     parser.add_argument("model", help="Path to the model file")
+    parser.add_argument("--port", default="8080", help="Selected port (default: 8080)")
     args = parser.parse_args()
 
     # just reference the internal config for now
-    client = LlamaCppClient(request=LlamaCppRequest(), n_predict=128)
+    # NOTE: There's a bug when that triggers a runtime error when a different port is selected.
+    # It might be the config overriding the input port. Need to debug later on.
+    client = LlamaCppClient(LlamaCppRequest(port=args.port), n_predict=128)
 
     # start the server
     if not client.server.start():  # optionally accepts args (overrides internal config)
@@ -303,8 +327,8 @@ if __name__ == "__main__":
 
     # output model properties
     print("model properties:")
-    print(f"  ID: {model}")
-    print(f"  Path: {client.properties.model_path(model)}")
+    print(f"  ID: {client.properties.alias(model)}")
+    print(f"  Path: {client.properties.path(model)}")
     print(f"  Max Seq Len: {client.properties.max_seq_len(model)}")
     print(f"  Sleeping: {client.properties.is_sleeping(model)}")
     print()  # add padding
@@ -343,7 +367,7 @@ if __name__ == "__main__":
     print(f"metrics:")
     print(f"  prompt tokens    +{dp}")
     print(f"  generated tokens +{dg}")
-    print(f"  total: {current_prompt + generated}")
+    print(f"  total tokens: {current_prompt + generated}")
     print()  # add padding
 
     # it's good hygiene to clean up (unnecessary, but good habit)
