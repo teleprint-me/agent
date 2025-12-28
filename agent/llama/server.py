@@ -134,11 +134,11 @@ class LlamaCppServer(Singleton):
 
         return True
 
-    def restart(self, command: Optional[List[str]] = None) -> bool:
+    def restart(self, args: Optional[List[str]] = None) -> bool:
         """Convenience helper to stop and start again."""
         self.stop()
         time.sleep(0.25)
-        return self.start(command)
+        return self.start(args)
 
 
 # usage example
