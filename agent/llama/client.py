@@ -50,6 +50,37 @@ class LlamaCppBase:
         self.params["model"] = value
 
 
+# Not sure if this should be in the router?
+# the server must have been started with `--props` flag enabled.
+# otherwise, the server returns an error.
+class LlamaCppProperties(LlamaCppBase):
+    def __init__(self, request: Optional[LlamaCppRequest], **kwargs):
+        super().__init__(request, **kwargs)
+
+    def props(self, model: str) -> Dict[str, Any]:
+        return self.request.get("/props", params=dict(model=model))
+
+    def model_path(self, model: str) -> Optional[str]:
+        props = self.props(model)
+        return props.get("model_path")
+
+    def max_seq_len(self, model: str) -> Optional[int]:
+        props = self.props(model)
+        settings = props.get("default_generation_settings", {})
+        return settings.get("n_ctx")
+
+    def chat_template(self, model: str) -> Optional[str]:
+        """Get the models jinja template."""
+        # not sure if should return a jinja.Template or let the caller handle it.
+        # it's easier to just return it as a raw string for now.
+        props = self.props(model)
+        return props.get("chat_template")
+
+    def is_sleeping(self, model: str) -> Optional[bool]:
+        props = self.props(model)
+        return props.get("is_sleeping")
+
+
 class LlamaCppTokenizer(LlamaCppBase):
     def __init__(self, request: Optional[LlamaCppRequest], **kwargs):
         super().__init__(request, **kwargs)
@@ -244,17 +275,17 @@ class LlamaCppCompletion(LlamaCppBase):
 # Not sure if this should be a convenience wrapper
 # or possibly a dataclass that groups instances for semi-convience?
 class LlamaCppClient:
-    def __init__(self, request: Optional[LlamaCppRequest] = None):
-        self.request = request or LlamaCppRequest()  # maybe this should be ephemeral?
+    def __init__(self, request: LlamaCppRequest, **kwargs):
         # Singleton for managing llama-server processes
-        self.server = LlamaCppServer(self.request)  # e.g. start(), stop(), restart()
+        self.server = LlamaCppServer(request)  # e.g. start(), stop(), restart()
         # Instance for managing model (de)allocation
-        self.router = LlamaCppRouter(self.request)  # e.g. load() and unload()
-        self.tokenizer = LlamaCppCompletion(self.request)
-        self.embedding = LlamaCppEmbedding(self.request)
-        self.completion = LlamaCppCompletion(self.request)
-        # this feels kinda crowded? maybe expose via read-only properties?
-        raise NotImplementedError()  # TODO
+        self.router = LlamaCppRouter(request)  # e.g. load() and unload()
+        # Get model specific properties based on server configuration
+        self.properties = LlamaCppProperties(request, **kwargs)
+        # Convenience wrappers for managing models
+        self.tokenizer = LlamaCppCompletion(request, **kwargs)
+        self.embedding = LlamaCppEmbedding(request, **kwargs)
+        self.completion = LlamaCppCompletion(request, **kwargs)
 
 
 # usage example
@@ -279,42 +310,39 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # just reference the internal config for now
-    request = LlamaCppRequest()  # this is the base object
-
-    # every instance should probably share the core request object
-    # maybe make the request object a singleton? unsure for now.
-    server = LlamaCppServer(request)  # managers llama-server
-    router = LlamaCppRouter(request)  # manages models
-    completion = LlamaCppCompletion(request, n_predict=128)
+    client = LlamaCppClient(request=LlamaCppRequest(), n_predict=128)
 
     # start the server
-    if not server.start():  # optionally accepts args (overrides internal config)
+    if not client.server.start():  # optionally accepts args (overrides internal config)
         raise RuntimeError("Failed to start server")
 
     # the challenge here is deciding how to handle model routing
     # every endpoint will require a model id reference once a model is selected
-    # for now, i just employ models/gpt-oss-20b-mxfp4.gguf
+    # for now, i just employ the models file path
     model = str(Path(args.model).stem)
-    if model not in router.ids:  # model ref does not exist
+    if model not in client.router.ids:  # model ref does not exist
         print(f"[Model Identifiers]")
-        for id in router.ids:
+        for id in client.router.ids:
             print(f"  {id}")
-        server.stop()
+        client.server.stop()
         raise ValueError(f"Invalid model selected: {model}")
 
     # once the model is selected, we can load it
     print("loading", end="")
-    router.load(model)  # note: this can be slow. *sigh*
+    client.router.load(model)  # note: this can be slow. *sigh*
 
-    # this feels super weird. i don't like it.
-    # nested refs are gross - completion.completion? like, why? eww.
-    # maybe rename the method? but that might be confusing? shit.
-    # oooo. maybe completion.generator? hm - maybe a bit too on the nose?
-    # nah, i don't like that either. double shit.
+    # output model properties
+    print("model properties:")
+    print(f"  ID: {model}")
+    print(f"  Path: {client.properties.model_path(model)}")
+    print(f"  Max Seq Len: {client.properties.max_seq_len(model)}")
+    print(f"  Sleeping: {client.properties.is_sleeping(model)}")
+    print()  # add padding
+
+    # set up the model prompt and generator
     prompt = "Once upon a time,"
     print(prompt, end="")
-    generator = completion.complete(model, prompt)
-    # hang in there
+    generator = client.completion.complete(model, prompt)
 
     # Handle the model's generated response
     content = ""
@@ -325,22 +353,24 @@ if __name__ == "__main__":
             # Print each token to the user
             print(token, end="")
             sys.stdout.flush()
-    print()  # Add padding to the model's output
+    print()  # add padding
 
-    current_prompt = completion.metrics(model)["prompt_tokens_total"]
-    generated = completion.metrics(model)["tokens_predicted_total"]
+    # output model completion stats
+    current_prompt = client.completion.metrics(model)["prompt_tokens_total"]
+    generated = client.completion.metrics(model)["tokens_predicted_total"]
 
-    # track deltas
     previous_prompt = 0
     previous_gen = 0
 
+    # track deltas
     dp = current_prompt - previous_prompt
     dg = generated - previous_gen
 
     previous_prompt = current_prompt
     previous_gen = generated
 
-    print(f"\nmetrics:")
+    print()
+    print(f"metrics:")
     print(f"  prompt tokens    +{dp}")
     print(f"  generated tokens +{dg}")
     print(f"  total: {current_prompt + generated}")
@@ -348,7 +378,7 @@ if __name__ == "__main__":
 
     # it's good hygiene to clean up (unnecessary, but good habit)
     print("unloading", end="")
-    router.unload(model)
+    client.router.unload(model)
 
     # stop the server
-    server.stop()
+    client.server.stop()
