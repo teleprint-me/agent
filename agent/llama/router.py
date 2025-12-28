@@ -100,10 +100,7 @@ if __name__ == "__main__":
 
     # stub for now (maybe accept a model id?)
     parser = ArgumentParser()
-    parser.add_argument(
-        "model",
-        help="Path to the model file (e.g. models/gpt-oss-20b-mxfp4.gguf)",
-    )
+    parser.add_argument("model", help="Path to the model file")
     args = parser.parse_args()
 
     # original: args.model could be "gpt-oss-20b-mxfp4.gguf" or just "gpt-oss-20b-mxfp4"
