@@ -82,65 +82,33 @@ class LlamaCppProperties(LlamaCppBase):
 
 
 class LlamaCppTokenizer(LlamaCppBase):
-    def __init__(self, request: Optional[LlamaCppRequest], **kwargs):
-        super().__init__(request, **kwargs)
+    """Tokenisation helpers"""
+
+    def __init__(self, request: Optional[LlamaCppRequest] = None):
+        self.request = request or LlamaCppRequest()
 
     def encode(
         self,
         model: str,
         content: Union[str, List[str]],
+        *,
         add_special: bool = False,
         with_pieces: bool = False,
     ) -> List[int]:
-        """Tokenizes a given text using the server's tokenize endpoint."""
-        self.logger.debug(f"Tokenizing: {content}")
-
-        prompts: List[str] = []
-        if isinstance(content, str):
-            self.logger.debug("Encoding str to int")
-            prompts = cast(List[str], [content])
-        elif all(isinstance(prompt, str) for prompt in content):
-            self.logger.debug("Encoding prompts to sequence")
-            prompts = cast(List[str], content)
-        else:
-            self.logger.error("Content is not a list with str")
-            raise TypeError("Content must contain str or list[str]")
-
-        data = {
+        load = {
             "model": model,
-            "content": content,
+            "content": content if isinstance(content, str) else list(content),
             "add_special": add_special,
             "with_pieces": with_pieces,
         }
+        res: Dict[str, Any] = self.request.post("/tokenize", data=load)
+        return cast(List[int], res.get("tokens", []))
 
-        response = self.request.post("/tokenize", data=data)
-        return response.get("tokens", [])
-
-    def decode(
-        self,
-        model: str,
-        pieces: List[Union[int, Dict[str, Union[int, str]]]],
-    ) -> str:
-        """Detokenizes a given sequence of token IDs using the server's detokenize endpoint."""
-        self.logger.debug(f"Decoding: {pieces}")
-        if not isinstance(pieces, list):
-            raise TypeError("Pieces must be a list")
-
-        tokens: List[int] = []
-        if all(isinstance(piece, int) for piece in pieces):
-            self.logger.debug("Decoding pieces as 'list' with 'int'")
-            tokens = cast(List[int], pieces)
-        elif all(isinstance(piece, dict) for piece in pieces):
-            self.logger.debug("Decoding pieces as 'dict' with 'id' and 'piece' keys")
-            tokens = cast(List[int], [piece["id"] for piece in pieces])
-        else:
-            self.logger.debug("Pieces is not a list with int or dict[str, int|str]")
-            raise TypeError("Pieces must contain int or dict[str, int|str]")
-        data: Dict[str, List[int]] = {"tokens": tokens}
-
-        # Pieces must resolve to a list of integers
-        response = self.request.post("/detokenize", data=data)
-        return response.get("content", "")
+    def decode(self, model: str, pieces: List[Union[int, Dict[str, Any]]]) -> str:
+        tokens = [p if isinstance(p, int) else p["id"] for p in pieces]
+        payload = {"model": model, "tokens": list(tokens)}
+        res: Dict[str, Any] = self.request.post("/detokenize", data=payload)
+        return cast(str, res.get("content"))
 
 
 class LlamaCppEmbedding(LlamaCppBase):
