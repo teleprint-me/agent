@@ -6,6 +6,7 @@ Module for handling low-level requests to the LlamaCpp REST API.
 
 import json
 from json import JSONDecodeError
+from logging import Logger
 from typing import Any, Dict, Generator, Optional, Union
 
 import requests
@@ -59,8 +60,8 @@ class LlamaCppRequest:
         if headers and isinstance(headers, dict):
             self.headers = headers
 
-        # … logger …
-        self.logger = config.get_logger("logger", self.__class__.__name__)
+        # logger
+        self.logger: Logger = config.get_logger("logger", self.__class__.__name__)
         self.logger.debug("Initialized LlamaCppRequest instance.")
 
     def _handle_response(self, response: requests.Response) -> Any:
