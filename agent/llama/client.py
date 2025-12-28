@@ -327,23 +327,23 @@ if __name__ == "__main__":
             sys.stdout.flush()
     print()  # Add padding to the model's output
 
-    prompt = completion.metrics(model)["prompt_tokens_total"]
+    current_prompt = completion.metrics(model)["prompt_tokens_total"]
     generated = completion.metrics(model)["tokens_predicted_total"]
 
     # track deltas
     previous_prompt = 0
     previous_gen = 0
 
-    dp = prompt - previous_prompt
+    dp = current_prompt - previous_prompt
     dg = generated - previous_gen
 
-    previous_prompt = prompt
+    previous_prompt = current_prompt
     previous_gen = generated
 
     print(f"\nmetrics:")
     print(f"  prompt tokens    +{dp}")
     print(f"  generated tokens +{dg}")
-    print(f"  total: {prompt + generated}")
+    print(f"  total: {current_prompt + generated}")
     print()  # add padding
 
     # it's good hygiene to clean up (unnecessary, but good habit)
