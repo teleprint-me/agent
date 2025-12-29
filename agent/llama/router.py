@@ -23,16 +23,15 @@ class LlamaCppRouter:
     """
 
     def __init__(self, request: Optional[LlamaCppRequest] = None):
-        self.request = request or LlamaCppRequest()
-        self.logger: Logger = config.get_logger("logger", self.__class__.__name__)
-        self.logger.debug("Initialized LlamaCppRouter instance.")
+        self.request = request if request else LlamaCppRequest()
+
+        cls_name = self.__class__.__name__
+        self.logger: Logger = config.get_logger("logger", cls_name)
+        self.logger.debug(f"Initialized {cls_name} instance.")
 
     @property
     def data(self) -> List[Dict[str, Any]]:
-        """
-        Listing all models in cache.
-        Metadata includes a field to indicate the status of the model.
-        """
+        """List all registered models and their associated metadata."""
         self.logger.debug("Fetching models list")
         resp = self.request.get("/models")
         return resp.get("data", [])
@@ -102,13 +101,14 @@ if __name__ == "__main__":
 
     # stub for now (maybe accept a model id?)
     parser = ArgumentParser()
-    parser.add_argument("model", help="Path to the model file")
+    parser.add_argument("model", help="The model path or id")
+    parser.add_argument("--port", default="8080", help="Port to listen (default: 8080)")
     args = parser.parse_args()
 
     # original: args.model could be "gpt-oss-20b-mxfp4.gguf" or just "gpt-oss-20b-mxfp4"
     model = str(Path(args.model).stem)  # removes ".gguf"
 
-    request = LlamaCppRequest()
+    request = LlamaCppRequest(port=args.port)
     server = LlamaCppServer(request)
     router = LlamaCppRouter(request)
 
