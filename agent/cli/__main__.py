@@ -273,6 +273,7 @@ if __name__ == "__main__":
 
         # Trap unhandled exceptions and output the traceback
         except Exception as e:
+            router.unload(model)
             server.stop()
             traceback.print_exception(e)
             exit(1)
