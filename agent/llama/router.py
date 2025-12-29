@@ -62,11 +62,12 @@ class LlamaCppRouter:
 
     def _wait(self, model: str, stop: str):
         """Poll the cached model loading status"""
+        print("[", end="")
         while self.loaded_by_id[model] != stop:
             print(".", end="")
             sys.stdout.flush()
             time.sleep(0.25)  # sleep ~250ms while (de)allocating
-        print()
+        print("]")
 
     def load(self, model: str) -> Dict[str, Any]:
         """Load a cached model into memory"""
@@ -141,7 +142,7 @@ if __name__ == "__main__":
 
     try:
         # first load the model and report status
-        print(f"Status: Loading {model}.")
+        print(f"Status: Loading {model}")
         status = router.load(model)
         print(f"{model} -> {router.loaded_by_id[model]}")
         print(f"success? {status['success']}")
