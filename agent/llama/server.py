@@ -21,6 +21,10 @@ class LlamaCppServerCommand(Singleton):
     def __init__(self, request: Optional[LlamaCppRequest] = None):
         self.request = request if request else LlamaCppRequest()
 
+        cls_name = self.__class__.__name__
+        self.logger: Logger = config.get_logger("logger", cls_name)
+        self.logger.debug(f"Initialized {cls_name} instance.")
+
     @property
     def host(self) -> str:
         return str(self.request.host)
@@ -40,6 +44,8 @@ class LlamaCppServerCommand(Singleton):
     @property
     def path(self) -> str:
         """Absolute path to llama-server, raising if not found."""
+        self.logger.debug("Fetching llama-server file path")
+
         which = shutil.which("llama-server")
         if which is None:
             raise FileNotFoundError("'llama-server' binary missing from $PATH")
@@ -48,6 +54,8 @@ class LlamaCppServerCommand(Singleton):
     @property
     def args(self) -> List[str]:
         """Returns a pre-built set of command arguments to execute"""
+        self.logger.debug("Building llama-server command")
+
         command = [self.path, "--host", self.host, "--port", self.port]
         for k, v in config.get_value("server", {}).items():
             if k == "host" or k == "port":
@@ -58,10 +66,14 @@ class LlamaCppServerCommand(Singleton):
                 command.append(f"--{k}")  # add set flags
             else:  # option accepts an argument
                 command.extend((f"--{k}", str(v)))
+
+        self.logger.debug(f"Using: {command}")
         return command
 
     def execute(self, args: Optional[List[str]] = None) -> Popen:
         """Start a background process."""
+        self.logging.debug("Starting llama-server background process")
+
         try:
             # Non-blocking, background process
             return Popen(
@@ -82,8 +94,6 @@ class LlamaCppServer(LlamaCppServerCommand):
         super().__init__(request)
 
         self.process: Optional[Popen] = None
-        self.logger: Logger = config.get_logger("logger", self.__class__.__name__)
-        self.logger.debug("Initialized LlamaCppServer instance.")
 
     @property
     def pid(self) -> Optional[int]:
@@ -92,6 +102,8 @@ class LlamaCppServer(LlamaCppServerCommand):
 
     def _wait(self) -> bool:
         """Poll the health endpoint until it reports ok or time-outs."""
+        self.logger.debug("Waiting for llama-server to warm up")
+
         start = time.time()
         while (time.time() - start) < self.timeout:
             try:
