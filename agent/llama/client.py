@@ -20,46 +20,22 @@ from agent.llama.server import LlamaCppServer
 
 
 class LlamaCppBase:
-    def __init__(self, request: Optional[LlamaCppRequest] = None, **kwargs):
-        # Get the name of the current class
+    def __init__(self, request: Optional[LlamaCppRequest] = None):
+        self.request = request if request else LlamaCppRequest()
+
         cls_name = self.__class__.__name__
-        # Set the base component for server communication
-        self.request = request or LlamaCppRequest()
-        # Set the models hyperparameters (mutable dict[str, any])
-        self.params = config.get_value("parameters")
-        # Sanity check hyperparameters
-        if self.params is None:
-            self.server.stop()  # stop the server if a process exists
-            raise RuntimeError(f"Set {cls_name} with empty hyperparameters!")
-        # Update with any additional parameters from kwargs
-        self.params.update(kwargs)
-        # Create a custom logging.Logger for the current instance
         self.logger = config.get_logger(key="logger", logger_name=cls_name)
-        # Report instance status to logger
         self.logger.debug(f"Initialized {cls_name} instance.")
-        # NOTE: Each request must be updated with the current model in mind
-
-    @property
-    def model(self) -> Optional[str]:
-        """Get the current model"""
-        return self.params.get("model")
-
-    @model.setter
-    def model(self, value: str):
-        """Set the current model"""
-        self.params["model"] = value
 
 
 # Not sure if this should be in the router?
 # the server must have been started with `--props` flag enabled.
 # otherwise, the server returns an error.
-class LlamaCppProperties:
+class LlamaCppProperties(LlamaCppBase):
     """Wrapper for querying model properties"""
 
-    def __init__(self, request: Optional[LlamaCppRequest]):
-        self.request = request or LlamaCppRequest()
-        self.logger: Logger = config.get_logger("logger", self.__class__.__name__)
-        self.logger.debug("Initialized LlamaCppProperties instance.")
+    def __init__(self, request: Optional[LlamaCppRequest] = None):
+        super().__init__(request)
 
     def props(self, model: str) -> Dict[str, Any]:
         """Query model properties"""
@@ -85,28 +61,28 @@ class LlamaCppProperties:
         # it's easier to just return it as a raw string for now.
         return self.props(model).get("chat_template")
 
-    def has_slots(self, model: str) -> Optional[bool]:
+    def has_slots(self, model: str) -> bool:
         """True if --slots is set, else False"""
-        return self.props(model).get("endpoint_slots")
+        return self.props(model).get("endpoint_slots", False)
 
-    def has_props(self, model: str) -> Optional[bool]:
+    def has_props(self, model: str) -> bool:
         """True if --props is set, else False"""
-        return self.props(model).get("endpoint_props")
+        return self.props(model).get("endpoint_props", False)
 
-    def has_metrics(self, model: str) -> Optional[bool]:
+    def has_metrics(self, model: str) -> bool:
         """True if --metrics is set, else False"""
-        return self.props(model).get("endpoint_metrics")
+        return self.props(model).get("endpoint_metrics", False)
 
-    def is_sleeping(self, model: str) -> Optional[bool]:
+    def is_sleeping(self, model: str) -> bool:
         """True if the model is sleeping, else False"""
-        return self.props(model).get("is_sleeping")
+        return self.props(model).get("is_sleeping", False)
 
 
 class LlamaCppTokenizer(LlamaCppBase):
     """Tokenisation helpers"""
 
     def __init__(self, request: Optional[LlamaCppRequest] = None):
-        self.request = request or LlamaCppRequest()
+        super().__init__(request)
 
     def encode(
         self,
@@ -115,12 +91,14 @@ class LlamaCppTokenizer(LlamaCppBase):
         *,
         add_special: bool = False,
         with_pieces: bool = False,
+        parse_special: bool = True,
     ) -> List[int]:
         load = {
             "model": model,
             "content": content if isinstance(content, str) else list(content),
             "add_special": add_special,
             "with_pieces": with_pieces,
+            "parse_special": parse_special,
         }
         res: Dict[str, Any] = self.request.post("/tokenize", data=load)
         return cast(List[int], res.get("tokens", []))
@@ -133,15 +111,15 @@ class LlamaCppTokenizer(LlamaCppBase):
 
 
 class LlamaCppEmbedding(LlamaCppBase):
-    def __init__(self, request: Optional[LlamaCppRequest], **kwargs):
-        super().__init__(request, **kwargs)
+    def __init__(self, request: Optional[LlamaCppRequest] = None):
+        super().__init__(request)
 
-    def embeddings(self, model: str, input: Union[str, List[str]]) -> Any:
+    def create(self, model: str, input: Union[str, List[str]]) -> Any:
         """Get the embedding for the given input."""
         self.logger.debug(f"Fetching embedding for input: {input}")
         endpoint = "/v1/embeddings"
         data = {
-            "model": model,
+            "model": self.model,
             "input": input,
             "encoding_format": "float",
         }
@@ -155,23 +133,12 @@ class LlamaCppEmbedding(LlamaCppBase):
 #   - router: if the model is not loaded, we must unload a model, then load the selected model
 class LlamaCppCompletion(LlamaCppBase):
     def __init__(self, request: Optional[LlamaCppRequest], **kwargs):
-        super().__init__(request, **kwargs)
+        super().__init__(request)
 
-    @property
-    def prompt(self) -> Optional[Union[str, List[str]]]:
-        return self.params.get("prompt", "")
-
-    @prompt.setter
-    def prompt(self, value: Union[str, List[str]]):
-        self.params["prompt"] = value
-
-    @property
-    def messages(self) -> Optional[List[Dict[str, Any]]]:
-        return self.params.get("messages", [])
-
-    @messages.setter
-    def messages(self, value: List[Dict[str, Any]]):
-        self.params["messages"] = value
+        # Set the models hyperparameters (mutable dict[str, any])
+        self.params = config.get_value("parameters", {})
+        # Update with any additional parameters from kwargs
+        self.params.update(kwargs)
 
     @property
     @lru_cache
@@ -232,8 +199,8 @@ class LlamaCppCompletion(LlamaCppBase):
     # maybe allow overriding n-predict?
     def complete(self, model: str, prompt: Union[str, List[str]]) -> Any:
         """Send a completion request to the API using the given prompt."""
-        self.model = model
-        self.prompt = prompt
+        self.params["model"] = model
+        self.params["prompt"] = prompt
 
         self.logger.debug(f"Completion request payload: {json.dumps(prompt, indent=2)}")
 
@@ -247,8 +214,8 @@ class LlamaCppCompletion(LlamaCppBase):
 
     def chat(self, model: str, messages: list[dict[str, str]]) -> Any:
         """Send a ChatML-compatible chat completion request to the API."""
-        self.model = model
-        self.messages = messages
+        self.params["model"] = model
+        self.params["messages"] = messages
 
         self.logger.debug(
             f"Sending chat completion request with messages: {json.dumps(messages, indent=2)}"
@@ -274,8 +241,8 @@ class LlamaCppClient:
         # Get model specific properties based on server configuration
         self.properties = LlamaCppProperties(request)
         # Convenience wrappers for managing models
-        self.tokenizer = LlamaCppCompletion(request, **kwargs)
-        self.embedding = LlamaCppEmbedding(request, **kwargs)
+        self.tokenizer = LlamaCppTokenizer(request)
+        self.embedding = LlamaCppEmbedding(request)
         self.completion = LlamaCppCompletion(request, **kwargs)
 
 
