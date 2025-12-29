@@ -18,8 +18,8 @@ from agent.llama.requests import LlamaCppRequest
 
 
 class LlamaCppServerCommand(Singleton):
-    def __init__(self, request: LlamaCppRequest):
-        self.request = request
+    def __init__(self, request: Optional[LlamaCppRequest] = None):
+        self.request = request if request else LlamaCppRequest()
 
     @property
     def host(self) -> str:
@@ -79,7 +79,7 @@ class LlamaCppServer(LlamaCppServerCommand):
     """Thin wrapper around llama-server binary."""
 
     def __init__(self, request: Optional[LlamaCppRequest] = None):
-        super().__init__(request if request else LlamaCppRequest())
+        super().__init__(request)
 
         self.process: Optional[Popen] = None
         self.logger: Logger = config.get_logger("logger", self.__class__.__name__)

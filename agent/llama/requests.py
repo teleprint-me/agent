@@ -10,6 +10,7 @@ from logging import Logger
 from typing import Any, Dict, Generator, Optional, Union
 
 import requests
+from jsonpycraft.core import Singleton
 from requests.exceptions import ConnectionError
 
 from agent.config import config
@@ -23,7 +24,7 @@ class StreamNotAllowedError(Exception):
         super().__init__(message)
 
 
-class LlamaCppURI:
+class LlamaCppURI(Singleton):
     def __init__(
         self,
         *,
