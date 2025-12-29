@@ -8,7 +8,7 @@ import shutil
 import time
 from logging import Logger
 from subprocess import DEVNULL, Popen
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional
 
 from jsonpycraft.core import Singleton
 from requests.exceptions import HTTPError
@@ -17,10 +17,25 @@ from agent.config import config
 from agent.llama.requests import LlamaCppRequest
 
 
-class LlamaCppServerOptions:
+class LlamaCppServerCommand(Singleton):
+    def __init__(self, request: LlamaCppRequest):
+        self.request = request
+
     @property
-    def config(self) -> Dict[str, Any]:
-        return config.get_value("server", {})
+    def host(self) -> str:
+        return str(self.request.host)
+
+    @property
+    def port(self) -> str:
+        return str(self.request.port)
+
+    @property
+    def timeout(self) -> int:
+        return int(self.request.timeout)
+
+    @property
+    def health(self) -> Dict[str, Any]:
+        return self.request.health()
 
     @property
     def path(self) -> str:
@@ -32,14 +47,18 @@ class LlamaCppServerOptions:
 
     @property
     def args(self) -> List[str]:
-        options = [self.path]
-        for k, v in self.config.items():
-            if isinstance(v, bool):
-                if v:
-                    options.append(f"--{k}")
-            else:
-                options.extend((f"--{k}", str(v)))
-        return options
+        """Returns a pre-built set of command arguments to execute"""
+        command = [self.path, "--host", self.host, "--port", self.port]
+        for k, v in config.get_value("server", {}).items():
+            if k == "host" or k == "port":
+                continue  # skip duplicates
+            if isinstance(v, bool) and v is False:
+                continue  # skip unset flags
+            if isinstance(v, bool) and v is True:
+                command.append(f"--{k}")  # add set flags
+            else:  # option accepts an argument
+                command.extend((f"--{k}", str(v)))
+        return command
 
     def execute(self, args: Optional[List[str]] = None) -> Popen:
         """Start a background process."""
@@ -56,31 +75,20 @@ class LlamaCppServerOptions:
             raise RuntimeError(f"Could not spawn llama-server: {e}") from e
 
 
-class LlamaCppServer(Singleton):
+class LlamaCppServer(LlamaCppServerCommand):
     """Thin wrapper around llama-server binary."""
 
     def __init__(self, request: Optional[LlamaCppRequest] = None):
-        self.request = request or LlamaCppRequest()
-        self.options = LlamaCppServerOptions()
+        super().__init__(request if request else LlamaCppRequest())
+
         self.process: Optional[Popen] = None
         self.logger: Logger = config.get_logger("logger", self.__class__.__name__)
         self.logger.debug("Initialized LlamaCppServer instance.")
 
     @property
-    def timeout(self) -> int:
-        return self.request.timeout
-
-    @property
-    def health(self) -> Dict[str, Any]:
-        return self.request.health()
-
-    @property
     def pid(self) -> Optional[int]:
+        """Returns the process identifier, otherwise None"""
         return self.process.pid if self.process else None
-
-    @property
-    def path(self) -> str:
-        return self.options.path
 
     def _wait(self) -> bool:
         """Poll the health endpoint until it reports ok or time-outs."""
@@ -98,11 +106,11 @@ class LlamaCppServer(Singleton):
         """Launch the server and wait until it reports healthy."""
         self.logger.info("Starting llama-server")
 
-        if self.process:
+        if self.process and self.process.pid:
             self.logger.warning(f"Using pid={self.pid} (running)")
             return False
 
-        self.process = self.options.execute(args)
+        self.process = self.execute(args)
         if not self._wait():
             error_info = "(unknown)"
             if self.health.get("error"):
@@ -147,65 +155,92 @@ class LlamaCppServer(Singleton):
 if __name__ == "__main__":
     import sys
     from argparse import ArgumentParser
+    from pathlib import Path
 
     parser = ArgumentParser()
-    parser.add_argument("model", help="The model id (e.g. gpt-oss-20b-mxfp4)")
+    parser.add_argument("model", help="The model path or id")
+    parser.add_argument("--port", default="8080", help="Port to listen (default: 8080)")
     args = parser.parse_args()
 
-    request = LlamaCppRequest()
+    # Get the models base name
+    model = str(Path(args.model).stem)
+
+    # Create a custom request and server
+    request = LlamaCppRequest(port=args.port)
     server = LlamaCppServer(request)
 
-    # /usr/local/bin/llama-server
-    for token in server.options.args:
+    # Flush out the default command
+    for token in server.args:
         print(token, end=" ")
         sys.stdout.flush()
     print()
 
     # smoke test starting the server
-    assert server.start(), "Failed to start server."
-    assert server.health.get("status") == "ok", "Server is unhealthy"
+    if not server.start():
+        raise RuntimeError("Failed to start server.")
+
+    # smoke test the servers health
+    if server.health.get("status") != "ok":
+        server.stop()
+        raise RuntimeError("Server is unhealthy")
+
     print(f"Launched server with pid: {server.pid}")
 
+    # get metadata for models registered with the server
     response = request.get("/models")
-    models = response.get("data")
-    if models is None:
-        print("Error retrieving models")
+    # extract the metadata for the registered models
+    data = response.get("data")
+    # ensure the response data is valid
+    if data is None:
+        print("Error retrieving model data")
         print(f"Error: {response.get('error', {}).get('message')}")
         server.stop()
         exit(1)
 
-    model_ids = [model["id"] for model in models]
-    for id in model_ids:
-        print(f"model id: {id}")
+    # extract the model identifiers from the response
+    model_ids = [m["id"] for m in data]
+    for name in model_ids:
+        print(f"model id: {name}")
 
-    if args.model not in model_ids:
-        print(f"Error: '{args.model}' is not a valid id!")
+    # assert the input model id matches the servers model registration
+    if model not in model_ids:
+        print(f"Error: '{model}' is not a valid id!")
         server.stop()
         exit(1)
 
     # smoke test restarting the server
-    assert server.restart(), "Failed to restart server"
-    assert server.health.get("status") == "ok", "Server is unhealthy"
+    if not server.restart():
+        server.stop()  # something went wrong, kill the process
+        raise RuntimeError("Failed to restart server")
+
+    # smoke test the servers health
+    if server.health.get("status") != "ok":
+        server.stop()
+        raise RuntimeError("Server is unhealthy")
+
     print(f"Restarted server with pid: {server.pid}")
 
-    # the model has to be loaded first
-    response = request.post("/models/load", {"model": args.model})
-    assert response.get("success") is True, f"Failed to load {args.model}"
+    # load the model using the input identifier
+    response = request.post("/models/load", {"model": model})
+    # assert the model is in memory
+    if not response.get("success"):
+        server.stop()
+        raise RuntimeError(f"Failed to load {model}")
 
     # Define the prompt for the model
     prompt = "Once upon a time,"
     print(prompt, end="")
 
     # Prepare data for streaming request
-    data = {
-        "model": args.model,
+    load = {
+        "model": model,
         "prompt": prompt,
         "n_predict": 64,
         "stream": True,
     }
 
     # Generate the model's response
-    generator = request.stream("/completion", data=data)
+    generator = request.stream("/completion", data=load)
 
     # Handle the model's generated response
     content = ""
@@ -220,9 +255,16 @@ if __name__ == "__main__":
     # Add padding to the model's output
     print()
 
-    # release occupied vram
-    response = request.post("/models/unload", {"model": args.model})
-    assert response.get("success") is True, f"Failed to unload {args.model}"
+    # unload the model using the input identifier
+    response = request.post("/models/unload", {"model": model})
+    # assert the model was freed from memory
+    if not response.get("success"):
+        server.stop()
+        raise RuntimeError(f"Failed to unload {model}")
 
-    assert server.stop(), "Failed to stop server"
+    # assert the servers process is terminated
+    if not server.stop():
+        raise RuntimeError("Failed to stop server")
+
+    # successfully started, restarted, and stopped the server
     print("Terminated server.")

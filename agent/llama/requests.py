@@ -23,62 +23,23 @@ class StreamNotAllowedError(Exception):
         super().__init__(message)
 
 
-class LlamaCppRequest:
+class LlamaCppURI:
     def __init__(
         self,
         *,
         scheme: Optional[str] = None,
         host: Optional[str] = None,
-        port: Optional[Union[int, str]] = None,
+        port: Optional[str] = None,
         headers: Optional[Dict[str, str]] = None,
-    ) -> None:
-        """
-        Create a request helper that talks to the local Llama-CPP REST endpoint.
-
-        :param scheme: str, optional
-            URL scheme (`http` or `https`). Defaults to `"http"`.
-        :param host: str, optional
-            Hostname/IP of the server. Default is `"127.0.0.1"` for a local instance.
-        :param port: int | str, optional
-            TCP port on which the endpoint listens; can be passed as an integer or string.
-            The default value is `8080` (matching Llama-CPP's built-in choice).
-        :param headers: dict[str, str] | None, optional
-            Extra HTTP headers to include with every request. If omitted a minimal header set
-            containing only `"Content-Type": "application/json"` is used.
-
-        See agent/config/__init__.py for details.
-        The instance builds the base URL lazily from *scheme*, *host* and *port*.
-        It also configures an internal logger via :pyfunc:`config.get_logger(key, name)`.
-        """
-
+    ):
         if scheme and isinstance(scheme, str):
             self.scheme = scheme
         if host and isinstance(host, str):
             self.host = host
         if port and isinstance(port, str):
-            self.port = str(port)
+            self.port = port
         if headers and isinstance(headers, dict):
             self.headers = headers
-
-        # logger
-        self.logger: Logger = config.get_logger("logger", self.__class__.__name__)
-        self.logger.debug("Initialized LlamaCppRequest instance.")
-
-    def _handle_response(self, response: requests.Response) -> Any:
-        """
-        Handle the HTTP response.
-
-        :param response: The HTTP response object.
-        :return: The parsed JSON response.
-        """
-        self.logger.debug(f"Received response with status {response.status_code}")
-        if not response.ok:
-            response.raise_for_status()
-
-        try:
-            return response.json()
-        except JSONDecodeError:  # json decode failed
-            return response.text
 
     @property
     def scheme(self) -> str:
@@ -128,6 +89,56 @@ class LlamaCppRequest:
     @property
     def base_url(self) -> str:
         return f"{self.scheme}://{self.host}:{self.port}"
+
+
+class LlamaCppRequest(LlamaCppURI):
+    def __init__(
+        self,
+        *,
+        scheme: Optional[str] = None,
+        host: Optional[str] = None,
+        port: Optional[str] = None,
+        headers: Optional[Dict[str, str]] = None,
+    ) -> None:
+        """
+        Create a request helper that talks to the local Llama-CPP REST endpoint.
+
+        :param scheme: str, optional
+            URL scheme (`http` or `https`). Defaults to `"http"`.
+        :param host: str, optional
+            Hostname/IP of the server. Default is `"127.0.0.1"` for a local instance.
+        :param port: str, optional
+            TCP port on which the endpoint listens; can be passed as an integer or string.
+            The default value is `8080` (matching Llama-CPP's built-in choice).
+        :param headers: dict[str, str] | None, optional
+            Extra HTTP headers to include with every request. If omitted a minimal header set
+            containing only `"Content-Type": "application/json"` is used.
+
+        See agent/config/__init__.py for details.
+        The instance builds the base URL lazily from *scheme*, *host* and *port*.
+        It also configures an internal logger via :pyfunc:`config.get_logger(key, name)`.
+        """
+        super().__init__(scheme=scheme, host=host, port=port, headers=headers)
+
+        cls_name = self.__class__.__name__
+        self.logger: Logger = config.get_logger("logger", cls_name)
+        self.logger.debug(f"Initialized {cls_name} instance.")
+
+    def _handle_response(self, response: requests.Response) -> Any:
+        """
+        Handle the HTTP response.
+
+        :param response: The HTTP response object.
+        :return: The parsed JSON response.
+        """
+        self.logger.debug(f"Received response with status {response.status_code}")
+        if not response.ok:
+            response.raise_for_status()
+
+        try:
+            return response.json()
+        except JSONDecodeError:  # json decode failed
+            return response.text
 
     def error(
         self, code: int, message: Union[str, Exception], type: str

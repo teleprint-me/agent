@@ -60,7 +60,6 @@ DEFAULT_CONF = {
         "jinja": True,
         "kv-unified": True,
         "verbose": False,
-        "port": "8080",
         "models-dir": "models",
         "pooling": "mean",
         "ctx-size": 0,
