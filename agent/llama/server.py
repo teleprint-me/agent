@@ -72,7 +72,7 @@ class LlamaCppServerCommand(Singleton):
 
     def execute(self, args: Optional[List[str]] = None) -> Popen:
         """Start a background process."""
-        self.logging.debug("Starting llama-server background process")
+        self.logger.debug("Starting llama-server background process")
 
         try:
             # Non-blocking, background process
