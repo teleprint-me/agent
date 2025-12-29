@@ -7,33 +7,47 @@
 **Note:** This is a personal toy project. I'm not expecting this to go anywhere
 special.
 
-## Layout
+## Status
+
+Agent is an evolving work in progress.
+
+Things to expect while using this software:
+
+- Unstable dependency management.
+- Broken packages, modules, or scripts.
+- Bleeding edge packages to enable latest features.
+- Limited flexibility or customizability.
+- Interfaces may appear as fast as they disappear.
 
 I'm currently in the process of merging older projects together directly into
 this one. Some modules may be entirely or partially broken. Some dependencies
 have issues.
 
+## Layout
+
 The primary sub-packages are:
 
-- cli: The main program.
 - config: Automated configuration.
 - llama: Core llama-server wrapper.
-- hf: Huggingface hub wrapper.
-- text: Text extraction utilities.
+- cli: The main program.
 - tools: Tools available to models.
-- examples: Usually where I prototype modules.
+- hf: Huggingface hub wrapper.
+- text/parser: Sturctured document parsing utilities.
+
+**Note:** The text and parser packages will be merged into a single package in the future.
 
 ## Future Plans
 
-- Automate llama.cpp setup and installation.
-- Automate model download and quantization.
-- Enable easy modification of application settings.
-- Refine support for tool-calling.
-- Add a basic vim-like text editor.
-- Add dynamic syntax highlighting.
-- Add basic auto-complete, fim, and chat support.
-- Add dynamic retrieval augmented generation.
-- Enable hot-swapping models for memory constrained environments.
+- [x] Automate llama.cpp setup and installation.
+- [x] Automate model download and quantization.
+- [ ] Enable easy modification of application settings.
+- [ ] Add basic completion, chat completion, and infill support.
+- [ ] Add dynamic retrieval augmented generation.
+- [ ] Enable hot-swapping models for memory constrained environments.
+- [ ] Refine support for tool-calling.
+- [ ] Add a basic vim-like text editor.
+- [ ] Add dynamic syntax highlighting.
+- [ ] Add basic auto-complete, linting, and formatting support.
 - And more.
 
 I have a lot of ideas, but I have no idea how I'm going to go about it. I'm
@@ -67,9 +81,16 @@ Then create and install the development environment.
 > It's good practice to review scripts before executing them.
 > You're encouraged to review the contents of requirements.sh script and its dependencies.
 
+The script will create a virtual environment, install the required dependencies, and then exit.
+
 ```sh
 chmod +x requirements.sh
 ./requirements.sh
+```
+
+Once the script has completed installing the required dependencies, you can activate the virtual environment.
+
+```sh
 source .venv/bin/activate
 ```
 
@@ -113,7 +134,7 @@ If you rely on the built-in auto-download behavior, expect:
 
 - Model files stored in hidden, hashed subdirectories
 - No control over the destination path
-- Potentially huge storage usage (10TB fills _fast_ when experimenting)
+- Potentially huge storage usage (storage space fills up _fast_ when experimenting)
 
 #### Recommended approach
 
@@ -136,7 +157,7 @@ The agent includes a convenience wrapper around `huggingface-hub` that:
 - writes weights to a user-specified directory
 - exposes a simple CLI for inspecting and downloading models
 
-No more digging through obscure HF cache directories.
+No more digging through obscure cache directories.
 
 Help:
 
@@ -185,23 +206,23 @@ locally.
 
 #### Raw, vendor-official weights
 
+- [qwen](https://huggingface.co/Qwen)
 - [openai](https://huggingface.co/openai)
 - [meta-llama](https://huggingface.co/meta-llama)
 - [google](https://huggingface.co/google)
 - [mistralai](https://huggingface.co/mistralai)
-- [Qwen](https://huggingface.co/Qwen)
 - [jinaai](https://huggingface.co/jinaai)
 
-#### FIM (fill-in-the-middle) models
+#### FIM (fill-in-the-middle, aka "infill") models
 
 - [Qwen/qwen25-coder](https://huggingface.co/collections/Qwen/qwen25-coder)
 - [Qwen/qwen3-coder](https://huggingface.co/collections/Qwen/qwen3-coder)
 
 #### Agentic models
 
+- [Qwen/qwen3](https://huggingface.co/collections/Qwen/qwen3)
 - [openai/gpt-oss](https://huggingface.co/collections/openai/gpt-oss)
 - [meta-llama/llama-32](https://huggingface.co/collections/meta-llama/llama-32)
-- [Qwen/qwen3](https://huggingface.co/collections/Qwen/qwen3)
 
 #### Embedding models
 
@@ -237,7 +258,7 @@ Example conversion:
 ```sh
 convert_hf_to_gguf.py \
     /mnt/models/openai/gpt-oss-20b \
-    --outfile /mnt/models/openai/gpt-oss-20b/ggml-model-f16.gguf \
+    --outfile /mnt/models/openai/gpt-oss-20b/gpt-oss-20b-f16.gguf \
     --outtype f16
 ```
 
@@ -245,8 +266,8 @@ You can further quantize the model. GPT-OSS supports MXFP4 and was tuned with FP
 
 ```sh
 llama-quantize \
-    /mnt/models/openai/gpt-oss-20b/ggml-model-f16.gguf \
-    /mnt/models/openai/gpt-oss-20b/ggml-model-f4.gguf \
+    /mnt/models/openai/gpt-oss-20b/gpt-oss-20b-f16.gguf \
+    /mnt/models/openai/gpt-oss-20b/gpt-oss-20b-f4.gguf \
     MXFP4_MOE
 ```
 
@@ -276,7 +297,7 @@ tree .agent
 .agent
 ├── history.log         # prompt/input history
 ├── messages.json       # recent chat history
-├── model.log           # model/server logs
+├── data.log            # server request-response logs
 ├── settings.json       # configuration settings
 └── storage.sqlite3     # agent storage database
 
@@ -345,7 +366,7 @@ Agent automatically launches and manages a `llama-server` instance. You do
 Example:
 
 ```sh
-python -m agent.cli --jinja --model /mnt/models/openai/gpt-oss-20b/ggml-model-q8_0.gguf
+python -m agent.cli /mnt/models/openai/gpt-oss-20b/gpt-oss-20b-f4.gguf
 ```
 
 On startup:
@@ -423,23 +444,18 @@ an initial interaction:
 ```sh
 rm -rf .agent
 
-python -m agent.cli \
-    --metrics \
-    --jinja \
-    --model /mnt/models/openai/gpt-oss-20b/ggml-model-q8_0.gguf \
-    --ctx-size 16384
+python -m agent.cli gpt-oss-20b-f4 --metrics
 ```
 
 Sample output (truncated):
 
 ```
-llama-server --port 8080 --ctx-size 16384 --n-gpu-layers 99 ...
-waiting for server
-Process id 158156
-Model Name gpt-oss-20b
-Model Path /mnt/models/openai/gpt-oss-20b/ggml-model-q8_0.gguf
-Vocab Size 201088
-Seq Len 16384/131072
+$ python -m agent.cli models/gpt-oss-20b-mxfp4.gguf
+Loading[..............]
+Process id  -> 1714850
+Model Alias -> gpt-oss-20b-mxfp4
+Model Path  -> models/gpt-oss-20b-mxfp4.gguf
+Max Seq Len -> 131072
 Created cache: .agent/messages.json
 
 system
