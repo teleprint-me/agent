@@ -83,10 +83,11 @@ DEFAULT_CONF = {
         "cache_prompt": True,
         "tools": tools,
     },
-    "models": {
-        "agent": "gpt-oss-20b-mxfp4",
-        "embedder": "qwen3-embedding-0.6b-q8_0",
-        "coder": "qwen25-coder-1.5b-f16",
+    "model": {
+        "chat": "gpt-oss-20b-mxfp4",
+        "embed": "qwen3-embedding-0.6b-q8_0",
+        "complete": "llama32-instruct-1b-q8_0",
+        "code": "qwen25-coder-1.5b-f16",
     },
 }
 
