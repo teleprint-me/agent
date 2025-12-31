@@ -1,5 +1,28 @@
+# agent/config/__init__.py
 """
-Module: agent.config.__init__
+This module provides configuration management for the agent framework. It implements a singleton pattern
+for accessing global settings that define sane defaults for users.
+
+Configuration Management:
+- Loads JSON files from .agent/*.json
+- Supports environment variable overrides
+- Allows runtime reloading of configurations
+- Provides access to nested configuration values
+
+Key Configuration Paths:
+    DEFAULT_PATH_LOGS = ".agent/data.log"
+    DEFAULT_PATH_CONF = ".agent/settings.json"
+    DEFAULT_PATH_MSGS = ".agent/messages.json"
+    DEFAULT_PATH_STOR = ".agent/storage.sqlite3"
+    DEFAULT_PATH_HIST = ".agent/history.log"
+
+Configuration Structure:
+The default configuration defines settings for logging, history tracking,
+database storage, message handling, system behavior, shell access, and
+server parameters. All values are accessed through a singleton instance:
+
+Example usage:
+model_path = config.get_value("server.models-dir")   # → "/mnt/models"
 """
 
 from jsonpycraft import (
@@ -110,6 +133,15 @@ DEFAULT_CONF = {
 
 
 def load_or_init_config(path: str, defaults: JSONMap) -> ConfigurationManager:
+    """Initialize the configuration manager with default settings.
+
+    Args:
+        path: Path to the configuration file
+        defaults: Default configuration values
+
+    Returns:
+        A ConfigurationManager instance initialized with the specified settings
+    """
     config = ConfigurationManager(path, initial_data=defaults)
 
     try:
