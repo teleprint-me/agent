@@ -4,6 +4,7 @@ Shell access tool for the agent framework. This module provides safe shell comma
 with strict access control and security considerations.
 
 Security Model:
+
 The system follows a "security by default" principle where all operations are restricted to basic utilities.
 Access can be safely modified or disabled based on user requirements, but should always follow
 the Principle of Least Privilege to minimize risks.
@@ -31,6 +32,7 @@ Security Warnings:
        https://futurism.com/artificial-intelligence/google-ai-deletes-entire-drive
 
 Allowed Commands:
+
 - Basic system utilities: date, ls, lsblk, lspci, touch
 - File operations: cat, head, tail, grep, find
 - Environment management: printenv, git
