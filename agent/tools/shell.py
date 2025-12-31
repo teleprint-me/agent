@@ -2,13 +2,15 @@
 """
 Warning: Running untrusted code is never safe - sandboxing cannot change this.
 See https://wiki.archlinux.org/title/Firejail for sandboxing.
+Warning: Agents should be given the least amount privilege possible.
+See https://unix.stackexchange.com/q/219922 for setting up a user for agents.
 
 My current idea is to:
 - Create a group named `agent`.
 - `chown`/`chmod` the scope to the group.
 - Enable permissions for the agent to access allowed CLI tools.
 
-This has its own risks, e.g. privelage escalation, destructive actions, impersonation, etc.
+This has its own risks, e.g. privilege escalation, destructive actions, impersonation, etc.
 Limiting the behavior here is crucial to ensure the environment remains secure by default.
 
 Models may hallucinate or become creative in problem solving taking unexpected paths to achieve a goal.
@@ -26,16 +28,15 @@ Piping commands safely is possible without enabling the shell. It's a bit involv
     output = subprocess.check_output(('grep', 'process_name'), stdin=ps.stdout)
     ps.wait()
 
-
 2. https://stackoverflow.com/a/9164238/15147156
 
     some_string = b'input_data'
-
     sort_out = open('outfile.txt', 'wb', 0)
     sort_in = subprocess.Popen('sort', stdin=subprocess.PIPE, stdout=sort_out).stdin
-    subprocess.Popen(['awk', '-f', 'script.awk'], stdout=sort_in,
-                    stdin=subprocess.PIPE).communicate(some_string)
-
+    subprocess.Popen(
+        ['awk', '-f', 'script.awk'],
+        stdout=sort_in,
+        stdin=subprocess.PIPE).communicate(some_string)
 """
 
 import json
