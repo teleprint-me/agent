@@ -43,7 +43,7 @@ import shlex
 import subprocess
 
 
-def _allow_list() -> List[str]:
+def _allow_list() -> list[str]:
     from agent.config import config
 
     return config.get_value("shell.allowed", [])
@@ -57,7 +57,7 @@ def shell_allowed() -> str:
 
 
 def shell_run(command: str) -> str:
-    allowed = config.get_value("shell.allowed", [])
+    allowed = _allow_list()
 
     try:
         args = shlex.split(command)
