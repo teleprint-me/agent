@@ -1,44 +1,64 @@
 # agent/tools/shell.py
 """
-Warnings:
-- Running untrusted code is never safe - sandboxing cannot change this.
-    - See https://wiki.archlinux.org/title/Firejail for sandboxing.
-- Agents should be given the least amount privilege possible.
-    - See https://unix.stackexchange.com/q/219922 for creating users for agents.
-- Models may become creative in problem solving taking unexpected paths to achieve a goal.
-    - See https://arxiv.org/abs/2502.13295 for gaming in reasoning models.
-- Models may halluciante and perform destructive actions.
-    - See https://tinyurl.com/muyvhrxn gemeni deleting user contents.
+Shell access tool for the agent framework. This module provides safe shell command execution
+with strict access control and security considerations.
 
-The general idea for system wide access is to:
-- Create a group named llama and a user named agent. i.e. agent belongs to the llama group.
-- Enable permissions for the agent to access shared resources. e.g. a user and agent share a group and drive.
+Security Model:
+The system follows a "security by default" principle where all operations are restricted to basic utilities.
+Access can be safely modified or disabled based on user requirements, but should always follow
+the Principle of Least Privilege to minimize risks.
 
-Enabling shell access has its risks, e.g. privilege escalation, destructive actions, impersonation, etc.
-Limiting the behavior here is crucial to ensure the environment remains secure by default.
+Security Warnings:
 
-- Under no circumstance should the shell option ever be set to True.
-- Users should not enable destructive actions such as rm, rmdir, etc.
-- Piping must be parsed and handled appropriately to limit scope.
-- Commands should be limited to what is allowed and optionally disabled.
+1. **Arbitrary code execution risk**
+   - Running untrusted code is never safe, sandboxing cannot change this.
+     - See Firejail for sandboxing solutions:
+       https://wiki.archlinux.org/title/Firejail
 
-Piping commands safely is possible without enabling the shell. It's a bit involved though.
+2. **Principle of Least Privilege**
+   - Agents should operate with minimal permissions to reduce attack surfaces.
+     - Set up dedicated user accounts:
+       https://unix.stackexchange.com/q/219922
 
-1. https://stackoverflow.com/a/13332300/15147156
+3. **Model creativity and unexpected behavior**
+   - Models may explore creative solutions that deviate from expected paths.
+     - Research on reasoning model behaviors:
+       https://arxiv.org/abs/2502.13295
 
-    ps = subprocess.Popen(('ps', '-A'), stdout=subprocess.PIPE)
-    output = subprocess.check_output(('grep', 'process_name'), stdin=ps.stdout)
-    ps.wait()
+4. **Hallucination and destructive actions**
+   - Models can generate false information or perform unintended operations.
+     - Real-world example of Gemini deleting user data in production:
+       https://futurism.com/artificial-intelligence/google-ai-deletes-entire-drive
 
-2. https://stackoverflow.com/a/9164238/15147156
+Allowed Commands:
+- Basic system utilities: date, ls, lsblk, lspci, touch
+- File operations: cat, head, tail, grep, find
+- Environment management: printenv, git
 
-    some_string = b'input_data'
-    sort_out = open('outfile.txt', 'wb', 0)
-    sort_in = subprocess.Popen('sort', stdin=subprocess.PIPE, stdout=sort_out).stdin
-    subprocess.Popen(
-        ['awk', '-f', 'script.awk'],
-        stdout=sort_in,
-        stdin=subprocess.PIPE).communicate(some_string)
+Access Control Notes:
+
+- Shell access is controlled by a predefined list of allowed commands
+- Users can disable shell access by setting an empty list in the configuration
+- Piped commands are handled securely through subprocess chaining (see implementation notes)
+
+Implementation Details:
+
+1. **Sandboxing**:
+   - Commands are executed with strict security settings
+   - Running untrusted code is never safe, sandboxing cannot change this
+
+2. **Piping Support**:
+   - Safe handling of piped commands via subprocess chaining
+     https://stackoverflow.com/a/295564/15147156
+
+3. **Privilege Management**:
+   - Commands are restricted to basic utilities for safety
+   - Users should not enable destructive operations like `rm`, `rmdir`
+   - If removal is desired, you can use something like trash-cli.
+     trash-cli is a command line trashcan (recycle bin) interface
+
+The shell tool is designed to be used responsibly and safely.
+Never enable unrestricted access in production environments.
 """
 
 import json
