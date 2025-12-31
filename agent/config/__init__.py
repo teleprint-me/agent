@@ -44,6 +44,23 @@ DEFAULT_CONF = {
         "content": style_dark,
         "type": "dict",
     },
+    "shell": {
+        "allowed": [
+            "date",
+            "ls",
+            "lsblk",
+            "lspci",
+            "touch",
+            "cat",
+            "head",
+            "tail",
+            "grep",
+            "find",
+            "printenv",
+            "git",
+        ],
+        "type": "list",
+    },
     "requests": {
         "scheme": "http",
         "host": "127.0.0.1",

@@ -30,8 +30,25 @@ utilities = [
     {
         "type": "function",
         "function": {
-            "name": "shell",
-            "description": "Run a limited, safe shell command. Only specific commands are allowed (e.g., date, tree, ls, cat, head, tail, grep, git). Returns the output or an error message.",
+            "name": "shell_allowed",
+            "description": (
+                "Return the list of shell commands that are currently allowed "
+                "(e.g. `ls`, `cat`). This is a simple read-only query."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "additionalProperties": False,
+            },
+            "strict": True,
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "shell_run",
+            "description": "Run a safe shell command. Returns the output, if any, or an error message.",
             "parameters": {
                 "type": "object",
                 "properties": {
