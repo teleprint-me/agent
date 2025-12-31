@@ -1,19 +1,21 @@
 # agent/tools/shell.py
 """
-Warning: Running untrusted code is never safe - sandboxing cannot change this.
-See https://wiki.archlinux.org/title/Firejail for sandboxing.
-Warning: Agents should be given the least amount privilege possible.
-See https://unix.stackexchange.com/q/219922 for setting up a user for agents.
+Warnings:
+- Running untrusted code is never safe - sandboxing cannot change this.
+    - See https://wiki.archlinux.org/title/Firejail for sandboxing.
+- Agents should be given the least amount privilege possible.
+    - See https://unix.stackexchange.com/q/219922 for creating users for agents.
+- Models may become creative in problem solving taking unexpected paths to achieve a goal.
+    - See https://arxiv.org/abs/2502.13295 for gaming in reasoning models.
+- Models may halluciante and perform destructive actions.
+    - See https://tinyurl.com/muyvhrxn gemeni deleting user contents.
 
-My current idea is to:
-- Create a group named `agent`.
-- `chown`/`chmod` the scope to the group.
-- Enable permissions for the agent to access allowed CLI tools.
+The general idea for system wide access is to:
+- Create a group named llama and a user named agent. i.e. agent belongs to the llama group.
+- Enable permissions for the agent to access shared resources. e.g. a user and agent share a group and drive.
 
-This has its own risks, e.g. privilege escalation, destructive actions, impersonation, etc.
+Enabling shell access has its risks, e.g. privilege escalation, destructive actions, impersonation, etc.
 Limiting the behavior here is crucial to ensure the environment remains secure by default.
-
-Models may hallucinate or become creative in problem solving taking unexpected paths to achieve a goal.
 
 - Under no circumstance should the shell option ever be set to True.
 - Users should not enable destructive actions such as rm, rmdir, etc.
