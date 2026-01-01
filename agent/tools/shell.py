@@ -116,6 +116,7 @@ def shell_run(command: str) -> str:
 
 # usage example
 # figure out how to safely handle piped commands
+# conditionals should be allowed for added flexibility and proper error handling
 # the downside to this is that tree-sitter only officially supports bash
 # the upside to this is that i don't have to reinvent yet another parser
 # shlex is very limited and manually parsing split is error prone
