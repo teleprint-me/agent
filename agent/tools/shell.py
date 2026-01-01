@@ -67,31 +67,32 @@ import json
 import shlex
 import subprocess
 
-import tree_sitter
 import tree_sitter_bash
-from tree_sitter import Node
+from tree_sitter import Language, Node, Parser
 
 
+# warning: sets are not json serializable!
 def _allow_list() -> set[str]:
     from agent.config import config
 
     return set(config.get_value("shell.allowed", []))
 
 
+# warning: ensure the object dump is a list!
 def shell_allowed() -> str:
     allowed = _allow_list()
     if not allowed:
         return "Shell commands are disabled."
-    return json.dumps(allowed, indent=2)
+    return json.dumps(list(allowed), indent=2)
 
 
 def _parse_command(command: str) -> Node:
     # capsule is a void* object
     capsule = tree_sitter_bash.language()
     # get the language from the capsule
-    language = tree_sitter.Language(capsule)
+    language = Language(capsule)
     # create the parser from the language instance
-    parser = tree_sitter.Parser(language)
+    parser = Parser(language)
     # finally, generate the abstract syntax tree
     tree = parser.parse(command.encode())
     # and return the root node within that tree
@@ -141,6 +142,7 @@ if __name__ == "__main__":
     cmd = " ".join(sys.argv[1:]) or "echo 'hello world' | wc -m"
 
     node = _parse_command(cmd)
+    print(f"children: {node.child_count}")
     # output nodes for now
     for child in node.children:
-        print(child)
+        print(child.text)
