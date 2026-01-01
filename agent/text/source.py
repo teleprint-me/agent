@@ -11,8 +11,9 @@ from argparse import ArgumentParser
 from pathlib import Path
 from typing import Iterable, List, Set
 
-from agent.parser import loader
 from tree_sitter import Node, Tree
+
+from agent.text import sitter
 
 # What counts as an “import” in the languages we support
 # If you add a new grammar (e.g. Rust, Go, JS) just add its import node type
@@ -119,7 +120,7 @@ if __name__ == "__main__":  # pragma: no cover
     ap.add_argument("path", help="Path to a supported source file")
     args = ap.parse_args()
 
-    tree = loader.get_tree(args.path)
+    tree = sitter.get_tree(args.path)
     if tree is None:
         print(
             "Could not parse – unsupported language or missing parser.", file=sys.stderr
