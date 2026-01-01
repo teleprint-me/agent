@@ -1,7 +1,8 @@
 # agent/config/__init__.py
 """
-This module provides configuration management for the agent framework. It implements a singleton pattern
-for accessing global settings that define sane defaults for users.
+This module provides configuration management for the agent framework.
+It implements a singleton pattern for accessing global settings that define
+sane defaults for users.
 
 Configuration Management:
 - Loads JSON files from .agent/*.json
@@ -9,20 +10,16 @@ Configuration Management:
 - Allows runtime reloading of configurations
 - Provides access to nested configuration values
 
-Key Configuration Paths:
-    DEFAULT_PATH_LOGS = ".agent/data.log"
-    DEFAULT_PATH_CONF = ".agent/settings.json"
-    DEFAULT_PATH_MSGS = ".agent/messages.json"
-    DEFAULT_PATH_STOR = ".agent/storage.sqlite3"
-    DEFAULT_PATH_HIST = ".agent/history.log"
-
 Configuration Structure:
 The default configuration defines settings for logging, history tracking,
 database storage, message handling, system behavior, shell access, and
-server parameters. All values are accessed through a singleton instance:
+server parameters.
 
 Example usage:
-model_path = config.get_value("server.models-dir")   # → "/mnt/models"
+    # All values are accessed through a singleton instance
+    config = ConfigurationManager(file_path, initial_data={"server": {}}, indent=2)
+    config.set_value("server.models-dir", "/mnt/models")
+    model_path = config.get_value("server.models-dir")   # -> "/mnt/models"
 """
 
 from jsonpycraft import (
@@ -35,11 +32,12 @@ from jsonpycraft import (
 from agent.config.style import style_dark
 from agent.tools import tools
 
-DEFAULT_PATH_LOGS = ".agent/data.log"
-DEFAULT_PATH_CONF = ".agent/settings.json"
-DEFAULT_PATH_MSGS = ".agent/messages.json"
-DEFAULT_PATH_STOR = ".agent/storage.sqlite3"
-DEFAULT_PATH_HIST = ".agent/history.log"
+DEFAULT_PATH_CACH = ".agent"
+DEFAULT_PATH_MSGS = f"{DEFAULT_PATH_CACH}/messages"
+DEFAULT_PATH_CONF = f"{DEFAULT_PATH_CACH}/settings.json"
+DEFAULT_PATH_LOGS = f"{DEFAULT_PATH_CACH}/data.log"
+DEFAULT_PATH_HIST = f"{DEFAULT_PATH_CACH}/history.log"
+DEFAULT_PATH_STOR = f"{DEFAULT_PATH_CACH}/storage.sqlite3"
 
 DEFAULT_CONF = {
     "logger": {
@@ -57,7 +55,7 @@ DEFAULT_CONF = {
     },
     "messages": {
         "path": DEFAULT_PATH_MSGS,
-        "type": "file",
+        "type": "dir",
     },
     "system": {
         "content": "My name is ChatGPT. I am a helpful assistant.",

@@ -5,7 +5,8 @@ import subprocess
 import sys
 import time
 import traceback
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -139,26 +140,42 @@ def run_agent(
         messages.append(message)
 
 
-def build_parser() -> ArgumentParser:
+def parse_args() -> Namespace:
     parser = ArgumentParser(description="Run a selected agent by its router id.")
     parser.add_argument("model", help="Path to the model file")
-    parser.add_argument("--port", default="8080", help="Selected port (default: 8080)")
     parser.add_argument(
-        "--metrics", action="store_true", help="Enable stats (default: False)"
+        "--host",
+        default="127.0.0.1",
+        help="Host address (default: 127.0.0.1)",
     )
-    return parser
+    parser.add_argument(
+        "--port",
+        default="8080",
+        help="Port number (default: 8080)",
+    )
+    parser.add_argument(
+        "--session",
+        default=None,
+        help="Selected chat context (default: timestamped)",
+    )
+    parser.add_argument(
+        "--metrics",
+        action="store_true",
+        help="Output token-usage (default: False)",
+    )
+    return parser.parse_args()
 
 
 if __name__ == "__main__":
-    parser = build_parser()
-    args = parser.parse_args()
+    args = parse_args()
 
+    # exit early if server is not in users path
     if shutil.which("llama-server") is None:
         print("llama-server is not in $PATH")
         exit(1)
 
     # get(), post(), or stream() (configures host and port)
-    request = LlamaCppRequest(port=args.port)  # This is a singleton
+    request = LlamaCppRequest(host=args.host, port=args.port)  # This is a singleton
     # start(), stop(), or restart() (inherits host and port from request)
     server = LlamaCppServer(request)  # This is a singleton
     # load() or unload() a model
@@ -173,6 +190,7 @@ if __name__ == "__main__":
     if not server.start():  # optionally accepts args (overrides internal config)
         raise RuntimeError("Failed to start server")
 
+    # make sure the model id is registered with the server!
     model = str(Path(args.model).stem)
     if model not in router.ids:  # model ref does not exist
         print(f"[Model Identifiers]")
@@ -181,16 +199,31 @@ if __name__ == "__main__":
         server.stop()
         raise ValueError(f"Invalid model selected: {model}")
 
+    # output status
     print("Loading", end="")
     router.load(model)
 
-    print(f"Process id  -> {server.pid}")
-    print(f"Model Alias -> {properties.alias(model)}")
-    print(f"Model Path  -> {properties.path(model)}")
-    print(f"Max Seq Len -> {properties.max_seq_len(model)}")
+    # output related server and model metadata
+    max_seq_len = properties.max_seq_len(model)
+    print(f"pid         -> {server.pid}")
+    print(f"alias       -> {properties.alias(model)}")
+    print(f"path        -> {properties.path(model)}")
+    print(f"max seq len -> {max_seq_len}")
+    print(f"ctx size    -> {config.get_value('server.ctx-size', max_seq_len)}")
 
+    # set up the path to the current chat session
+    messages_path = config.get_value("messages.path", DEFAULT_PATH_MSGS)
+    if args.session:
+        messages_path = f"{messages_path}/{args.session}.json"
+        print(f"session     -> {args.session}")
+    else:
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        messages_path = f"{messages_path}/{timestamp}.json"
+        print(f"session     -> {timestamp}")
+
+    # create the chat context
     messages = JSONListTemplate(
-        config.get_value("messages.path", DEFAULT_PATH_MSGS),
+        messages_path,
         initial_data=[
             {
                 "role": "system",
@@ -200,17 +233,20 @@ if __name__ == "__main__":
     )
     messages.mkdir()
 
+    # if chat context exists, load it, else create a new one
     try:
         messages.load_json()
-        print(f"Loaded cache: {messages.file_path}\n")
+        print(f"loaded      -> {messages.file_path}\n")
     except JSONFileErrorHandler:
         messages.save_json()
-        print(f"Created cache: {messages.file_path}\n")
+        print(f"created     -> {messages.file_path}\n")
 
+    # create i/o context for user and model
     session = PromptSession(history=FileHistory(config.get_value("history.path")))
     registry = ToolRegistry()
     memory_initialize()
 
+    # output the chat context if it previously existed
     for message in messages.data:
         role = message.get("role")
         content = message.get("content")
@@ -257,7 +293,7 @@ if __name__ == "__main__":
                 print(f"\n{BOLD}metrics{RESET}:")
                 print(f"  prompt tokens    +{dp}")
                 print(f"  generated tokens +{dg}")
-                print(f"  total: {prompt + generated}/{properties.max_seq_len(model)}")
+                print(f"  total: {prompt + generated}/{max_seq_len}")
                 print()  # add padding
         except EOFError:  # Pop the last message
             print(f"\n{BOLD}Popped:{RESET}")
