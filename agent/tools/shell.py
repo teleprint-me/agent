@@ -67,11 +67,14 @@ import json
 import shlex
 import subprocess
 
+import tree_sitter
+import tree_sitter_bash
 
-def _allow_list() -> list[str]:
+
+def _allow_list() -> set[str]:
     from agent.config import config
 
-    return config.get_value("shell.allowed", [])
+    return set(config.get_value("shell.allowed", []))
 
 
 def shell_allowed() -> str:
@@ -109,3 +112,27 @@ def shell_run(command: str) -> str:
         return result
     except Exception as e:
         return f"Error: {str(e)}"
+
+
+# usage example
+# figure out how to safely handle piped commands
+# the downside to this is that tree-sitter only officially supports bash
+# the upside to this is that i don't have to reinvent yet another parser
+# shlex is very limited and manually parsing split is error prone
+# getting an automated AST can (hopefully) make life easier
+if __name__ == "__main__":
+    import sys
+
+    cmd = " ".join(sys.argv[1:]) or "echo 'hello world' | wc -m"
+
+    # void* language object
+    capsule = tree_sitter_bash.language()
+    # generate the language from the capsule
+    language = tree_sitter.Language(capsule)
+    # create the parser from the language instance
+    parser = tree_sitter.Parser(language)
+    # finally, get the tree
+    tree = parser.parse(cmd.encode())
+    # output nodes for now
+    for node in tree.root_node.children:
+        print(node)
