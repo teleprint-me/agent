@@ -3,6 +3,7 @@
 *.pkg.tar.zst
 *.pkg.tar.zst.sig
 tags
+casts/*.cast
 
 # Paths
 .agent/

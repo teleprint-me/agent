@@ -4,10 +4,9 @@
 
 **Agent** is a frontend CLI client for the llama.cpp REST API.
 
-![GPT-3.5 Turbo Demo](demo.gif)
+### CLI Demo
 
-**Note:** This is a personal toy project. I'm not expecting this to go anywhere
-special.
+![GPT-OSS-20B CLI Demo](casts/cli.gif)
 
 ## Status
 
@@ -125,6 +124,10 @@ command -v llama-server
 You should see the absolute path to the binary.
 
 ### model downloads
+
+#### Download Demo
+
+![HuggingFace Hub CLI Demo](casts/hf.gif)
 
 Both **huggingface-hub** and **llama-server** hide downloaded weights behind an
 internal cache path. The directories are hashed, symlinked, and usually live
@@ -282,6 +285,10 @@ now the cache path is fixed, but future versions will allow custom paths.
 
 The configuration system initializes the agent with sensible defaults, and you
 can modify any of the settings through the CLI.
+
+#### Config Demo
+
+![Config CLI Demo](casts/config.gif)
 
 #### Configuration CLI
 
