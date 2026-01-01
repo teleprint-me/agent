@@ -4,6 +4,8 @@
 
 **Agent** is a frontend CLI client for the llama.cpp REST API.
 
+![GPT-3.5 Turbo Demo](demo.gif)
+
 **Note:** This is a personal toy project. I'm not expecting this to go anywhere
 special.
 
