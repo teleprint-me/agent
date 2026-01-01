@@ -69,6 +69,7 @@ import subprocess
 
 import tree_sitter
 import tree_sitter_bash
+from tree_sitter import Node
 
 
 def _allow_list() -> set[str]:
@@ -82,6 +83,19 @@ def shell_allowed() -> str:
     if not allowed:
         return "Shell commands are disabled."
     return json.dumps(allowed, indent=2)
+
+
+def _parse_command(command: str) -> Node:
+    # capsule is a void* object
+    capsule = tree_sitter_bash.language()
+    # get the language from the capsule
+    language = tree_sitter.Language(capsule)
+    # create the parser from the language instance
+    parser = tree_sitter.Parser(language)
+    # finally, generate the abstract syntax tree
+    tree = parser.parse(command.encode())
+    # and return the root node within that tree
+    return tree.root_node
 
 
 def shell_run(command: str) -> str:
@@ -126,14 +140,7 @@ if __name__ == "__main__":
 
     cmd = " ".join(sys.argv[1:]) or "echo 'hello world' | wc -m"
 
-    # void* language object
-    capsule = tree_sitter_bash.language()
-    # generate the language from the capsule
-    language = tree_sitter.Language(capsule)
-    # create the parser from the language instance
-    parser = tree_sitter.Parser(language)
-    # finally, get the tree
-    tree = parser.parse(cmd.encode())
+    node = _parse_command(cmd)
     # output nodes for now
-    for node in tree.root_node.children:
-        print(node)
+    for child in node.children:
+        print(child)
