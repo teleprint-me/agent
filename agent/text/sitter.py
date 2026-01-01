@@ -1,14 +1,14 @@
 # agent/parser/loader.py
 """
-Utilities for loading Tree‑Sitter languages, parsers, and trees.
+Utilities for loading Tree-Sitter languages, parsers, and trees.
 
 Public helpers
 --------------
-* :func:`get_language` – Return a :class:`tree_sitter.Language` instance for a file.
-* :func:`get_parser`   – Return a fresh :class:`tree_sitter.Parser` configured for the file.
-* :func:`get_tree`     – Convenience: parse a file and return a :class:`tree_sitter.Tree`.
+* :func:`get_language` - Return a :class:`tree_sitter.Language` instance for a file.
+* :func:`get_parser`   - Return a fresh :class:`tree_sitter.Parser` configured for the file.
+* :func:`get_tree`     - Convenience: parse a file and return a :class:`tree_sitter.Tree`.
 
-All helpers are lightweight and cache the immutable `Language`` objects
+All helpers are lightweight and cache the immutable `Language` objects
 internally via :func:`functools.lru_cache`.
 """
 
@@ -16,8 +16,8 @@ import importlib
 import importlib.metadata
 import importlib.util
 import sys
-from pathlib import Path
 from functools import lru_cache
+from pathlib import Path
 from typing import Any, Optional, Union
 
 # `tree_sitter` 2.x+ ships a C extension that exposes a `language()` function.
@@ -30,8 +30,8 @@ except (ModuleNotFoundError, ImportError):  # pragma: no cover
 
 from tree_sitter import Language, Parser, Tree
 
-# Extension: tree‑sitter package name mapping
-# Note: Markdown & LaTeX are not supported by tree‑sitter.
+# Extension: tree-sitter package name mapping
+# Note: Markdown & LaTeX are not supported by tree-sitter.
 _EXT_TO_PKG = {
     ".c": "c",
     ".h": "c",
@@ -51,7 +51,7 @@ _EXT_TO_PKG = {
 
 def _module_name_for_path(path: Union[str, Path]) -> Optional[str]:
     """
-    Convert a file path into the name of the tree‑sitter package
+    Convert a file path into the name of the tree-sitter package
     that implements the language.
 
     Parameters
@@ -62,7 +62,7 @@ def _module_name_for_path(path: Union[str, Path]) -> Optional[str]:
     Returns
     -------
     str | None
-        The import‑able package name (e.g. `"tree_sitter_c"`) or
+        The import-able package name (e.g. `"tree_sitter_c"`) or
         `None` if the extension is unknown.
     """
     suffix = Path(path).suffix.lower()
@@ -79,7 +79,7 @@ def _capsule_for_name(name: str) -> Optional[CapsuleType]:
     ----------
     name
         Importable module name, e.g. `"tree_sitter_c"`.  Must be
-        non‑empty.
+        non-empty.
 
     Returns
     -------
@@ -118,7 +118,7 @@ def get_parser(path: Union[str, Path]) -> Optional[Parser]:
     """
     Create a fresh :class:`tree_sitter.Parser` for the language of *path*.
 
-    A new `Parser` instance is returned each time – this is intentional
+    A new `Parser` instance is returned each time - this is intentional
     because parsers hold mutable state that is useful when editing a file
     incrementally.
     """
@@ -157,7 +157,7 @@ __all__ = ["get_language", "get_parser", "get_tree"]
 if __name__ == "__main__":
     from argparse import ArgumentParser
 
-    parser = ArgumentParser(description="Parse a source file with tree‑sitter.")
+    parser = ArgumentParser(description="Parse a source file with tree-sitter.")
     parser.add_argument("path", help="Path to a plain text source file")
     args = parser.parse_args()
 
