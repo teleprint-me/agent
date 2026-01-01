@@ -1,3 +1,4 @@
+# agent/cli/__main__.py
 import json
 import os
 import shutil
@@ -27,10 +28,41 @@ from agent.llama.client import (
 from agent.tools.memory import memory_initialize
 from agent.tools.registry import ToolRegistry
 
+# ---- 8-bit escape helpers ------------------------------------
+
+# Special sequences
 ESCAPE = "\x1b"
-RESET = ESCAPE + "[0m"
-BOLD = ESCAPE + "[1m"
-UNDERLINE = ESCAPE + "[4m"
+RESET = f"{ESCAPE}[0m"
+
+# Typesetting
+BOLD = f"{ESCAPE}[1m"
+UNDERLINE = f"{ESCAPE}[4m"
+
+
+# ---- 8‑bit colour helpers ------------------------------------
+
+
+def fg_256(n: int) -> str:
+    """Return a foreground escape sequence for the given 0-255 code."""
+    return f"{ESCAPE}[38;5;{n}m"
+
+
+def bg_256(n: int) -> str:
+    """Return a background escape sequence for the given 0-255 code."""
+    return f"{ESCAPE}[48;5;{n}m"
+
+
+# Background colors
+BG_MATTE = bg_256(233)
+
+# Foreground colors
+FG_RED = fg_256(196)  # bright red
+FG_GREEN = fg_256(46)  # green‑y teal
+FG_YELLOW = fg_256(226)  # bright yellow
+FG_BLUE = fg_256(33)  # teal-ish blue
+FG_GOLD = fg_256(214)  # orange-ish yellow
+
+# ---------------------------------------------------------------
 
 
 def classify_tool(
@@ -110,11 +142,11 @@ def run_agent(
             print(event["reasoning"], end="")
         elif event.get("reasoning.open"):
             message["content"] += event["reasoning.open"]
-            print(f"\n{BOLD}thinking{RESET}")
+            print(f"\n{BOLD}{FG_BLUE}thinking{RESET}")
             print(event["reasoning.open"], end="")
         elif event.get("reasoning.close"):
             message["content"] += event["reasoning.close"]
-            print(f"\n\n{BOLD}completion{RESET}")
+            print(f"\n\n{BOLD}{FG_GREEN}completion{RESET}")
         elif event.get("content"):
             message["content"] += event["content"]
             print(event["content"], end="")
@@ -131,7 +163,7 @@ def run_agent(
             tool_call_pending = True
 
             # Temp: Debug tool calling
-            print(f"{UNDERLINE}{BOLD}{event['tool_call']}{RESET}")
+            print(f"{BOLD}{FG_GOLD}{event['tool_call']}{RESET}")
             print(tool_res["content"])
 
         sys.stdout.flush()
@@ -251,15 +283,17 @@ if __name__ == "__main__":
         role = message.get("role")
         content = message.get("content")
         tool_calls = message.get("tool_calls")
-        if role:
-            print(f"{BOLD}{role}{RESET}")
+        if role == "user":
+            print(f"{BOLD}{FG_YELLOW}{role}{RESET}")
+        if role == "assistant":
+            print(f"{BOLD}{FG_GREEN}{role}{RESET}")
         if content:
             print(f"{content.strip()}\n")
         if tool_calls:
             for call in tool_calls:
                 name = call["function"]["name"]
                 arguments = call["function"]["arguments"]
-                print(f"{BOLD}{name}({arguments}){RESET}\n")
+                print(f"{BOLD}{FG_GOLD}{name}({arguments}){RESET}\n")
 
     previous_prompt = 0
     previous_gen = 0
