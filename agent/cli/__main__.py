@@ -28,7 +28,8 @@ from agent.llama.client import (
 from agent.tools.memory import memory_initialize
 from agent.tools.registry import ToolRegistry
 
-# ---- 8-bit escape helpers ------------------------------------
+# --- 8-bit render helpers ---
+# https://en.wikipedia.org/wiki/ANSI_escape_code#Select_Graphic_Rendition_parameters
 
 # Special sequences
 ESCAPE = "\x1b"
@@ -39,7 +40,8 @@ BOLD = f"{ESCAPE}[1m"
 UNDERLINE = f"{ESCAPE}[4m"
 
 
-# ---- 8‑bit colour helpers ------------------------------------
+# --- 8‑bit colour helpers ---
+# https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit
 
 
 def fg_256(n: int) -> str:
@@ -62,7 +64,7 @@ FG_YELLOW = fg_256(226)  # bright yellow
 FG_BLUE = fg_256(33)  # teal-ish blue
 FG_GOLD = fg_256(214)  # orange-ish yellow
 
-# ---------------------------------------------------------------
+# --- model output classifiers ---
 
 
 def classify_tool(
