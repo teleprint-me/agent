@@ -1,0 +1,100 @@
+# agent/text/bash.py
+"""
+keep this as dead simple as possible
+"""
+
+import tree_sitter_bash
+from tree_sitter import Language, Node, Parser, Query, QueryCursor, Tree
+
+# --- samples ---
+
+# it's okay if any of the following are unused
+
+# simple one-liner
+command = r'echo "Hello, World!"'
+
+# simple pipe to count n chars
+pipeline = r'echo "Hello, world!" | wc -c'
+
+# simple script pretending to be a real program 🥲
+script = r"""
+# foo.sh – a tiny demo shell
+if [ -z "$1" ]; then
+    name="User"
+else
+    name="$1"
+fi
+
+function greet() {
+    echo "Greetings and salutations!"
+}
+
+function insult() {
+    echo "Eat my shorts, $1!"
+}
+
+function farewell() {
+    echo "It was nice meeting you!"
+}
+
+foo=$(greet)
+echo "$foo"
+
+bar=$(insult "$name")
+echo "$bar"
+
+baz=$(farewell)
+echo "$baz"
+"""
+
+# --- query ---
+
+# match any "echo" command and capture the string literal that follows
+# keep this generic for now
+query_source = r"""
+(
+    (command) @command_name
+)
+"""
+
+# --- functions ---
+
+
+def language() -> Language:
+    # get the PyObject* language binding
+    capsule = tree_sitter_bash.language()
+    # create the language instance object
+    return Language(capsule)
+
+
+def tree(source: str) -> Tree:
+    # create the language parser
+    parser = Parser(language())
+    # Tree‑Sitter expects bytes; utf8 is fine for shell scripts.
+    return parser.parse(source.encode("utf-8"))
+
+
+def walk(node: Node, depth: int = 0):
+    """Pretty-print a small subtree."""
+    indent = "  " * depth
+    # Show only the first 30 bytes of text so the output stays readable.
+    txt = node.text[:30].decode("utf8", errors="replace")
+    print(f"{indent}{node.type:2} ({txt!r})")
+
+    for child in node.children:
+        walk(child, depth + 1)
+
+
+# --- run ---
+
+root = tree(pipeline).root_node
+walk(root, depth=0)
+query = Query(language(), query_source)
+cursor = QueryCursor(query)
+captures = cursor.captures(root)
+print(f"Captured ({type(captures)}):")
+for key in captures:
+    nodes = captures["command_name"]
+    print(f"{key}: {len(nodes)} nodes: {nodes}")
+    for node in nodes:
+        print(node.text.decode("utf8"))
