@@ -10,12 +10,18 @@ from tree_sitter import Language, Node, Parser, Query, QueryCursor, Tree
 
 # it's okay if any of the following are unused
 
-# simple one-liner
-inline = r'echo "Hello," " World!" || exit 1'
+# simple one-liner (node.type: command)
+inline = r'echo "Hello," " World!"'
 
-# simple pipe to count n chars
+# one or other (node.type: list)
+conditional = r'echo "Hello," " World!" || exit 1'
+
+# simple pipe to count n chars (node.type: pipeline)
 pipeline = r'echo "Hello, world!" | wc -c'
 
+# this has no node type. tests, variables, and functions would need be skipped.
+# enabling a full script into the subprocess would enable arbitrary execution.
+# this would need to be explicitly filtered out from the shell() function.
 # simple script pretending to be a real program 🥲
 script = r"""
 # foo.sh – a tiny demo shell
@@ -96,7 +102,7 @@ def query(node: Node, source: str) -> dict[str, list[Node]]:
 # --- run ---
 
 if __name__ == "__main__":
-    root = tree(inline).root_node
+    root = tree(script).root_node
     walk(root, depth=0)
 
     captures = query(root, query_source)
