@@ -11,7 +11,7 @@ from tree_sitter import Language, Node, Parser, Query, QueryCursor, Tree
 # it's okay if any of the following are unused
 
 # simple one-liner
-command = r'echo "Hello, World!"'
+inline = r'echo "Hello," " World!" || exit 1'
 
 # simple pipe to count n chars
 pipeline = r'echo "Hello, world!" | wc -c'
@@ -47,17 +47,7 @@ baz=$(farewell)
 echo "$baz"
 """
 
-# --- query ---
-
-# match any "echo" command and capture the string literal that follows
-# keep this generic for now
-query_source = r"""
-(
-    (command) @command_name
-)
-"""
-
-# --- functions ---
+# --- core ---
 
 
 def language() -> Language:
@@ -85,16 +75,34 @@ def walk(node: Node, depth: int = 0):
         walk(child, depth + 1)
 
 
+# --- queries ---
+
+# match any "echo" command and capture the string literal that follows
+# keep this generic for now
+query_source = r"""
+(
+    (command (command_name) @name) @cmd
+)
+"""
+
+
+# the key matches the capture identifier, e.g. key -> cmd
+def query(node: Node, source: str) -> dict[str, list[Node]]:
+    q = Query(language(), source)
+    c = QueryCursor(q)
+    return c.captures(node)
+
+
 # --- run ---
 
-root = tree(pipeline).root_node
-walk(root, depth=0)
-query = Query(language(), query_source)
-cursor = QueryCursor(query)
-captures = cursor.captures(root)
-print(f"Captured ({type(captures)}):")
-for key in captures:
-    nodes = captures["command_name"]
-    print(f"{key}: {len(nodes)} nodes: {nodes}")
-    for node in nodes:
-        print(node.text.decode("utf8"))
+if __name__ == "__main__":
+    root = tree(inline).root_node
+    walk(root, depth=0)
+
+    captures = query(root, query_source)
+    print(f"Captured ({type(captures)}):")
+    for key in captures:
+        nodes = captures[key]
+        print(f"{key}: {len(nodes)} nodes: {nodes}")
+        for node in nodes:
+            print(node.text.decode("utf8"))
