@@ -72,6 +72,7 @@ DEFAULT_CONF = {
             "lsblk",
             "lspci",
             "touch",
+            "wc",
             "cat",
             "head",
             "tail",
