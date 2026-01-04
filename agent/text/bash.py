@@ -8,7 +8,10 @@ from tree_sitter import Language, Node, Parser, Query, QueryCursor, Tree
 
 # --- samples ---
 
-# it's okay if any of the following are unused
+# the root node has type program which would emcompass a full shell script.
+# enabling a full script into a subprocess would enable arbitrary execution.
+# NOTE: tests and functions would need be skipped.
+# this would need to be explicitly filtered out from the shell() function.
 
 # simple one-liner (node.type: command)
 inline = r'echo "Hello," " World!"'
@@ -19,11 +22,7 @@ conditional = r'echo "Hello," " World!" || exit 1'
 # simple pipe to count n chars (node.type: pipeline)
 pipeline = r'echo "Hello, world!" | wc -c'
 
-# this has no node type. tests, variables, and functions would need be skipped.
-# the root node has type program which would emcompass the full script.
-# enabling a full script into the subprocess would enable arbitrary execution.
-# this would need to be explicitly filtered out from the shell() function.
-# simple script pretending to be a real program 🥲
+# simple script pretending to be a real program 🥲 (node.type: program)
 script = r"""
 # foo.sh – a tiny demo shell
 if [ -z "$1" ]; then
@@ -100,7 +99,7 @@ def query(node: Node, source: str) -> dict[str, list[Node]]:
 # ideally, we just handle commands and pipelines cleanly.
 # lists are convenience for the llms.
 def list_commands(node: Node) -> list[Node]:
-    source = r"""
+    source: str = r"""
     (program [
             (command)
             (pipeline (command))
@@ -109,27 +108,21 @@ def list_commands(node: Node) -> list[Node]:
         ] @root_command
     )
     """
-    captures = query(node, source)
-    commands = []
-    for key in captures:
-        for node in captures[key]:
-            commands.append(node)
+    captures: dict[str, list[Node]] = query(node, source)
+    commands: list[Node] = []
+    for key in captures.keys():
+        commands.extend(captures[key])
     return commands
 
 
-def list_command_names(nodes: list[Node]) -> list[str]:
-    source = r"""
-        (program [
-            (command ((command_name)))
-            (pipeline (command))
-            (list (command)) 
-        ]) @root_name
-    """
-    captures = query(node, source)
-    names: list[str] = []
-    for node in nodes:
-        # `node` is the command_name text
-        names.append(node.text.decode())
+def list_command_names(commands: list[Node]) -> list[str]:
+    """Return a plain-text name for each command node."""
+    names = []
+    for cmd in commands:
+        # Grab the first (and only) child that is a `command_name`.
+        cname_node = next((c for c in cmd.children if c.type == "command_name"), None)
+        if cname_node:  # guard against malformed trees
+            names.append(cname_node.text.decode("utf8"))
     return names
 
 
@@ -167,12 +160,17 @@ if __name__ == "__main__":
 
     commands = list_commands(root)
     if commands:
-        print(f"Captured {len(commands)} command(s).")
+        print(f"Captured {len(commands)} command(s):")
         for command in commands:
             print(
                 f"cmd: `{command.text.decode('utf8')}`, "
                 f"start: {command.start_point}, "
                 f"end: {command.end_point}"
             )
+
+        names = list_command_names(commands)
+        print(f"Queried {len(names)} commands:")
+        for name in set(names):  # filter out repeats
+            print(f"command_name: {name}")
     else:
         print("No captures matched.")
