@@ -88,10 +88,12 @@ def walk(node: Node, depth: int = 0):
 # e.g. ignore tests, assignments, functions, nested bodies, etc.
 query_source = r"""
 (program [
-        (command) @root_cmd
-        (pipeline (command) @root_cmd)
-        (list (command) @root_cmd)
-])
+        (command)
+        (pipeline (command))
+        (list (command))
+        (variable_assignment (command_substitution))
+    ] @root_cmd
+)
 """
 
 
@@ -100,6 +102,18 @@ def query(node: Node, source: str) -> dict[str, list[Node]]:
     q = Query(language(), source)
     c = QueryCursor(q)
     return c.captures(node)
+
+
+def list_commands(captures: dict[str, list[Node]]) -> list[Node]:
+    cmds = []
+    for key in captures:
+        for node in captures[key]:
+            cmds.append(node)
+    return cmds
+
+
+def list_command_names() -> list[str]:
+    pass
 
 
 # --- run ---
@@ -136,11 +150,13 @@ if __name__ == "__main__":
 
     captures = query(root, query_source)
     if captures:
-        print(f"Captured ({type(captures)}):")
-        for key in captures:
-            nodes = captures[key]
-            print(f"{key}: {len(nodes)} nodes: {type(nodes)}")
-            for node in nodes:
-                print(node.text.decode("utf8"))
+        commands = list_commands(captures)
+        print(f"Captured {len(commands)} command(s).")
+        for command in commands:
+            print(
+                f"cmd: `{command.text.decode('utf8')}`, "
+                f"start: {command.start_point}, "
+                f"end: {command.end_point}"
+            )
     else:
         print("No captures matched.")
