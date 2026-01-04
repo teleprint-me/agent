@@ -37,6 +37,8 @@ Allowed Commands:
 - File operations: cat, head, tail, grep, find
 - Environment management: printenv, git
 
+See agent/config/__init__.py for allowed shell commands.
+
 Access Control Notes:
 
 - Shell access is controlled by a predefined list of allowed commands
@@ -68,39 +70,121 @@ import shlex
 import subprocess
 
 import tree_sitter_bash
-from tree_sitter import Language, Node, Parser
+from tree_sitter import Language, Node, Parser, Query, QueryCursor, Tree
+
+# --- Shell Parser ---
+
+
+def _language() -> Language:
+    """Return a bash language instance."""
+    # get the PyObject* language binding
+    capsule = tree_sitter_bash.language()
+    # create the language instance object
+    return Language(capsule)
+
+
+def _tree(source: str) -> Tree:
+    """Return a abstract syntax tree for the input source code."""
+    # create the language parser
+    parser = Parser(_language())
+    # Tree‑Sitter expects bytes; utf8 is fine for shell scripts.
+    return parser.parse(source.encode("utf-8"))
+
+
+# --- Shell Queries ---
+
+
+# the key matches the capture identifier, e.g. key -> cmd
+def _query(root: Node, source: str) -> dict[str, list[Node]]:
+    """Return a dictionary containing captured results for the source query."""
+    # create the language query
+    query = Query(_language(), source)
+    # get the cursor for the current query (this is immutable)
+    cursor = QueryCursor(query)
+    # return the captured queries (this no longer uses tuples, it uses a dict now)
+    return cursor.captures(root)
+
+
+def _commands(root: Node) -> list[Node]:
+    """Return a list of captured commands."""
+    # note: source queries will eventually be migrated to config.
+    source: str = r"""
+    (program [
+            (command)
+            (pipeline (command))
+            (list     (command))
+        ] @root_command
+    )
+    """
+    # query the abstract syntax tree to capture desired nodes
+    captures: dict[str, list[Node]] = query(root, source)
+    commands: list[Node] = []
+    for key in captures.keys():
+        commands.extend(captures[key])  # flatten
+    return commands
+
+
+def _command_names(root: Node) -> list[Node]:
+    """Return a list of captured command names."""
+    # note: source queries will eventually be migrated to config.
+    source = r"""
+    (program [
+            (command  (command_name) @name)
+            (pipeline (command (command_name) @name))
+            (list     (command (command_name) @name))
+        ]
+    )
+    """
+    captures: dict[str, list[Node]] = query(root, source)
+    names: list[Node] = []
+    for key in captures.keys():
+        names.extend(captures[key])  # flatten
+    return names
+
+
+def _errors(root: Node) -> list[Node]:
+    """Return a list of captured syntax errors."""
+    pass  # return empty if everything is valid
+
+
+# --- Shell Filters ---
 
 
 # warning: sets are not json serializable!
-def _allow_list() -> set[str]:
+def _allowed() -> list[str]:
+    """Return a list of allowed bash commands."""
     from agent.config import config
 
-    return set(config.get_value("shell.allowed", []))
+    # use set() to filter out potential duplicates
+    return list(set(config.get_value("shell.allowed", [])))
 
 
-# warning: ensure the object dump is a list!
+def _denied(root: Node) -> list[Node]:
+    """Return a list of disallowed command names, else return a empty list."""
+    allowed = _allowed()
+    names = _command_names(root)
+    denied = []
+    for name in names:
+        if name.text.decode("utf8") not in allowed:
+            denied.append(name)  # return the invalid node
+    return denied  # empty if everything is valid
+
+
+# --- Model Tools ---
+
+
+# note: models require a string as a response object.
 def shell_allowed() -> str:
-    allowed = _allow_list()
+    allowed = _allowed()
     if not allowed:
         return "Shell commands are disabled."
+    # warning: ensure the object dump is a serialized list!
     return json.dumps(list(allowed), indent=2)
 
 
-def _parse_command(command: str) -> Node:
-    # capsule is a void* object
-    capsule = tree_sitter_bash.language()
-    # get the language from the capsule
-    language = Language(capsule)
-    # create the parser from the language instance
-    parser = Parser(language)
-    # finally, generate the abstract syntax tree
-    tree = parser.parse(command.encode())
-    # and return the root node within that tree
-    return tree.root_node
-
-
+# note: models require a string as a response object.
 def shell_run(command: str) -> str:
-    allowed = _allow_list()
+    allowed = _allowed()
 
     try:
         args = shlex.split(command)
@@ -141,8 +225,12 @@ if __name__ == "__main__":
 
     cmd = " ".join(sys.argv[1:]) or "echo 'hello world' | wc -m"
 
-    node = _parse_command(cmd)
-    print(f"children: {node.child_count}")
-    # output nodes for now
-    for child in node.children:
-        print(child.text)
+    root = _tree(cmd).root_node
+    print(f"children: {root.child_count}")
+    print(f"type: {root.type}")
+
+    cursor = root.walk()
+    print(f"depth: {cursor.depth}")
+
+    cursor.goto_first_child()
+    print(cursor)
