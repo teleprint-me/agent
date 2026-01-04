@@ -84,18 +84,6 @@ def walk(node: Node, depth: int = 0):
 
 # --- queries ---
 
-# only capture root-level commands.
-# e.g. ignore tests, assignments, functions, nested bodies, etc.
-query_source = r"""
-(program [
-        (command)
-        (pipeline (command))
-        (list (command))
-        (variable_assignment (command_substitution))
-    ] @root_cmd
-)
-"""
-
 
 # the key matches the capture identifier, e.g. key -> cmd
 def query(node: Node, source: str) -> dict[str, list[Node]]:
@@ -104,16 +92,45 @@ def query(node: Node, source: str) -> dict[str, list[Node]]:
     return c.captures(node)
 
 
-def list_commands(captures: dict[str, list[Node]]) -> list[Node]:
-    cmds = []
+# only capture root-level commands.
+# e.g. ignore tests, functions, nested bodies, etc.
+# some things may be desirable, like assignments and substitutions.
+# e.g. modifying an environment variable to run a command like cmake for example.
+# substitutions may add more complexity than it's worth  - not sure yet.
+# ideally, we just handle commands and pipelines cleanly.
+# lists are convenience for the llms.
+def list_commands(node: Node) -> list[Node]:
+    source = r"""
+    (program [
+            (command)
+            (pipeline (command))
+            (list (command))
+            (variable_assignment)
+        ] @root_command
+    )
+    """
+    captures = query(node, source)
+    commands = []
     for key in captures:
         for node in captures[key]:
-            cmds.append(node)
-    return cmds
+            commands.append(node)
+    return commands
 
 
-def list_command_names() -> list[str]:
-    pass
+def list_command_names(nodes: list[Node]) -> list[str]:
+    source = r"""
+        (program [
+            (command ((command_name)))
+            (pipeline (command))
+            (list (command)) 
+        ]) @root_name
+    """
+    captures = query(node, source)
+    names: list[str] = []
+    for node in nodes:
+        # `node` is the command_name text
+        names.append(node.text.decode())
+    return names
 
 
 # --- run ---
@@ -148,9 +165,8 @@ if __name__ == "__main__":
     if args.walk:
         walk(root, depth=0)
 
-    captures = query(root, query_source)
-    if captures:
-        commands = list_commands(captures)
+    commands = list_commands(root)
+    if commands:
         print(f"Captured {len(commands)} command(s).")
         for command in commands:
             print(
