@@ -20,6 +20,7 @@ conditional = r'echo "Hello," " World!" || exit 1'
 pipeline = r'echo "Hello, world!" | wc -c'
 
 # this has no node type. tests, variables, and functions would need be skipped.
+# the root node has type program which would emcompass the full script.
 # enabling a full script into the subprocess would enable arbitrary execution.
 # this would need to be explicitly filtered out from the shell() function.
 # simple script pretending to be a real program 🥲
@@ -83,12 +84,14 @@ def walk(node: Node, depth: int = 0):
 
 # --- queries ---
 
-# match any "echo" command and capture the string literal that follows
-# keep this generic for now
+# only capture root-level commands.
+# e.g. ignore tests, assignments, functions, nested bodies, etc.
 query_source = r"""
-(
-    (command (command_name) @name) @cmd
-)
+(program [
+        (command) @root_cmd
+        (pipeline (command) @root_cmd)
+        (list (command) @root_cmd)
+])
 """
 
 
@@ -102,13 +105,31 @@ def query(node: Node, source: str) -> dict[str, list[Node]]:
 # --- run ---
 
 if __name__ == "__main__":
-    root = tree(script).root_node
+    from argparse import ArgumentParser
+
+    choices = {
+        "command": inline,
+        "pipeline": pipeline,
+        "list": conditional,
+        "inject": script,
+    }
+
+    parser = ArgumentParser()
+    parser.add_argument(
+        "keyword",
+        default="command",
+        choices=choices.keys(),
+    )
+    args = parser.parse_args()
+
+    selected = choices[args.keyword]
+    root = tree(selected).root_node
     walk(root, depth=0)
 
     captures = query(root, query_source)
     print(f"Captured ({type(captures)}):")
     for key in captures:
         nodes = captures[key]
-        print(f"{key}: {len(nodes)} nodes: {nodes}")
+        print(f"{key}: {len(nodes)} nodes: {type(nodes)}")
         for node in nodes:
             print(node.text.decode("utf8"))
