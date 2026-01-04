@@ -119,17 +119,28 @@ if __name__ == "__main__":
         "keyword",
         default="command",
         choices=choices.keys(),
+        help="Select a command type to parse out.",
+    )
+    parser.add_argument(
+        "--walk",
+        action="store_true",
+        help="Pretty print the abstract syntax tree.",
     )
     args = parser.parse_args()
 
     selected = choices[args.keyword]
     root = tree(selected).root_node
-    walk(root, depth=0)
+
+    if args.walk:
+        walk(root, depth=0)
 
     captures = query(root, query_source)
-    print(f"Captured ({type(captures)}):")
-    for key in captures:
-        nodes = captures[key]
-        print(f"{key}: {len(nodes)} nodes: {type(nodes)}")
-        for node in nodes:
-            print(node.text.decode("utf8"))
+    if captures:
+        print(f"Captured ({type(captures)}):")
+        for key in captures:
+            nodes = captures[key]
+            print(f"{key}: {len(nodes)} nodes: {type(nodes)}")
+            for node in nodes:
+                print(node.text.decode("utf8"))
+    else:
+        print("No captures matched.")
