@@ -65,23 +65,25 @@ DEFAULT_CONF = {
         "content": style_dark,
         "type": "dict",
     },
-    "shell": {
-        "allowed": [
+    "terminal": {
+        "executable": False,
+        "shell": "/usr/bin/bash",
+        "commands": [
+            "touch",
             "date",
             "ls",
-            "lsblk",
-            "lspci",
-            "touch",
-            "wc",
+            "printf",
+            "echo",
             "cat",
             "head",
             "tail",
+            "wc",
             "grep",
             "find",
+            "diff",
             "printenv",
             "git",
         ],
-        "type": "list",
     },
     "requests": {
         "scheme": "http",

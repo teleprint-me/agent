@@ -31,21 +31,40 @@ Security Warnings:
      - Real-world example of Gemini deleting user data in production:
        https://futurism.com/artificial-intelligence/google-ai-deletes-entire-drive
 
-Allowed Commands:
-
-- Basic system utilities: date, ls, lsblk, lspci, touch
-- File operations: cat, head, tail, grep, find
-- Environment management: printenv, git
+Access Control and Sandboxing:
 
 See agent/config/__init__.py for allowed shell commands.
 
-Access Control Notes:
-
 - Shell access is controlled by a predefined list of allowed commands
 - Users can disable shell access by setting an empty list in the configuration
-- Piped commands are handled securely through subprocess chaining (see implementation notes)
+- The model is given 2 tools:
+  - A tool for listing accessible commands, if any.
+  - A tool for executing "virtual" shell scripts.
+- A "virtual script" is a "program" that enables arbitrary execution through the shell.
+  - Shell execution may be toggled to False (default) or True
+  - Shell execution may be restricted True (default) or False
+- A program consists of one or more shell commands.
+- A program may contain variables or function definitions.
+  - A function definition is defined as a user defined command.
+- Tree-sitter is used to parse the input program and ouputs a abstract syntax tree.
+  - A query is used to output captures of arbitrary commands.
+  - Captures are used to access command names which is compared to the user defined allow list.
+  - If a captured command is not in the allow list, the node and its related metadata, along with access
+    details is then relayed back to the model as output.
+  - If a symbol is missing or a syntax error is discovered in the program (linting), then the issue
+    is relayed back to the model to allow it to adjust and correct its error.
+    - NOTE: Shell capabilities can be toggled on or off and command authorization will still apply.
+      This will catch common sources of input injection that can compromise a system in production.
+- Once the input program has been parsed, queried, captured, and validated, then it is considered for execution.
+  - A program may be executed through a user defined shell program (default is bash).
+  - A program may have shell access and or may be restricted. This is tunable according to end user needs, but
+    defaults to False for security purposes.
+  - A programs results (stdout, stderr, etc) should be captured and output back to the model as a response.
 
-Implementation Details:
+Using tree-sitter side-steps the need to manually handle and parse complex commands, pipelines, and more.
+It gives the model freedom while constraining its errors without compromising end user environments.
+
+Security considerations:
 
 1. **Sandboxing**:
    - Commands are executed with strict security settings
@@ -74,12 +93,14 @@ import subprocess
 import tree_sitter_bash
 from tree_sitter import Language, Node, Parser, Query, QueryCursor, Tree
 
+from agent.config import config
+
 # --- Shell Parser ---
 
 
 @functools.lru_cache
 def _language() -> Language:
-    """Return a bash language instance."""
+    """Return the pre-compiled bash language instance."""
     # get the PyObject* language binding
     capsule = tree_sitter_bash.language()
     # create the language instance object
@@ -118,7 +139,7 @@ def _query(root: Node, source: str) -> dict[str, list[Node]]:
 def _nodes(root: Node, source: str) -> list[Node]:
     """Return a flattened list of captured nodes."""
     nodes = []
-    captures = query(root, source)
+    captures = _query(root, source)
     for key in captures.keys():
         nodes.extend(captures[key])  # flatten
     return nodes
@@ -160,10 +181,9 @@ def _lint(root: Node) -> list[Node]:
 # warning: sets are not json serializable!
 def _allowed() -> list[str]:
     """Return a list of allowed bash commands."""
-    from agent.config import config
 
     # use set() to filter out potential duplicates
-    return list(set(config.get_value("shell.allowed", [])))
+    return list(set(config.get_value("shell.commands", [])))
 
 
 def _denied(root: Node) -> list[Node]:
@@ -182,19 +202,20 @@ def _denied(root: Node) -> list[Node]:
 
 # note: models require a string as a response object.
 def shell_allowed() -> str:
+    """Return a serialized dictionary of the current shell configuration."""
     allowed = _allowed()
     if not allowed:
         return "Shell commands are disabled."
-    # warning: ensure the object dump is a serialized list!
-    return json.dumps(list(allowed), indent=2)
+    # warning: ensure the object dump is serialized and formatted!
+    return json.dumps(config.get_value("shell", {}), indent=2)
 
 
 # note: models require a string as a response object.
-def shell_run(command: str) -> str:
+def shell_run(program: str) -> str:
     allowed = _allowed()
 
     try:
-        args = shlex.split(command)
+        args = shlex.split(program)
         if not args or args[0] not in allowed:
             return "Error: Command not allowed."
         result = subprocess.run(
@@ -202,9 +223,10 @@ def shell_run(command: str) -> str:
             capture_output=True,
             text=True,
             check=True,
-            shell=False,
+            shell=config.get_value("shell.executable", False),
         )
         output = result.stdout.strip()
+        print(f"out: {result}")
         err = result.stderr.strip()
         if err:
             return f"StandardOutput:\n{output}\nStandardError:\n{err}"
@@ -230,14 +252,18 @@ def shell_run(command: str) -> str:
 if __name__ == "__main__":
     import sys
 
-    cmd = " ".join(sys.argv[1:]) or "echo 'hello world' | wc -m"
+    source = (
+        " ".join(sys.argv[1:]) or "shopt -s extglob; wc -l file.txt ; cat /etc/passwd"
+    )
+    print(f"command: `{source}`")
+    root = _tree(source).root_node
+    names = _command_names(root)
+    allowed = _allowed()
+    for node in names:
+        name = node.text.decode()
+        if name not in allowed:
+            print(f"Command `{name}` is not allowed!")
+            exit(1)
 
-    root = _tree(cmd).root_node
-    print(f"children: {root.child_count}")
-    print(f"type: {root.type}")
-
-    cursor = root.walk()
-    print(f"depth: {cursor.depth}")
-
-    cursor.goto_first_child()
-    print(cursor)
+    # result = shell_run(source)
+    # print(result)
