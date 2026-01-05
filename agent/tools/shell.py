@@ -1,89 +1,104 @@
 # agent/tools/shell.py
 """
-Shell access tool for the agent framework. This module provides safe shell command execution
-with strict access control and security considerations.
+Shell Access Tool - Safe, Controlled Command Execution
 
-Security Model:
+This module makes an attempt to implement a sandboxed shell-execution facility that
+can be used by the agent framework to run arbitrary scripts by enforcing an explicit
+list of allowed commands while providing detailed feedback on any violations.
 
-The system follows a "security by default" principle where all operations are restricted to basic utilities.
-Access can be safely modified or disabled based on user requirements, but should always follow
-the Principle of Least Privilege to minimize risks.
+---
+Security Model
+---
 
-Security Warnings:
+The system follows *security-by-default*. By default no external program is
+executable; only a minimal set of utilities may be invoked.  The following
+principles are enforced:
 
 1. **Arbitrary code execution risk**
-   - Running untrusted code is never safe, sandboxing cannot change this.
-     - See Firejail for sandboxing solutions:
+   Running untrusted code can never be fully safe - sandboxing cannot change that.
+   For additional isolation, consider tools such as Firejail:
        https://wiki.archlinux.org/title/Firejail
 
 2. **Principle of Least Privilege**
-   - Agents should operate with minimal permissions to reduce attack surfaces.
-     - Set up dedicated user accounts:
+   The agent should run with the fewest permissions necessary to fulfil its tasks.
+   Dedicated user accounts are recommended:
        https://unix.stackexchange.com/q/219922
 
-3. **Model creativity and unexpected behavior**
-   - Models may explore creative solutions that deviate from expected paths.
-     - Research on reasoning model behaviors:
+3. **Unexpected behaviour and hallucinations**
+   Models may generate creative or unintended commands.
+   Research on reasoning model behaviours can be found here:
        https://arxiv.org/abs/2502.13295
 
-4. **Hallucination and destructive actions**
-   - Models can generate false information or perform unintended operations.
-     - Real-world example of Gemini deleting user data in production:
+4. **Destructive actions**
+   Agents might produce false information that leads to destructive operations.
+   A real-world example is Gemini deleting an entire drive in production:
        https://futurism.com/artificial-intelligence/google-ai-deletes-entire-drive
 
-Access Control and Sandboxing:
 
-See agent/config/__init__.py for allowed shell commands.
+---
+Access Control & Sandboxing
+---
 
-- Shell access is controlled by a predefined list of allowed commands
-- Users can disable shell access by setting an empty list in the configuration
-- The model is given 2 tools:
-  - A tool for listing accessible commands, if any.
-  - A tool for executing "virtual" shell scripts.
-- A "virtual script" is a "program" that enables arbitrary execution through the shell.
-  - Shell execution may be toggled to False (default) or True
-  - Shell execution may be restricted True (default) or False
-- A program consists of one or more shell commands.
-- A program may contain variables or function definitions.
-  - A function definition is defined as a user defined command.
-- Tree-sitter is used to parse the input program and ouputs a abstract syntax tree.
-  - A query is used to output captures of arbitrary commands.
-  - Captures are used to access command names which is compared to the user defined allow list.
-  - If a captured command is not in the allow list, the node and its related metadata, along with access
-    details is then relayed back to the model as output.
-  - If a symbol is missing or a syntax error is discovered in the program (linting), then the issue
-    is relayed back to the model to allow it to adjust and correct its error.
-    - NOTE: Shell capabilities can be toggled on or off and command authorization will still apply.
-      This will catch common sources of input injection that can compromise a system in production.
-- Once the input program has been parsed, queried, captured, and validated, then it is considered for execution.
-  - A program may be executed through a user defined shell program (default is bash).
-  - A program may have shell access and or may be restricted. This is tunable according to end user needs, but
-    defaults to False for security purposes.
-  - A programs results (stdout, stderr, etc) should be captured and output back to the model as a response.
+*Allowed Commands*
 
-Using tree-sitter side-steps the need to manually handle and parse complex commands, pipelines, and more.
-It gives the model freedom while constraining its errors without compromising end user environments.
+The list of executable commands is defined in `agent/config/__init__.py`.
+Setting the allowlist to an empty array disables shell access entirely.
 
-Security considerations:
+Two helper tools are exposed:
 
-1. **Sandboxing**:
-   - Commands are executed with strict security settings
-   - Running untrusted code is never safe, sandboxing cannot change this
+1. **shell_allowed()** - returns configuration metadata related to the shell, including allowed commands.
+2. **shell_run()** - accepts a “virtual script” (a string of shell code) and executes it after validation.
 
-2. **Piping Support**:
-   - Safe handling of piped commands via subprocess chaining
-     https://stackoverflow.com/a/295564/15147156
-     https://docs.python.org/3/library/subprocess.html#replacing-shell-pipeline
+*Virtual Scripts*
 
-3. **Privilege Management**:
-   - Commands are restricted to basic utilities for safety
-   - Users should not enable destructive operations like `rm`, `rmdir`
-   - If removal is desired, you can use something like trash-cli.
-     trash-cli is a command line trashcan (recycle bin) interface
+A virtual script is any text blob containing one or more shell statements,
+including variables, tests, functions, loops, etc.  The execution flow for a
+script is:
 
-The shell tool is designed to be used responsibly and safely.
-Never enable unrestricted access in production environments.
+1. Parse the input with tree-sitter to obtain an abstract syntax tree.
+2. Query the AST for command names; compare each against the allowlist.
+3. If any disallowed symbol appears, return diagnostics (node location,
+   offending text) back to the model so it can correct its request.
+4. On successful validation, execute the script using a user-supplied shell
+   program - defaulting to `bash`.  The execution may be toggled on or off;
+   by default it is disabled.
+
+*tree-sitter Advantages*
+
+Using tree-sitter removes the need for hand-rolled parsing logic,
+ensures accurate command extraction even in complex pipelines, and gives the
+model freedom while still catching dangerous patterns before they reach
+`subprocess`.
+
+---
+Execution Details
+---
+
+- **Piping Support** - The runner constructs a `subprocess.Popen` chain that
+  connects standard streams between commands.  Reference implementations can be
+  found at:
+      https://stackoverflow.com/a/295564/15147156
+      https://docs.python.org/3/library/subprocess.html#replacing-shell-pipeline
+
+- **Privilege Management** - Only basic utilities are allowed (e.g.
+  `cat`, `grep`).  Destructive operations such as `rm` or `rmdir` must be
+  explicitly enabled by the user.  If removal is required, a safer alternative
+  like `trash-cli` can be used.
+
+- **Output Handling** - All standard output and error streams are captured,
+  encoded in UTF-8 (or raw bytes if requested), and returned to the agent as a
+  structured response.
+
+---
+Summary
+---
+
+The shell tool is intentionally conservative: it requires explicit permission
+to run any command, validates every invocation against an allowlist using
+tree-sitter parsing, supports complex pipelines safely, and returns detailed
+feedback.  Use with caution in production; never enable unrestricted access.
 """
+
 
 import functools
 import json
@@ -111,7 +126,7 @@ def _tree(source: str) -> Tree:
     """Return a abstract syntax tree for the input source code."""
     # create the language parser
     parser = Parser(_language())
-    # Tree‑Sitter expects bytes; utf8 is fine for shell scripts.
+    # Tree-Sitter expects bytes; utf8 is fine for shell scripts.
     return parser.parse(source.encode("utf-8"))
 
 
