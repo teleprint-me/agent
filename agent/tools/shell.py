@@ -54,6 +54,7 @@ Implementation Details:
 2. **Piping Support**:
    - Safe handling of piped commands via subprocess chaining
      https://stackoverflow.com/a/295564/15147156
+     https://docs.python.org/3/library/subprocess.html#replacing-shell-pipeline
 
 3. **Privilege Management**:
    - Commands are restricted to basic utilities for safety
@@ -65,6 +66,7 @@ The shell tool is designed to be used responsibly and safely.
 Never enable unrestricted access in production environments.
 """
 
+import functools
 import json
 import shlex
 import subprocess
@@ -75,6 +77,7 @@ from tree_sitter import Language, Node, Parser, Query, QueryCursor, Tree
 # --- Shell Parser ---
 
 
+@functools.lru_cache
 def _language() -> Language:
     """Return a bash language instance."""
     # get the PyObject* language binding
@@ -94,57 +97,61 @@ def _tree(source: str) -> Tree:
 # --- Shell Queries ---
 
 
-# the key matches the capture identifier, e.g. key -> cmd
+# the key matches the capture identifier:
+#   e.g. if capture is `@cmd`, then `key` is `cmd` and `val` is `list[Node]`
+# captures return a dict and matches returns a list of tuples.
+#   see tree-sitter/__init__.pyi for type annotations.
+#     .venv/lib/python3.13/site-packages/tree_sitter/__init__.pyi
+#   see docs for reference.
+#     https://tree-sitter.github.io/py-tree-sitter/classes/tree_sitter.QueryCursor.html
 def _query(root: Node, source: str) -> dict[str, list[Node]]:
     """Return a dictionary containing captured results for the source query."""
     # create the language query
     query = Query(_language(), source)
     # get the cursor for the current query (this is immutable)
     cursor = QueryCursor(query)
-    # return the captured queries (this no longer uses tuples, it uses a dict now)
+    # return the captured queries (this returns a dictionary)
     return cursor.captures(root)
 
 
-def _commands(root: Node) -> list[Node]:
-    """Return a list of captured commands."""
-    # note: source queries will eventually be migrated to config.
-    source: str = r"""
-    (program [
-            (command)
-            (pipeline (command))
-            (list     (command))
-        ] @root_command
-    )
-    """
-    # query the abstract syntax tree to capture desired nodes
-    captures: dict[str, list[Node]] = query(root, source)
-    commands: list[Node] = []
+# this is just a helper to simplify capture extraction.
+def _nodes(root: Node, source: str) -> list[Node]:
+    """Return a flattened list of captured nodes."""
+    nodes = []
+    captures = query(root, source)
     for key in captures.keys():
-        commands.extend(captures[key])  # flatten
-    return commands
+        nodes.extend(captures[key])  # flatten
+    return nodes
 
 
+# the model can call any allowed command.
+# allowed commands may be disabled or scoped to a specific task.
 def _command_names(root: Node) -> list[Node]:
     """Return a list of captured command names."""
-    # note: source queries will eventually be migrated to config.
-    source = r"""
-    (program [
-            (command  (command_name) @name)
-            (pipeline (command (command_name) @name))
-            (list     (command (command_name) @name))
-        ]
+    source = r"""(command  ((command_name) @name))"""
+    return _nodes(root, source)
+
+
+# the model can define its own commands by defining a function.
+# defined functions become new allowed commands.
+def _function_words(root: Node) -> list[Node]:
+    """Return a list of captured function words."""
+    source = r"""(function_definition ((word) @id))"""
+    return _nodes(root, source)
+
+
+# we can lint the models input program and return detailed
+# metadata to help the model recover via error correction.
+def _lint(root: Node) -> list[Node]:
+    """Return a list of captured syntax errors."""
+    source = r"""(
+        [
+            (ERROR)
+            (MISSING)
+        ] @error
     )
     """
-    captures: dict[str, list[Node]] = query(root, source)
-    names: list[Node] = []
-    for key in captures.keys():
-        names.extend(captures[key])  # flatten
-    return names
-
-
-def _errors(root: Node) -> list[Node]:
-    """Return a list of captured syntax errors."""
-    pass  # return empty if everything is valid
+    return _nodes(root, source)
 
 
 # --- Shell Filters ---
