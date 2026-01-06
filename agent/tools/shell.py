@@ -111,7 +111,7 @@ from tree_sitter import Language, Node, Parser, Point, Query, QueryCursor, Tree
 
 from agent.config import config
 
-# --- Data Structures ---
+# --- Structures ---
 
 
 @dataclass
@@ -126,52 +126,61 @@ class Terminal:
 
     @staticmethod
     def as_dict() -> dict[str, any]:
-        """The end user terminal settings used to orchestrate shell execution."""
+        """End user settings used to orchestrate shell execution."""
         return config.get_value("terminal", {})
 
     @staticmethod
     def shell() -> str:
-        """The shell environment used to execute the input program."""
+        """Binary used to execute the input program."""
         return config.get_value("terminal.shell", "/usr/bin/bash")
 
     @staticmethod
-    def command_names() -> list[str]:
-        """A list of allowed commands enabling execution within a shell."""
-        return list(set(config.get_value("terminal.command_names", [])))
-
-    @staticmethod
     def executable() -> bool:
-        """Enable shell execution within the executed subprocess."""
+        """Enable execution within a shell subprocess."""
         return config.get_value("terminal.executable", False)
 
     @staticmethod
     def restricted() -> bool:
-        """Enable shell restriction within the shell process."""
+        """Enable restrictions within a shell process."""
         return config.get_value("terminal.restricted", False)
+
+    @staticmethod
+    def command_names() -> list[str]:
+        """Return a list of allowed executable commands within a shell."""
+        return list(set(config.get_value("terminal.command_names", [])))
 
 
 # --- Parser ---
 
 
 class BashParser:
+    """Thin wrapper around the pre-compiled *bash* language for tree-sitter."""
+
     @staticmethod
     @functools.lru_cache
     def language() -> Language:
-        """Return the pre-compiled bash language instance."""
-        # get the PyObject* language binding and create the language instance
+        """Return a `Language` instance pointing at the compiled bash grammar."""
         return Language(tree_sitter_bash.language())
 
     @staticmethod
-    def parse(source: str) -> Tree:
-        """Return a abstract syntax tree for the input source code."""
-        # Tree-Sitter expects bytes; utf8 is fine for shell scripts.
-        return Parser(BashParser.language()).parse(source.encode("utf-8"))
+    def parse(source: str) -> Node:
+        """Parse `source` into a tree-sitter AST and return its root node."""
+        parser = Parser(BashParser.language())
+        tree = parser.parse(source.encode())
+        return tree.root_node
 
 
 # --- Query ---
 
 
 class BashQuery:
+    """
+    Helpers for querying shell scripts with *tree-sitter*.
+
+    All methods are `@staticmethod` - you simply call
+    :py:meth:`BashQuery.<method>(root)` where `root` is the AST root node.
+    """
+
     # the key matches the capture identifier:
     #   e.g. if capture is `@cmd`, then `key` is `cmd` and `val` is `list[Node]`
     # captures return a dict[str, list] and matches returns a list[tuple].
@@ -203,56 +212,59 @@ class BashQuery:
     # allowed commands may be disabled or scoped to a specific task.
     @staticmethod
     def command_names(root: Node) -> list[Node]:
-        """Return a list of captured command names."""
+        """Return a list of nodes representing each `command_name` token."""
         return BashQuery.nodes(root, r"""(command  ((command_name) @name))""")
 
     # the model can define its own commands by defining a function.
     # defined functions become new allowed commands.
     @staticmethod
     def function_names(root: Node) -> list[Node]:
-        """Return a list of captured function words."""
+        """Return a list of nodes that are the names of user-defined functions."""
         return BashQuery.nodes(root, r"""(function_definition ((word) @id))""")
 
     # we can lint the models input program and return detailed
     # metadata to help the model recover via error correction.
     @staticmethod
     def errors(root: Node) -> list[Node]:
-        """Return a list of captured syntax errors."""
-        return BashQuery.nodes(root, source=r"""( [ (ERROR) (MISSING) ] @errors )""")
+        """Return a list of nodes that are syntax error markers."""
+        return BashQuery.nodes(root, r"""( [ (ERROR) (MISSING) ] @errors )""")
 
     @staticmethod
     def denied(root: Node) -> list[Node]:
         """Return a list of disallowed command names, else return a empty list."""
         names = BashQuery.command_names(root)
-        return [n for n in names if n.text.decode() not in Terminal.command_names]
+        allowlist = Terminal.command_names()
+        return [n for n in names if n.text.decode() not in allowlist]
 
 
-# --- Model Tools ---
+# --- Tools ---
 
 
 # note: models require a string as a response object.
 def shell_allowed() -> str:
     """Return a serialized dictionary of the terminal configuration."""
-    if not Terminal.command_names:
+    if not Terminal.command_names():
         return "Shell commands are disabled."
-    # warning: ensure the object dump is serialized and formatted!
-    return json.dumps(Terminal.as_dict, indent=2)
+    return json.dumps(Terminal.as_dict(), indent=2)
 
 
 # note: models require a string as a response object.
 def shell_run(program: str) -> str:
+    if not Terminal.command_names():
+        return "Shell commands are disabled."
+
     # validate the input program
-    root = BashParser.parse(program).root_node
-    names = _command_names(root)
-    denied = _denied(root)
+    root = BashParser.parse(program)
+    names = BashQuery.command_names(root)
+    denied = BashQuery.denied(root)
     if denied:
         return  # a serialized result detailing failed criteria
     if errors:
         return  # similar to denied, but adjusted for bad syntax
 
     # configure the arguments
-    args = [Terminal.shell, "-c"]
-    if Terminal.restricted:
+    args = [Terminal.shell(), "-c"]
+    if Terminal.restricted():
         args.append("-r")
     args.append(program)
 
@@ -263,7 +275,7 @@ def shell_run(program: str) -> str:
             capture_output=True,
             text=True,
             check=True,
-            shell=Terminal.executable,
+            shell=Terminal.executable(),
         )
         output = result.stdout.strip()
         print(f"out: {result}")
