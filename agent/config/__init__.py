@@ -66,10 +66,10 @@ DEFAULT_CONF = {
         "type": "dict",
     },
     "terminal": {
-        "executable": False,
         "shell": "/usr/bin/bash",
-        "commands": [
-            "touch",
+        "executable": False,
+        "restricted": False,
+        "command_names": [
             "date",
             "ls",
             "printf",
@@ -81,7 +81,6 @@ DEFAULT_CONF = {
             "grep",
             "find",
             "diff",
-            "printenv",
             "git",
         ],
     },
