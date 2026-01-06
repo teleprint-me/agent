@@ -105,6 +105,7 @@ import json
 import shlex
 import subprocess
 from dataclasses import dataclass
+from pathlib import Path
 
 import tree_sitter_bash
 from tree_sitter import Language, Node, Parser, Point, Query, QueryCursor, Tree
@@ -240,58 +241,68 @@ class BashQuery:
 # --- Tools ---
 
 
-# note: models require a string as a response object.
-def shell_allowed() -> str:
-    """Return a serialized dictionary of the terminal configuration."""
-    if not Terminal.command_names():
-        return "Shell commands are disabled."
-    return json.dumps(Terminal.as_dict(), indent=2)
+class Shell:
+    @staticmethod
+    def path() -> str:
+        path = Path(Terminal.shell())
+        message = "Error: User misconfigured tool."
+        if path.name != "bash":
+            return f"{message} Terminal shell must be `bash`, not `{path.name}`"
+        if not path.is_file():
+            return f"{message} `bash` is a missing file."
+        return str(path)
 
+    @staticmethod
+    def allowed() -> str:
+        """Return a serialized dictionary of the terminal configuration."""
+        if not Terminal.command_names():
+            return "Shell commands are disabled."
+        return json.dumps(Terminal.as_dict(), indent=2)
 
-# note: models require a string as a response object.
-def shell_run(program: str) -> str:
-    if not Terminal.command_names():
-        return "Shell commands are disabled."
+    # note: models require a string as a response object.
+    @staticmethod
+    def run(program: str) -> str:
+        if not Terminal.command_names():
+            return "Shell commands are disabled."
 
-    # validate the input program
-    root = BashParser.parse(program)
-    names = BashQuery.command_names(root)
-    denied = BashQuery.denied(root)
-    if denied:
-        return  # a serialized result detailing failed criteria
-    if errors:
-        return  # similar to denied, but adjusted for bad syntax
+        # validate the input program
+        root = BashParser.parse(program)
+        denied = BashQuery.denied(root)
+        if denied:
+            return "Denied"  # a serialized result detailing failed criteria
+        if errors:
+            return "Errors"  # similar to denied, but adjusted for bad syntax
 
-    # configure the arguments
-    args = [Terminal.shell(), "-c"]
-    if Terminal.restricted():
-        args.append("-r")
-    args.append(program)
+        # configure the arguments
+        args = [Terminal.shell(), "-c"]
+        if Terminal.restricted():
+            args.append("-r")
+        args.append(program)
 
-    # execute the program
-    try:
-        result = subprocess.run(
-            args,
-            capture_output=True,
-            text=True,
-            check=True,
-            shell=Terminal.executable(),
-        )
-        output = result.stdout.strip()
-        print(f"out: {result}")
-        err = result.stderr.strip()
-        if err:
-            return f"StandardOutput:\n{output}\nStandardError:\n{err}"
-        return output or "(No output)"
-    except subprocess.CalledProcessError as e:
-        result = f"Error: ReturnCode: {e.returncode}\n"
-        if e.stderr:
-            result += f"StandardError:\n{e.stderr.strip()}\n"
-        if e.stdout:
-            result += f"StandardOutput:\n{e.stdout.strip()}\n"
-        return result
-    except Exception as e:
-        return f"Error: {str(e)}"
+        # execute the program
+        try:
+            result = subprocess.run(
+                args,
+                capture_output=True,
+                text=True,
+                check=True,
+                shell=Terminal.executable(),
+            )
+            print(f"out: {result}")
+            output = result.stdout.strip()
+            err = result.stderr.strip()
+            if err:
+                return f"StandardOutput:\n{output}\nStandardError:\n{err}"
+            return output or "(No output)"
+        except subprocess.CalledProcessError as e:
+            result = f"Error: ReturnCode: {e.returncode}\n"
+            if e.stderr:
+                result += f"StandardError:\n{e.stderr.strip()}\n"
+            if e.stdout:
+                result += f"StandardOutput:\n{e.stdout.strip()}\n"
+            return result
+        except Exception as e:
+            return f"Error: {str(e)}"
 
 
 # usage example
@@ -305,18 +316,10 @@ if __name__ == "__main__":
     import sys
 
     # sample command injection
-    source = (
+    program = (
         " ".join(sys.argv[1:]) or "shopt -s extglob; wc -l file.txt ; cat /etc/passwd"
     )
-    print(f"command: `{source}`")
-    root = _tree(source).root_node
-    names = _command_names(root)
-    allowed = _allowed()
-    for node in names:
-        name = node.text.decode()
-        if name not in allowed:
-            print(f"Command `{name}` is not allowed!")
-            exit(1)
 
-    # result = shell_run(source)
-    # print(result)
+    print(f"command: `{program}`")
+    print(Shell.allowed())
+    print(Shell.run(program))

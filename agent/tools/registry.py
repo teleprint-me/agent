@@ -7,7 +7,7 @@ from typing import Any, Dict
 
 from agent.tools.file import file_read, file_write
 from agent.tools.memory import memory_forget, memory_recall, memory_store
-from agent.tools.shell import shell_allowed, shell_run
+from agent.tools.shell import Shell
 from agent.tools.weather import weather
 
 
@@ -20,8 +20,8 @@ class ToolRegistry:
             "memory_store": memory_store,
             "memory_recall": memory_recall,
             "memory_forget": memory_forget,
-            "shell_allowed": shell_allowed,
-            "shell_run": shell_run,
+            "shell_allowed": Shell.allowed,
+            "shell_run": Shell.run,
         }
 
     def register(self, name: str, function: callable):
