@@ -8,21 +8,15 @@
 
 ![GPT-OSS-20B CLI Demo](casts/cli.gif)
 
-## Status
+### Status
+**Things you can expect while using this tool**
 
-Agent is an evolving work in progress.
+* Limited flexibility / customizability.  
+* Uses bleeding‑edge packages for latest features – may break on occasion.  
+* Dependency management is still evolving; some modules, scripts or binaries might not work out of the box.  
+* Interfaces change frequently.
 
-Things to expect while using this software:
-
-- Unstable dependency management.
-- Broken packages, modules, or scripts.
-- Bleeding edge packages to enable latest features.
-- Limited flexibility or customizability.
-- Interfaces may appear as fast as they disappear.
-
-I'm currently in the process of merging older projects together directly into
-this one. Some modules may be entirely or partially broken. Some dependencies
-have issues.
+> **NOTE**: This project is built for personal use only and is intended to run on Linux systems. Production deployments are *not* supported. My main focus areas are model interpretability, security, and agency.
 
 ## Layout
 
