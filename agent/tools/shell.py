@@ -25,15 +25,14 @@ principles are enforced:
        https://unix.stackexchange.com/q/219922
 
 3. **Unexpected behaviour and hallucinations**
-   Models may generate creative or unintended commands.
-   Research on reasoning model behaviours can be found here:
+   Models may take creative or unexpected paths to achieve a goal.
+   Demonstrating specification gaming in reasoning models:
        https://arxiv.org/abs/2502.13295
 
 4. **Destructive actions**
-   Agents might produce false information that leads to destructive operations.
+   Agents might execute programs that could lead to destructive operations.
    A real-world example is Gemini deleting an entire drive in production:
        https://futurism.com/artificial-intelligence/google-ai-deletes-entire-drive
-
 
 ---
 Access Control & Sandboxing
@@ -74,8 +73,8 @@ model freedom while still catching dangerous patterns before they reach
 Execution Details
 ---
 
-- **Piping Support** - The runner constructs a `subprocess.Popen` chain that
-  connects standard streams between commands.  Reference implementations can be
+- **Process Management** - `subprocess.Popen` chaining can be used to
+  connect standard streams between commands.  Reference implementations can be
   found at:
       https://stackoverflow.com/a/295564/15147156
       https://docs.python.org/3/library/subprocess.html#replacing-shell-pipeline
@@ -85,9 +84,8 @@ Execution Details
   explicitly enabled by the user.  If removal is required, a safer alternative
   like `trash-cli` can be used.
 
-- **Output Handling** - All standard output and error streams are captured,
-  encoded in UTF-8 (or raw bytes if requested), and returned to the agent as a
-  structured response.
+- **Output Management** - All standard output and error streams are captured,
+  encoded into UTF-8, and returned to the agent as a structured response.
 
 ---
 Summary
@@ -101,6 +99,7 @@ feedback.  Use with caution in production; never enable unrestricted access.
 
 
 import functools
+import io
 import json
 import shlex
 import subprocess
@@ -113,14 +112,6 @@ from tree_sitter import Language, Node, Parser, Point, Query, QueryCursor, Tree
 from agent.config import config
 
 # --- Structures ---
-
-
-@dataclass
-class Command:
-    name: str  # e.g. "echo"
-    slice: str  # e.g. "echo 'Hello, world!'"
-    start: Point
-    end: Point
 
 
 class Terminal:
@@ -231,26 +222,53 @@ class BashQuery:
         return BashQuery.nodes(root, r"""( [ (ERROR) (MISSING) ] @errors )""")
 
     @staticmethod
-    def denied(root: Node) -> list[Node]:
-        """Return a list of disallowed command names, else return a empty list."""
-        names = BashQuery.command_names(root)
+    def allowed(root: Node) -> list[str]:
+        """Return a list of allowed command names."""
         allowlist = Terminal.command_names()
-        return [n for n in names if n.text.decode() not in allowlist]
+        functions = BashQuery.function_names(root)
+        for n in functions:
+            allowlist.append(n.text.decode())
+        return allowlist
+
+    @staticmethod
+    def denied(root: Node) -> list[dict[str, any]]:
+        """Return a list of denied command names."""
+        allowlist = BashQuery.allowed(root)
+        names = BashQuery.command_names(root)
+        return [
+            {
+                "status": "denied",
+                "command_name": node.text.decode(),
+                "text": root.text[node.start_byte : node.end_byte].decode(),
+                "start": {
+                    "row": node.start_point.row,
+                    "column": node.start_point.column,
+                },
+                "end": {
+                    "row": node.end_point.row,
+                    "column": node.end_point.column,
+                },
+            }
+            for node in names
+            if node.text.decode() not in allowlist
+        ]
 
 
 # --- Tools ---
 
 
+# A tool **must** be a function, or staticmethod, and return a **str**.
 class Shell:
+    # I don't like how the path is handled, but I can revisit this later.
     @staticmethod
-    def path() -> str:
+    def path() -> tuple[bool, str]:
         path = Path(Terminal.shell())
         message = "Error: User misconfigured tool."
         if path.name != "bash":
-            return f"{message} Terminal shell must be `bash`, not `{path.name}`"
+            return False, f"{message} Terminal shell must be `bash`, not `{path.name}`"
         if not path.is_file():
-            return f"{message} `bash` is a missing file."
-        return str(path)
+            return False, f"{message} `{path}` is not a valid file."
+        return True, str(path)
 
     @staticmethod
     def allowed() -> str:
@@ -269,15 +287,20 @@ class Shell:
         root = BashParser.parse(program)
         denied = BashQuery.denied(root)
         if denied:
-            return "Denied"  # a serialized result detailing failed criteria
+            return json.dumps(denied, indent=2)
         if errors:
             return "Errors"  # similar to denied, but adjusted for bad syntax
 
         # configure the arguments
-        args = [Terminal.shell(), "-c"]
+        valid_path, path = Shell.path()
+        if not valid_path:
+            return path
+
+        args = [path, "-c"]
         if Terminal.restricted():
             args.append("-r")
-        args.append(program)
+        file = io.StringIO(program)
+        args.append(file)
 
         # execute the program
         try:
@@ -315,10 +338,9 @@ class Shell:
 if __name__ == "__main__":
     import sys
 
-    # sample command injection
-    program = (
-        " ".join(sys.argv[1:]) or "shopt -s extglob; wc -l file.txt ; cat /etc/passwd"
-    )
+    # simple command injection to test boundaries
+    default = "shopt -s extglob; wc -l file.txt ; cat /etc/passwd"
+    program = " ".join(sys.argv[1:]) or default
 
     print(f"command: `{program}`")
     print(Shell.allowed())
