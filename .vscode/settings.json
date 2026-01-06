@@ -5,6 +5,7 @@
   "editor.wordWrap": "on",
   "editor.fontSize": 10,
   "editor.fontFamily": "'Noto Sans Mono', 'Source Code Pro', 'Droid Sans Mono'",
+  "terminal.integrated.shellIntegration.enabled": false,
   "[markdown]": {
     "editor.defaultFormatter": "prettier.prettier-vscode"
   },
