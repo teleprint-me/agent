@@ -20,6 +20,8 @@ Example usage:
     config = ConfigurationManager(file_path, initial_data={"server": {}}, indent=2)
     config.set_value("server.models-dir", "/mnt/models")
     model_path = config.get_value("server.models-dir")   # -> "/mnt/models"
+    # A logging.Logger instance can be created for each use case using a config key
+    logger = config.get_logger(key="logger", logger_name="my_logger")
 """
 
 from jsonpycraft import (
