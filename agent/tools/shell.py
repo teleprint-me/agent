@@ -238,7 +238,6 @@ class BashQuery:
         nodes = BashQuery.command_names(root)
         return [
             {
-                "status": "deny",
                 "command_name": node.text.decode(),
                 "start": {
                     "row": node.start_point.row,
@@ -258,11 +257,10 @@ class BashQuery:
     @staticmethod
     def errors(root: Node) -> list[dict[str, any]]:
         """Return a list of nodes that contain syntax error markers."""
-        nodes = BashQuery.nodes(root, r"""( [ (ERROR) (MISSING) ] @errors )""")
+        nodes = BashQuery.nodes(root, r"""( [ (ERROR) (MISSING) ] @marker )""")
         return [
             {
-                "status": "syntax",
-                "error": node.text.decode(),
+                "marker": node.text.decode(),
                 "start": {
                     "row": node.start_point.row,
                     "column": node.start_point.column,
@@ -345,18 +343,18 @@ class Shell:
         if path["status"] == "error":
             return json.dumps(path, indent=2)
 
-        # parse the input program and get the root node
+        # 1. parse the input program and get the root node
         root = BashParser.parse(program)
 
-        # check if input program is denied
-        denied = BashQuery.denied(root)
-        if denied:
-            return json.dumps(denied, indent=2)
-
-        # check if input program has errors
+        # 2. check if input program has errors
         errors = BashQuery.errors(root)
         if errors:
-            return json.dumps(errors, indent=2)
+            return json.dumps({"status": "syntax", "errors": errors}, indent=2)
+
+        # 3. check if input program is denied
+        denied = BashQuery.denied(root)
+        if denied:
+            return json.dumps({"status": "deny", "list": denied}, indent=2)
 
         # note: i need to figure out how to convince bash the input is a file.
         #       for now, I just use the -c option, but the input should be
@@ -435,5 +433,5 @@ if __name__ == "__main__":
     program = " ".join(sys.argv[1:]) or default
 
     print(f"command: `{program}`")
-    print(f"allowed: {Shell.allowed()}")
+    # print(f"allowed: {Shell.allowed()}")
     print(f"run: {Shell.run(program)}")
