@@ -114,10 +114,6 @@ from agent.config import config
 
 
 class Terminal:
-    # NOTE on `config` references:
-    #   Returned values from `config.get_value()` are always at least a shallow copy.
-    #   Values can only be modified by explicitly calling `config.set_value()`.
-    #   The internal structure is not modifiable by external references as a result.
 
     @staticmethod
     def as_dict() -> dict[str, any]:
@@ -141,8 +137,10 @@ class Terminal:
 
     @staticmethod
     def command_names() -> list[str]:
-        """Return a list of allowed executable commands within a shell."""
-        return list(set(config.get_value("terminal.command_names", [])))
+        """Copy the list of allowed command names within a shell."""
+        names = config.get_value("terminal.command_names", [])  # get
+        names = set(names)  # deduplicate
+        return list(names)[:]  # copy
 
 
 # --- Parser ---
@@ -261,8 +259,8 @@ class BashQuery:
         nodes = BashQuery.nodes(root, r"""( [ (ERROR) (MISSING) ] @errors )""")
         return [
             {
-                "status": "error",
-                "content": node.text.decode(),
+                "status": "syntax",
+                "error": node.text.decode(),
                 "start": {
                     "row": node.start_point.row,
                     "column": node.start_point.column,
@@ -364,11 +362,21 @@ class Shell:
 
         # build the command to execute
         args = [path["content"]]
+
         # end user restricted shell access
         if Terminal.restricted():
             args.append("-r")
+
+        # bug:  tree-sitter can not catch the job control operator. even though this
+        #       operation is asynchronous, subprocess.run() still hangs. not sure what
+        #       the default timeout is, but it can hang for a while unless interrupted.
+        # note: i inject `set -m` into the models program to disable asynchronous job
+        #       control which raises a process exception. this is a temporary fix which
+        #       simply alerts the model that it made a mistake with it's input.
+        #       i'm not sure if it would confuse it - confusion is undesirable.
+
         # convert the input program into a virtual script
-        args.extend(["-c", program.encode()])
+        args.extend(["-c", f"set -m\n{program}".encode()])
 
         # execute the program
         try:
@@ -386,8 +394,9 @@ class Shell:
             return json.dumps(
                 {
                     "status": "error",
-                    "stdout": e.stdout.strip() or "(No output)",
+                    "exception": str(e),
                     "stderr": e.stderr.strip() or "(No error)",
+                    "stdout": e.stdout.strip() or "(No output)",
                     "code": e.returncode,
                 },
                 indent=2,
@@ -397,7 +406,6 @@ class Shell:
                 {
                     "status": "error",
                     "exception": str(e),
-                    "code": e.returncode,
                 },
                 indent=2,
             )
