@@ -98,13 +98,13 @@ def query(node: Node, source: str) -> dict[str, list[Node]]:
 # substitutions may add more complexity than it's worth  - not sure yet.
 # ideally, we just handle commands and pipelines cleanly.
 # lists are convenience for the llms.
-def list_commands(node: Node) -> list[Node]:
+def capture_commands(node: Node) -> list[Node]:
+    """Return a list of captured commands."""
     source: str = r"""
     (program [
             (command)
             (pipeline (command))
-            (list (command))
-            (variable_assignment)
+            (list     (command))
         ] @root_command
     )
     """
@@ -115,15 +115,32 @@ def list_commands(node: Node) -> list[Node]:
     return commands
 
 
-def list_command_names(commands: list[Node]) -> list[str]:
-    """Return a plain-text name for each command node."""
-    names = []
-    for cmd in commands:
-        # Grab the first (and only) child that is a `command_name`.
-        cname_node = next((c for c in cmd.children if c.type == "command_name"), None)
-        if cname_node:  # guard against malformed trees
-            names.append(cname_node.text.decode("utf8"))
-    return names
+def capture_names(node: Node) -> list[Node]:
+    """Return a list of captured command names."""
+    source = r"""
+    (program [
+            (command  (command_name) @name)
+            (pipeline (command (command_name) @name))
+            (list     (command (command_name) @name))
+        ]
+    )
+    """
+    captures: dict[str, list[Node]] = query(node, source)
+    return [n for n in captures.get("name", [])]
+
+
+# note: the models expect a serialized json object.
+def capture_denied(node: Node) -> list[Node]:
+    """Return a list of disallowed command names, else return a empty list."""
+    from agent.config import config
+
+    allowed = set(config.get_value("shell.allowed", []))
+    names = capture_names(node)
+    disallowed = []
+    for name in names:
+        if name.text.decode("utf8") not in allowed:
+            disallowed.append(name)  # return the invalid node
+    return None  # all nodes are executable
 
 
 # --- run ---
@@ -158,7 +175,7 @@ if __name__ == "__main__":
     if args.walk:
         walk(root, depth=0)
 
-    commands = list_commands(root)
+    commands = capture_commands(root)
     if commands:
         print(f"Captured {len(commands)} command(s):")
         for command in commands:
@@ -168,7 +185,7 @@ if __name__ == "__main__":
                 f"end: {command.end_point}"
             )
 
-        names = list_command_names(commands)
+        names = capture_names(root)
         print(f"Queried {len(names)} commands:")
         for name in set(names):  # filter out repeats
             print(f"command_name: {name}")
