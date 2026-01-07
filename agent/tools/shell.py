@@ -24,12 +24,12 @@ principles are enforced:
    Dedicated user accounts are recommended:
        https://unix.stackexchange.com/q/219922
 
-3. **Unexpected behaviour and hallucinations**
+3. **Unexpected behaviour**
    Models may take creative or unexpected paths to achieve a goal.
    Demonstrating specification gaming in reasoning models:
        https://arxiv.org/abs/2502.13295
 
-4. **Destructive actions**
+4. **Hallucinations and destructive actions**
    Agents might execute programs that could lead to destructive operations.
    A real-world example is Gemini deleting an entire drive in production:
        https://futurism.com/artificial-intelligence/google-ai-deletes-entire-drive
@@ -301,12 +301,21 @@ class Shell:
     @staticmethod
     def allowed() -> str:
         """Return the terminal configuration as a serialized dictionary."""
-        if not Terminal.command_names():
+        if not Terminal.executable():
             return json.dumps(
                 {
                     "status": "ok",
-                    "content": "Shell commands are disabled.",
+                    "content": "Shell is not executable.",
                     "hint": "Admin disabled shell access.",
+                },
+                indent=2,
+            )
+        if not Terminal.command_names():
+            return json.dumps(
+                {
+                    "status": "error",
+                    "content": "`command_names` list is empty.",
+                    "hint": "Admin enabled shell, but provided an empty allowlist.",
                 },
                 indent=2,
             )
@@ -316,8 +325,15 @@ class Shell:
     @staticmethod
     def run(program: str) -> str:
         # end user disabled shell
-        if not Terminal.command_names():
-            return "Shell commands are disabled."
+        if not Terminal.executable():
+            return json.dumps(
+                {
+                    "status": "ok",
+                    "content": "Shell is not executable.",
+                    "hint": "Admin disabled shell access.",
+                },
+                indent=2,
+            )
 
         # check if the environment has bash
         path = Shell.path()
@@ -339,25 +355,20 @@ class Shell:
 
         # note: i need to figure out how to convince bash the input is a file.
         #       for now, I just use the -c option, but the input should be
-        #       treated as a conventional shell script.
+        #       treated as a conventional shell script. The `io` module might
+        #       provide something to help facilitate this.
 
         # build the command to execute
-        args = [path["content"], "-c"]
+        args = [path["content"]]
         # end user restricted shell access
         if Terminal.restricted():
             args.append("-r")
         # convert the input program into a virtual script
-        args.append(program.encode())  # look into `io` options.
+        args.extend(["-c", program.encode()])
 
         # execute the program
         try:
-            result = subprocess.run(
-                args,
-                capture_output=True,
-                text=True,
-                check=True,
-                shell=False,  # avoid enabling this as much as possible
-            )
+            result = subprocess.run(args, capture_output=True, check=True, text=True)
             return json.dumps(
                 {
                     "status": "ok",
