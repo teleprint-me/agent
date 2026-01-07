@@ -236,7 +236,6 @@ class BashQuery:
             {
                 "status": "deny",
                 "command_name": node.text.decode(),
-                "content": root.text[node.start_byte : node.end_byte].decode(),
                 "start": {
                     "row": node.start_point.row,
                     "column": node.start_point.column,
@@ -259,8 +258,7 @@ class BashQuery:
         return [
             {
                 "status": "error",
-                "error": node.text.decode(),
-                "content": root.text[node.start_byte : node.end_byte].decode(),
+                "content": node.text.decode(),
                 "start": {
                     "row": node.start_point.row,
                     "column": node.start_point.column,
@@ -284,17 +282,18 @@ class Shell:
     def path() -> dict[str, str]:
         """Return status based on shell availability."""
         path = Path(Terminal.shell())
-        message = "Error: User misconfigured tool."
         if path.name != "bash":
             return {
                 "status": "error",
-                "content": f"{message} Shell must be `bash`, not `{path.name}`",
+                "content": f"Shell must be `bash`, not `{path.name}`",
+                "hint": "Admin provided an invalid executable path in their config.",
             }
         which = shutil.which(path.name)
         if not which:
             return {
                 "status": "error",
-                "content": f"{message} `{path}` is not a valid file.",
+                "content": f"`{path.name}`: No such file exists.",
+                "hint": "Admin does not have `bash` installed on their system.",
             }
         return {"status": "ok", "content": str(which)}
 
@@ -303,7 +302,14 @@ class Shell:
     def allowed() -> str:
         """Return the terminal configuration as a serialized dictionary."""
         if not Terminal.command_names():
-            return "Shell commands are disabled."
+            return json.dumps(
+                {
+                    "status": "ok",
+                    "content": "Shell commands are disabled.",
+                    "hint": "Admin disabled shell access.",
+                },
+                indent=2,
+            )
         return json.dumps(Terminal.as_dict(), indent=2)
 
     # tool: execute the models input program
@@ -393,7 +399,7 @@ if __name__ == "__main__":
     import sys
 
     # simple command injection to test boundaries
-    default = "shopt -s extglob; wc -l file.txt ; cat /etc/passwd"
+    default = "shopt -s extglob; wc -l file.txt ; rm /etc/passwd"
     program = " ".join(sys.argv[1:]) or default
 
     print(f"command: `{program}`")
