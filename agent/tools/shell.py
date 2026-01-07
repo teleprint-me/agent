@@ -114,6 +114,10 @@ from agent.config import config
 
 
 class Terminal:
+    # NOTE on `config` references:
+    #   Returned values from `config.get_value()` are always at least a shallow copy.
+    #   Values can only be modified by explicitly calling `config.set_value()`.
+    #   The internal structure is not modifiable by external references as a result.
 
     @staticmethod
     def as_dict() -> dict[str, any]:
