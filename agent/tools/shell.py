@@ -117,7 +117,7 @@ class Terminal:
 
     @staticmethod
     def as_dict() -> dict[str, any]:
-        """End user settings used to orchestrate shell execution."""
+        """Admin settings used to orchestrate shell execution."""
         return config.get_value("terminal", {})
 
     @staticmethod
@@ -206,6 +206,7 @@ class BashQuery:
     @staticmethod
     def command_names(root: Node) -> list[Node]:
         """Return a list of nodes representing each `command_name` token."""
+        # query captures all commands: includes nests, substitutions, etc.
         return BashQuery.nodes(root, r"""(command  ((command_name) @name))""")
 
     # the model can define its own commands by defining a function.
@@ -213,6 +214,7 @@ class BashQuery:
     @staticmethod
     def function_names(root: Node) -> list[Node]:
         """Return a list of nodes that are the names of user-defined functions."""
+        # query captures all functions: includes any proper definition.
         return BashQuery.nodes(root, r"""(function_definition ((word) @id))""")
 
     # captured commands compared against a user defined allowlist.
@@ -220,7 +222,7 @@ class BashQuery:
     @staticmethod
     def allowed(root: Node) -> list[str]:
         """Return a list of allowed command names."""
-        allowlist = Terminal.command_names()
+        allowlist = Terminal.command_names()  # get a copy
         functions = BashQuery.function_names(root)
         for n in functions:
             allowlist.append(n.text.decode())
@@ -326,7 +328,8 @@ class Shell:
     # tool: execute the models input program
     @staticmethod
     def run(program: str) -> str:
-        # end user disabled shell
+        """Execute the input shell program provided by the model."""
+        # admin disabled shell
         if not Terminal.executable():
             return json.dumps(
                 {
@@ -363,9 +366,15 @@ class Shell:
         # build the command to execute
         args = [path["content"]]
 
-        # end user restricted shell access
+        # RESTRICTED SHELL
+        # If bash is started with the name rbash, or the -r option is supplied at invocation, the shell becomes re‐
+        # stricted. A restricted shell is used to set up an environment more controlled than the standard shell. It
+        # behaves identically to bash with the exception that some capabilities are disallowed.
+        # see `man bash` for details.
+
+        # admin restricted shell access
         if Terminal.restricted():
-            args.append("-r")
+            args.append("--restricted")
 
         # bug:  tree-sitter can not catch the job control operator. even though this
         #       operation is asynchronous, subprocess.run() still hangs. not sure what
@@ -376,7 +385,7 @@ class Shell:
         #       i'm not sure if it would confuse it - confusion is undesirable.
 
         # convert the input program into a virtual script
-        args.extend(["-c", f"set -m\n{program}".encode()])
+        args.extend(["-c", f"set -m\n{program}"])
 
         # execute the program
         try:
