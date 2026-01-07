@@ -382,13 +382,13 @@ class Shell:
             )
 
 
+# general notes and observations:
+# con: tree-sitter only officially supports bash.
+# pro: i don't have to reinvent yet another parser.
+# shlex: very limited and manually parsing split elements is error prone.
+# bash: automating the AST has made life easier.
+
 # usage example
-# figure out how to safely handle piped commands
-# conditionals should be allowed for added flexibility and proper error handling
-# the downside to this is that tree-sitter only officially supports bash
-# the upside to this is that i don't have to reinvent yet another parser
-# shlex is very limited and manually parsing split is error prone
-# getting an automated AST can (hopefully) make life easier
 if __name__ == "__main__":
     import sys
 
