@@ -99,11 +99,10 @@ feedback.  Use with caution in production; never enable unrestricted access.
 
 
 import functools
-import io
 import json
 import shlex
+import shutil
 import subprocess
-from dataclasses import dataclass
 from pathlib import Path
 
 import tree_sitter_bash
@@ -214,13 +213,8 @@ class BashQuery:
         """Return a list of nodes that are the names of user-defined functions."""
         return BashQuery.nodes(root, r"""(function_definition ((word) @id))""")
 
-    # we can lint the models input program and return detailed
-    # metadata to help the model recover via error correction.
-    @staticmethod
-    def errors(root: Node) -> list[Node]:
-        """Return a list of nodes that are syntax error markers."""
-        return BashQuery.nodes(root, r"""( [ (ERROR) (MISSING) ] @errors )""")
-
+    # captured commands compared against a user defined allowlist.
+    # model defined functions are appended to this list.
     @staticmethod
     def allowed(root: Node) -> list[str]:
         """Return a list of allowed command names."""
@@ -230,16 +224,19 @@ class BashQuery:
             allowlist.append(n.text.decode())
         return allowlist
 
+    # if the model attempts to violate the access control list,
+    # we return a list of violations to allow it to attempt to achieve
+    # its goal through (ideally) allowed means.
     @staticmethod
     def denied(root: Node) -> list[dict[str, any]]:
         """Return a list of denied command names."""
         allowlist = BashQuery.allowed(root)
-        names = BashQuery.command_names(root)
+        nodes = BashQuery.command_names(root)
         return [
             {
-                "status": "denied",
+                "status": "deny",
                 "command_name": node.text.decode(),
-                "text": root.text[node.start_byte : node.end_byte].decode(),
+                "content": root.text[node.start_byte : node.end_byte].decode(),
                 "start": {
                     "row": node.start_point.row,
                     "column": node.start_point.column,
@@ -249,58 +246,98 @@ class BashQuery:
                     "column": node.end_point.column,
                 },
             }
-            for node in names
+            for node in nodes
             if node.text.decode() not in allowlist
+        ]
+
+    # we can lint the models input program and return detailed
+    # metadata to help the model recover by correcting its errors.
+    @staticmethod
+    def errors(root: Node) -> list[dict[str, any]]:
+        """Return a list of nodes that contain syntax error markers."""
+        nodes = BashQuery.nodes(root, r"""( [ (ERROR) (MISSING) ] @errors )""")
+        return [
+            {
+                "status": "error",
+                "error": node.text.decode(),
+                "content": root.text[node.start_byte : node.end_byte].decode(),
+                "start": {
+                    "row": node.start_point.row,
+                    "column": node.start_point.column,
+                },
+                "end": {
+                    "row": node.end_point.row,
+                    "column": node.end_point.column,
+                },
+            }
+            for node in nodes
         ]
 
 
 # --- Tools ---
 
 
-# A tool **must** be a function, or staticmethod, and return a **str**.
+# A tool must be a function, or staticmethod, and it must return a **str**.
 class Shell:
-    # I don't like how the path is handled, but I can revisit this later.
+    # check to ensure bash command is availble and within environment path.
     @staticmethod
-    def path() -> tuple[bool, str]:
+    def path() -> dict[str, str]:
+        """Return status based on shell availability."""
         path = Path(Terminal.shell())
         message = "Error: User misconfigured tool."
         if path.name != "bash":
-            return False, f"{message} Terminal shell must be `bash`, not `{path.name}`"
-        if not path.is_file():
-            return False, f"{message} `{path}` is not a valid file."
-        return True, str(path)
+            return {
+                "status": "error",
+                "content": f"{message} Shell must be `bash`, not `{path.name}`",
+            }
+        which = shutil.which(path.name)
+        if not which:
+            return {
+                "status": "error",
+                "content": f"{message} `{path}` is not a valid file.",
+            }
+        return {"status": "ok", "content": str(which)}
 
+    # tool: allow the model to query shell availability.
     @staticmethod
     def allowed() -> str:
-        """Return a serialized dictionary of the terminal configuration."""
+        """Return the terminal configuration as a serialized dictionary."""
         if not Terminal.command_names():
             return "Shell commands are disabled."
         return json.dumps(Terminal.as_dict(), indent=2)
 
-    # note: models require a string as a response object.
+    # tool: execute the models input program
     @staticmethod
     def run(program: str) -> str:
+        # end user disabled shell
         if not Terminal.command_names():
             return "Shell commands are disabled."
 
-        # validate the input program
+        # check if the environment has bash
+        path = Shell.path()
+        if path["status"] == "error":
+            return json.dumps(path, indent=2)
+
+        # parse the input program and get the root node
         root = BashParser.parse(program)
+
+        # check if input program is denied
         denied = BashQuery.denied(root)
         if denied:
             return json.dumps(denied, indent=2)
+
+        # check if input program has errors
+        errors = BashQuery.errors(root)
         if errors:
-            return "Errors"  # similar to denied, but adjusted for bad syntax
+            return json.dumps(errors, indent=2)
 
-        # configure the arguments
-        valid_path, path = Shell.path()
-        if not valid_path:
-            return path
-
-        args = [path, "-c"]
+        # build the command to execute
+        args = [path["content"]]
+        # end user restricted shell access
         if Terminal.restricted():
             args.append("-r")
-        file = io.StringIO(program)
-        args.append(file)
+        # convert the input program into a virtual script
+        args.append(program.encode())
 
         # execute the program
         try:
