@@ -331,13 +331,17 @@ class Shell:
         if errors:
             return json.dumps(errors, indent=2)
 
+        # note: i need to figure out how to convince bash the input is a file.
+        #       for now, I just use the -c option, but the input should be
+        #       treated as a conventional shell script.
+
         # build the command to execute
-        args = [path["content"]]
+        args = [path["content"], "-c"]
         # end user restricted shell access
         if Terminal.restricted():
             args.append("-r")
         # convert the input program into a virtual script
-        args.append(program.encode())
+        args.append(program.encode())  # look into `io` options.
 
         # execute the program
         try:
@@ -346,7 +350,7 @@ class Shell:
                 capture_output=True,
                 text=True,
                 check=True,
-                shell=Terminal.executable(),
+                shell=False,  # avoid enabling this as much as possible
             )
             return json.dumps(
                 {
