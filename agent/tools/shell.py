@@ -403,5 +403,5 @@ if __name__ == "__main__":
     program = " ".join(sys.argv[1:]) or default
 
     print(f"command: `{program}`")
-    print(Shell.allowed())
-    print(Shell.run(program))
+    print(f"allowed: {Shell.allowed()}")
+    print(f"run: {Shell.run(program)}")
