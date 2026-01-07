@@ -348,21 +348,34 @@ class Shell:
                 check=True,
                 shell=Terminal.executable(),
             )
-            print(f"out: {result}")
-            output = result.stdout.strip()
-            err = result.stderr.strip()
-            if err:
-                return f"StandardOutput:\n{output}\nStandardError:\n{err}"
-            return output or "(No output)"
+            return json.dumps(
+                {
+                    "status": "ok",
+                    "stdout": result.stdout.strip() or "(No output)",
+                    "stderr": result.stderr.strip() or "(No error)",
+                    "code": result.returncode,
+                },
+                indent=2,
+            )
         except subprocess.CalledProcessError as e:
-            result = f"Error: ReturnCode: {e.returncode}\n"
-            if e.stderr:
-                result += f"StandardError:\n{e.stderr.strip()}\n"
-            if e.stdout:
-                result += f"StandardOutput:\n{e.stdout.strip()}\n"
-            return result
+            return json.dumps(
+                {
+                    "status": "error",
+                    "stdout": e.stdout.strip() or "(No output)",
+                    "stderr": e.stderr.strip() or "(No error)",
+                    "code": e.returncode,
+                },
+                indent=2,
+            )
         except Exception as e:
-            return f"Error: {str(e)}"
+            return json.dumps(
+                {
+                    "status": "error",
+                    "exception": str(e),
+                    "code": e.returncode,
+                },
+                indent=2,
+            )
 
 
 # usage example
