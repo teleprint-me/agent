@@ -291,7 +291,7 @@ if __name__ == "__main__":
 
     # --- run ---
 
-    if args.run:
+    if args.run and args.keyword != "container":
         command = ["/usr/bin/bash", "-c", f"""{program}"""]
         result = subprocess.run(command, capture_output=True, check=True, text=True)
         print(result)
