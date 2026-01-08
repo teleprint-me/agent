@@ -28,19 +28,19 @@ from tree_sitter import Language, Node, Parser, Query, QueryCursor, Tree
 # additionally, functions are treated as user-defined commands.
 
 # simple one-liner (node.type: command)
-_command = r'echo "Hello," " World!"'
+_command = r"""echo 'Hello,' ' World!'"""
 
 # simple pipe to count n chars (node.type: pipeline)
-_pipeline = r'echo "Hello, world!" | wc -c'
+_pipeline = r"""echo 'Hello, world!' | wc -c"""
 
 # one or other (node.type: list)
-_list = r'echo "Hello," " World!" || printf "Hello!\n"'
+_list = r"""echo 'Hello, world!' || printf 'Hello!\n'"""
 
 # create a function and execute it!
-_function = r"fun() { cat requirements.sh; }; fun"
+_function = r"""fun() { echo 'Hello, world!'; }; fun"""
 
 # has missing semicolons to trigger errors
-_error = r"fun() { cat requirements.sh } fun"
+_error = r"""fun() { echo 'Hello, world!' } fun"""
 
 # simple script pretending to be a real program 🥲 (node.type: program)
 _program = r"""
@@ -77,10 +77,6 @@ echo "$baz"
 
 _container = r"""
 # see `set` under SHELL BUILTIN COMMANDS in `man bash` for info
-set -e # exit immediately on error
-set +m # disable job control
-set -u # treat unset variables as errors
-
 # see `Shell Variables` under `PARAMETERS` in `man bash` for info
 env -i \ # clear the environment for isolation
     HOME="$HOME" \ # keep a sane $HOME
@@ -89,6 +85,10 @@ env -i \ # clear the environment for isolation
     PATH="/usr/bin:/usr/local/bin" \
     TERM="xterm-256color" \
     LANG=en_US.UTF-8 \ # whatever locale is needed
+    set -e \ # exit immediately on error
+    set +m \ # disable job control
+    set -u \ # treat unset variables as errors
+    hash -r 2> /dev/null \ # forget past commands
     exec "$@" # jump into a program
 """
 
