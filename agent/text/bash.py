@@ -9,7 +9,7 @@ tree-sitter is not perfect and it has holes.
 i think the part with the most risk is that shebangs modify control flow.
 you can technically tell the shell to run any program in any language.
 
-  for more info, see https://linux.die.net/abs-guide/intandnonint.html
+  for more info, see https://linux.die.net/abs-guide/miscellany.html
     Advanced Bash-Scripting Guide, Chapter 33. Miscellany
     Section 1: Interactive and non-interactive shells and scripts
     Section 2: Shell Wrappers
