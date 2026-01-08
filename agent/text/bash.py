@@ -1,7 +1,12 @@
 # agent/text/bash.py
 """
-keep this as dead simple as possible
+keep this as dead simple as possible.
+
+tree-sitter is not perfect and it has holes.
+  - does not detect job control operations unless presented as a command.
+  - does not detect shebang and interprets them as comments.
 """
+
 import functools
 
 import tree_sitter_bash
@@ -11,21 +16,29 @@ from tree_sitter import Language, Node, Parser, Query, QueryCursor, Tree
 
 # the root node has type program which would emcompass a full shell script.
 # enabling a full script into a subprocess would enable arbitrary execution.
-# NOTE: tests and functions would need be skipped.
-# this would need to be explicitly filtered out from the shell() function.
+# commands can be explicitly filtered out from the shell() function.
+# additionally, functions are treated as user-defined commands.
 
 # simple one-liner (node.type: command)
-inline = r'echo "Hello," " World!"'
-
-# one or other (node.type: list)
-conditional = r'echo "Hello," " World!" || exit 1'
+_command = r'echo "Hello," " World!"'
 
 # simple pipe to count n chars (node.type: pipeline)
-pipeline = r'echo "Hello, world!" | wc -c'
+_pipeline = r'echo "Hello, world!" | wc -c'
+
+# one or other (node.type: list)
+_list = r'echo "Hello," " World!" || printf "Hello!\n"'
+
+# create a function and execute it!
+_function = r"fun() { cat data/markdown/mini-owl.md; }; fun"
+
+# has missing semicolons to trigger errors
+_error = r"fun() { cat data/markdown/mini-owl.md } fun"
 
 # simple script pretending to be a real program 🥲 (node.type: program)
-script = r"""
+_program = r"""
+#!/usr/bin/env bash
 # foo.sh – a tiny demo shell
+
 if [ -z "$1" ]; then
     name="User"
 else
@@ -36,7 +49,7 @@ function greet() {
     echo "Greetings and salutations!"
 }
 
-function insult() {
+insult() {
     echo "Eat my shorts, $1!"
 }
 
@@ -52,6 +65,24 @@ echo "$bar"
 
 baz=$(farewell)
 echo "$baz"
+"""
+
+_container = r"""
+# see `set` under SHELL BUILTIN COMMANDS in `man bash` for info
+set -e # exit immediately on error
+set +m # disable job control
+set -u # treat unset variables as errors
+
+# see `Shell Variables` under `PARAMETERS` in `man bash` for info
+# clear the environment for isolation
+env -i \
+    HOME="$HOME" \            # keep a sane $HOME
+    USER="${USER:-$(id -un)}" \
+    LOGNAME="${LOGNAME:-${USER}}" \
+    PATH="/usr/bin:/usr/local/bin" \
+    TERM="xterm-256color" \
+    LANG=en_US.UTF-8 \        # whatever locale is needed
+    exec "$@"                 # jump into a program
 """
 
 # --- parser ---
@@ -154,10 +185,12 @@ if __name__ == "__main__":
     from argparse import ArgumentParser
 
     choices = {
-        "command": inline,
-        "pipeline": pipeline,
-        "list": conditional,
-        "inject": script,
+        "command": _command,
+        "pipeline": _pipeline,
+        "list": _list,
+        "function": _function,
+        "error": _error,
+        "program": _program,
     }
 
     parser = ArgumentParser()
