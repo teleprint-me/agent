@@ -2,17 +2,30 @@
 """
 keep this as dead simple as possible.
 
+---
+Issues
+---
+
 tree-sitter is not perfect and it has holes.
-  - does not detect job control operations unless presented as a command.
   - does not detect shebang and interprets them as comments.
+  - does not detect job control operators, e.g. `&`.
+
+---
+Risks
+---
 
 i think the part with the most risk is that shebangs modify control flow.
 you can technically tell the shell to run any program in any language.
 
-  for more info, see https://linux.die.net/abs-guide/miscellany.html
-    Advanced Bash-Scripting Guide, Chapter 33. Miscellany
-    Section 1: Interactive and non-interactive shells and scripts
-    Section 2: Shell Wrappers
+---
+References
+---
+
+  - for man page, see https://linux.die.net/man/1/bash
+  - for more info, see https://linux.die.net/abs-guide/miscellany.html
+    - Advanced Bash-Scripting Guide, Chapter 33. Miscellany
+      - Section 1: Interactive and non-interactive shells and scripts
+      - Section 2: Shell Wrappers
 """
 
 import functools
@@ -181,15 +194,18 @@ def lint(root: Node) -> list[dict[str, any]]:
                 "column": node.end_point.column,
             },
         }
-        for node in nodes
+        for node in BashQuery.errors(root)
     ]
 
 
 # --- run ---
 
 if __name__ == "__main__":
+    import json
     import subprocess
     from argparse import ArgumentParser
+
+    # --- keywords ---
 
     choices = {
         "command": _command,
@@ -198,7 +214,10 @@ if __name__ == "__main__":
         "function": _function,
         "error": _error,
         "program": _program,
+        "container": _container,
     }
+
+    # --- args ---
 
     parser = ArgumentParser()
     parser.add_argument(
@@ -212,14 +231,34 @@ if __name__ == "__main__":
         action="store_true",
         help="Pretty print the abstract syntax tree.",
     )
+    parser.add_argument(
+        "--lint",
+        action="store_true",
+        help="Query program for missing erroneous symbols.",
+    )
     args = parser.parse_args()
+
+    # --- program ---
 
     program = choices[args.keyword]
 
     root = BashParser.parse(program)
 
+    # --- walk ---
+
     if args.walk:
         walk(root, depth=0)
+
+    # --- lint ---
+
+    if args.lint:
+        errors = lint(root)
+        if errors:
+            print(json.dumps(errors, indent=2))
+        else:
+            print("No errors.")
+
+    # --- query ---
 
     commands = BashQuery.command_names(root)
     if commands:
@@ -231,4 +270,4 @@ if __name__ == "__main__":
                 f"end: {command.end_point}"
             )
     else:
-        print("No captures matched.")
+        print("No captures.")
