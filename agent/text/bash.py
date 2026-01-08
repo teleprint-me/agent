@@ -5,6 +5,13 @@ keep this as dead simple as possible.
 tree-sitter is not perfect and it has holes.
   - does not detect job control operations unless presented as a command.
   - does not detect shebang and interprets them as comments.
+
+i think the part with the most risk is that shebangs modify control flow.
+you can technically tell the shell to run any program in any language.
+
+  for more info, see https://linux.die.net/abs-guide/intandnonint.html
+    Advanced Bash-Scripting Guide, Chapter 33. Miscellany, Section 1
+      Interactive and non-interactive shells and scripts
 """
 
 import functools
@@ -29,10 +36,10 @@ _pipeline = r'echo "Hello, world!" | wc -c'
 _list = r'echo "Hello," " World!" || printf "Hello!\n"'
 
 # create a function and execute it!
-_function = r"fun() { cat data/markdown/mini-owl.md; }; fun"
+_function = r"fun() { cat requirements.sh; }; fun"
 
 # has missing semicolons to trigger errors
-_error = r"fun() { cat data/markdown/mini-owl.md } fun"
+_error = r"fun() { cat requirements.sh } fun"
 
 # simple script pretending to be a real program 🥲 (node.type: program)
 _program = r"""
@@ -74,15 +81,14 @@ set +m # disable job control
 set -u # treat unset variables as errors
 
 # see `Shell Variables` under `PARAMETERS` in `man bash` for info
-# clear the environment for isolation
-env -i \
-    HOME="$HOME" \            # keep a sane $HOME
+env -i \ # clear the environment for isolation
+    HOME="$HOME" \ # keep a sane $HOME
     USER="${USER:-$(id -un)}" \
     LOGNAME="${LOGNAME:-${USER}}" \
     PATH="/usr/bin:/usr/local/bin" \
     TERM="xterm-256color" \
-    LANG=en_US.UTF-8 \        # whatever locale is needed
-    exec "$@"                 # jump into a program
+    LANG=en_US.UTF-8 \ # whatever locale is needed
+    exec "$@" # jump into a program
 """
 
 # --- parser ---
