@@ -171,28 +171,29 @@ class BashQuery:
 # --- utilities ---
 
 
-def walk(root: Node, depth: int = 0, margin: int = 30):
-    """Pretty-print a small subtree."""
-    indent = "  " * depth
-    txt = root.text[:margin].decode("utf8", errors="replace")
-    print(f"{indent}{root.type:2} ({txt!r})")
+def start(node: Node) -> dict[str, int]:
+    return {
+        "row": node.start_point.row,
+        "column": node.start_point.column,
+        "byte": node.start_byte,
+    }
 
-    for node in root.children:
-        walk(node, depth + 1)
+
+def end(node: Node) -> dict[str, int]:
+    return {
+        "row": node.end_point.row,
+        "column": node.end_point.column,
+        "byte": node.end_byte,
+    }
 
 
 def lint(root: Node) -> list[dict[str, any]]:
     return [
         {
-            "marker": node.text.decode(),
-            "start": {
-                "row": node.start_point.row,
-                "column": node.start_point.column,
-            },
-            "end": {
-                "row": node.end_point.row,
-                "column": node.end_point.column,
-            },
+            "text": node.text.decode(),
+            "type": node.type,
+            "start": start(node),
+            "end": end(node),
         }
         for node in BashQuery.errors(root)
     ]
@@ -201,18 +202,23 @@ def lint(root: Node) -> list[dict[str, any]]:
 def command_names(root: Node) -> list[dict[str, any]]:
     return [
         {
-            "cmd": node.text.decode("utf8"),
-            "start": {
-                "row": node.start_point.row,
-                "column": node.start_point.column,
-            },
-            "end": {
-                "row": node.end_point.row,
-                "column": node.end_point.column,
-            },
+            "text": node.text.decode("utf8"),
+            "type": node.type,
+            "start": start(node),
+            "end": end(node),
         }
         for node in BashQuery.command_names(root)
     ]
+
+
+def walk(root: Node, depth: int = 0, margin: int = 30):
+    """Pretty-print a small subtree."""
+    indent = "  " * depth
+    txt = root.text[:margin].decode("utf8", errors="replace")
+    print(f"{indent}{root.type:2} ({txt!r})")
+
+    for node in root.children:
+        walk(node, depth + 1)
 
 
 # --- test ---
@@ -275,7 +281,7 @@ if __name__ == "__main__":
     if args.lint:
         errors = lint(root)
         if errors:
-            print(f"Captured {len(commands)} error(s):")
+            print(f"Captured {len(errors)} error(s):")
             print(json.dumps(errors, indent=2))
         else:
             print("No errors.")
