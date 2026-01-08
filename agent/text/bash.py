@@ -2,11 +2,12 @@
 """
 keep this as dead simple as possible
 """
+import functools
 
 import tree_sitter_bash
 from tree_sitter import Language, Node, Parser, Query, QueryCursor, Tree
 
-# --- samples ---
+# --- programs ---
 
 # the root node has type program which would emcompass a full shell script.
 # enabling a full script into a subprocess would enable arbitrary execution.
@@ -53,99 +54,103 @@ baz=$(farewell)
 echo "$baz"
 """
 
-# --- core ---
+# --- parser ---
 
 
-def language() -> Language:
-    # get the PyObject* language binding
-    capsule = tree_sitter_bash.language()
-    # create the language instance object
-    return Language(capsule)
+class BashParser:
+    """Thin wrapper around the pre-compiled *bash* language for tree-sitter."""
+
+    @staticmethod
+    @functools.lru_cache
+    def language() -> Language:
+        """Return a `Language` instance pointing at the compiled bash grammar."""
+        return Language(tree_sitter_bash.language())
+
+    @staticmethod
+    def parse(source: str) -> Node:
+        """Parse `source` into a tree-sitter AST and return its root node."""
+        parser = Parser(BashParser.language())
+        tree = parser.parse(source.encode())
+        return tree.root_node
 
 
-def tree(source: str) -> Tree:
-    # create the language parser
-    parser = Parser(language())
-    # Tree‑Sitter expects bytes; utf8 is fine for shell scripts.
-    return parser.parse(source.encode("utf-8"))
+# --- query ---
 
 
-def walk(node: Node, depth: int = 0):
+class BashQuery:
+    """
+    Helpers for querying shell scripts with *tree-sitter*.
+
+    All methods are `@staticmethod` - you simply call
+    :py:meth:`BashQuery.<method>(root)` where `root` is the AST root node.
+    """
+
+    @staticmethod
+    def captures(root: Node, source: str) -> dict[str, list[Node]]:
+        """Return a dictionary containing captured results for the source query."""
+        query = Query(BashParser.language(), source)
+        cursor = QueryCursor(query)
+        return cursor.captures(root)
+
+    @staticmethod
+    def nodes(root: Node, source: str) -> list[Node]:
+        """Return a flattened list of captured nodes."""
+        nodes = []
+        captures = BashQuery.captures(root, source)
+        for key in captures.keys():  # values are lists of nodes
+            nodes.extend(captures[key])  # flatten
+        return nodes
+
+    @staticmethod
+    def command_names(root: Node) -> list[Node]:
+        """Return a list of nodes representing each `command_name` token."""
+        return BashQuery.nodes(root, r"""(command  ((command_name) @name))""")
+
+    @staticmethod
+    def function_names(root: Node) -> list[Node]:
+        """Return a list of nodes that are the names of user-defined functions."""
+        return BashQuery.nodes(root, r"""(function_definition ((word) @id))""")
+
+    @staticmethod
+    def errors(root: Node) -> list[Node]:
+        """Return a list of nodes that contain syntax error markers."""
+        return BashQuery.nodes(root, r"""( [ (ERROR) (MISSING) ] @marker )""")
+
+
+# --- utilities ---
+
+
+def walk(root: Node, depth: int = 0, margin: int = 30):
     """Pretty-print a small subtree."""
     indent = "  " * depth
-    # Show only the first 30 bytes of text so the output stays readable.
-    txt = node.text[:30].decode("utf8", errors="replace")
-    print(f"{indent}{node.type:2} ({txt!r})")
+    txt = root.text[:margin].decode("utf8", errors="replace")
+    print(f"{indent}{root.type:2} ({txt!r})")
 
-    for child in node.children:
-        walk(child, depth + 1)
-
-
-# --- queries ---
+    for node in root.children:
+        walk(node, depth + 1)
 
 
-# the key matches the capture identifier, e.g. key -> cmd
-def query(node: Node, source: str) -> dict[str, list[Node]]:
-    q = Query(language(), source)
-    c = QueryCursor(q)
-    return c.captures(node)
-
-
-# only capture root-level commands.
-# e.g. ignore tests, functions, nested bodies, etc.
-# some things may be desirable, like assignments and substitutions.
-# e.g. modifying an environment variable to run a command like cmake for example.
-# substitutions may add more complexity than it's worth  - not sure yet.
-# ideally, we just handle commands and pipelines cleanly.
-# lists are convenience for the llms.
-def capture_commands(node: Node) -> list[Node]:
-    """Return a list of captured commands."""
-    source: str = r"""
-    (program [
-            (command)
-            (pipeline (command))
-            (list     (command))
-        ] @root_command
-    )
-    """
-    captures: dict[str, list[Node]] = query(node, source)
-    commands: list[Node] = []
-    for key in captures.keys():
-        commands.extend(captures[key])
-    return commands
-
-
-def capture_names(node: Node) -> list[Node]:
-    """Return a list of captured command names."""
-    source = r"""
-    (program [
-            (command  (command_name) @name)
-            (pipeline (command (command_name) @name))
-            (list     (command (command_name) @name))
-        ]
-    )
-    """
-    captures: dict[str, list[Node]] = query(node, source)
-    return [n for n in captures.get("name", [])]
-
-
-# note: the models expect a serialized json object.
-def capture_denied(node: Node) -> list[Node]:
-    """Return a list of disallowed command names, else return a empty list."""
-    from agent.config import config
-
-    allowed = set(config.get_value("shell.allowed", []))
-    names = capture_names(node)
-    disallowed = []
-    for name in names:
-        if name.text.decode("utf8") not in allowed:
-            disallowed.append(name)  # return the invalid node
-    return None  # all nodes are executable
+def lint(root: Node) -> list[dict[str, any]]:
+    return [
+        {
+            "marker": node.text.decode(),
+            "start": {
+                "row": node.start_point.row,
+                "column": node.start_point.column,
+            },
+            "end": {
+                "row": node.end_point.row,
+                "column": node.end_point.column,
+            },
+        }
+        for node in nodes
+    ]
 
 
 # --- run ---
 
 if __name__ == "__main__":
+    import subprocess
     from argparse import ArgumentParser
 
     choices = {
@@ -169,13 +174,14 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    selected = choices[args.keyword]
-    root = tree(selected).root_node
+    program = choices[args.keyword]
+
+    root = BashParser.parse(program)
 
     if args.walk:
         walk(root, depth=0)
 
-    commands = capture_commands(root)
+    commands = BashQuery.command_names(root)
     if commands:
         print(f"Captured {len(commands)} command(s):")
         for command in commands:
@@ -184,10 +190,5 @@ if __name__ == "__main__":
                 f"start: {command.start_point}, "
                 f"end: {command.end_point}"
             )
-
-        names = capture_names(root)
-        print(f"Queried {len(names)} commands:")
-        for name in set(names):  # filter out repeats
-            print(f"command_name: {name}")
     else:
         print("No captures matched.")
