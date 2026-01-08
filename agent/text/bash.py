@@ -89,7 +89,7 @@ echo "$baz"
 """
 
 _container = r"""
-# see `set` under SHELL BUILTIN COMMANDS in `man bash` for info
+# see `set` under `SHELL BUILTIN COMMANDS` in `man bash` for info
 # see `Shell Variables` under `PARAMETERS` in `man bash` for info
 env -i \ # clear the environment for isolation
     HOME="$HOME" \ # keep a sane $HOME
@@ -198,7 +198,24 @@ def lint(root: Node) -> list[dict[str, any]]:
     ]
 
 
-# --- run ---
+def command_names(root: Node) -> list[dict[str, any]]:
+    return [
+        {
+            "cmd": node.text.decode("utf8"),
+            "start": {
+                "row": node.start_point.row,
+                "column": node.start_point.column,
+            },
+            "end": {
+                "row": node.end_point.row,
+                "column": node.end_point.column,
+            },
+        }
+        for node in BashQuery.command_names(root)
+    ]
+
+
+# --- test ---
 
 if __name__ == "__main__":
     import json
@@ -236,12 +253,16 @@ if __name__ == "__main__":
         action="store_true",
         help="Query program for missing erroneous symbols.",
     )
+    parser.add_argument(
+        "--run",
+        action="store_true",
+        help="Execute the program specified by the keyword.",
+    )
     args = parser.parse_args()
 
     # --- program ---
 
     program = choices[args.keyword]
-
     root = BashParser.parse(program)
 
     # --- walk ---
@@ -254,20 +275,23 @@ if __name__ == "__main__":
     if args.lint:
         errors = lint(root)
         if errors:
+            print(f"Captured {len(commands)} error(s):")
             print(json.dumps(errors, indent=2))
         else:
             print("No errors.")
 
     # --- query ---
 
-    commands = BashQuery.command_names(root)
-    if commands:
-        print(f"Captured {len(commands)} command(s):")
-        for command in commands:
-            print(
-                f"cmd: `{command.text.decode('utf8')}`, "
-                f"start: {command.start_point}, "
-                f"end: {command.end_point}"
-            )
+    names = command_names(root)
+    if names:
+        print(f"Captured {len(names)} command(s):")
+        print(json.dumps(names, indent=2))
     else:
-        print("No captures.")
+        print("No commands.")
+
+    # --- run ---
+
+    if args.run:
+        command = ["/usr/bin/bash", "-c", f"""{program}"""]
+        result = subprocess.run(command, capture_output=True, check=True, text=True)
+        print(result)
