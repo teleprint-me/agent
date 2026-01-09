@@ -217,15 +217,60 @@ class BashQuery:
         # query captures all functions: includes any proper definition.
         return BashQuery.nodes(root, r"""(function_definition ((word) @id))""")
 
+    # we can lint the models input program and return detailed
+    # metadata to help the model recover by correcting its errors.
+    @staticmethod
+    def errors(root: Node) -> list[Node]:
+        """Return a list of nodes that contain syntax error markers."""
+        # query captures all errors: includes syntax related issues.
+        return BashQuery.nodes(root, r"""( [ (ERROR) (MISSING) ] @marker )""")
+
+
+# --- Response ---
+
+
+class BashResponse:
+    @staticmethod
+    def start(node: Node) -> dict[str, int]:
+        """Return the start point and byte offset."""
+        return {
+            "row": node.start_point.row,
+            "column": node.start_point.column,
+            "byte": node.start_byte,
+        }
+
+    @staticmethod
+    def end(node: Node) -> dict[str, int]:
+        """Return the end point and byte offset."""
+        return {
+            "row": node.end_point.row,
+            "column": node.end_point.column,
+            "byte": node.end_byte,
+        }
+
+    @staticmethod
+    def object(node: Node) -> dict[str, any]:
+        """Return the nodes metadata as a structured object."""
+        return {
+            "start": BashResponse.start(node),
+            "end": BashResponse.end(node),
+            "type": node.type,
+            "text": node.text.decode(),
+        }
+
+    @staticmethod
+    def lint(root: Node) -> list[dict[str, any]]:
+        """Return a list of objects that contain syntax error metadata."""
+        return [BashResponse.object(node) for node in BashQuery.errors(root)]
+
     # captured commands compared against a user defined allowlist.
     # model defined functions are appended to this list.
     @staticmethod
     def allowed(root: Node) -> list[str]:
         """Return a list of allowed command names."""
         allowlist = Terminal.command_names()  # get a copy
-        functions = BashQuery.function_names(root)
-        for n in functions:
-            allowlist.append(n.text.decode())
+        for node in BashQuery.function_names(root):
+            allowlist.append(node.text.decode())
         return allowlist
 
     # if the model attempts to violate the access control list,
@@ -234,43 +279,11 @@ class BashQuery:
     @staticmethod
     def denied(root: Node) -> list[dict[str, any]]:
         """Return a list of denied command names."""
-        allowlist = BashQuery.allowed(root)
-        nodes = BashQuery.command_names(root)
+        allowlist = BashResponse.allowed(root)
         return [
-            {
-                "command_name": node.text.decode(),
-                "start": {
-                    "row": node.start_point.row,
-                    "column": node.start_point.column,
-                },
-                "end": {
-                    "row": node.end_point.row,
-                    "column": node.end_point.column,
-                },
-            }
-            for node in nodes
+            BashResponse.object(node)
+            for node in BashQuery.command_names(root)
             if node.text.decode() not in allowlist
-        ]
-
-    # we can lint the models input program and return detailed
-    # metadata to help the model recover by correcting its errors.
-    @staticmethod
-    def errors(root: Node) -> list[dict[str, any]]:
-        """Return a list of nodes that contain syntax error markers."""
-        nodes = BashQuery.nodes(root, r"""( [ (ERROR) (MISSING) ] @marker )""")
-        return [
-            {
-                "marker": node.text.decode(),
-                "start": {
-                    "row": node.start_point.row,
-                    "column": node.start_point.column,
-                },
-                "end": {
-                    "row": node.end_point.row,
-                    "column": node.end_point.column,
-                },
-            }
-            for node in nodes
         ]
 
 
@@ -327,16 +340,9 @@ class Shell:
     @staticmethod
     def run(program: str) -> str:
         """Execute the input shell program provided by the model."""
-        # admin disabled shell
+        # admin enabled shell?
         if not Terminal.executable():
-            return json.dumps(
-                {
-                    "status": "ok",
-                    "content": "Shell is not executable.",
-                    "hint": "Admin disabled shell access.",
-                },
-                indent=2,
-            )
+            return Shell.allowed()
 
         # check if the environment has bash
         path = Shell.path()
@@ -347,14 +353,14 @@ class Shell:
         root = BashParser.parse(program)
 
         # 2. check if input program has errors
-        errors = BashQuery.errors(root)
+        errors = BashResponse.lint(root)
         if errors:
-            return json.dumps({"status": "syntax", "errors": errors}, indent=2)
+            return json.dumps({"status": "lint", "errors": errors}, indent=2)
 
         # 3. check if input program is denied
-        denied = BashQuery.denied(root)
+        denied = BashResponse.denied(root)
         if denied:
-            return json.dumps({"status": "deny", "list": denied}, indent=2)
+            return json.dumps({"status": "deny", "commands": denied}, indent=2)
 
         # note: i need to figure out how to convince bash the input is a file.
         #       for now, I just use the -c option, but the input should be
