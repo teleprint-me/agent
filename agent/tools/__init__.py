@@ -2,7 +2,7 @@
 Module: agent.tools.__init__
 """
 
-utilities = [
+_weather = [
     {
         "type": "function",
         "function": {
@@ -27,17 +27,24 @@ utilities = [
             "strict": True,
         },
     },
+]
+
+_shell = [
     {
         "type": "function",
         "function": {
+            # The function name must match what you expose to LLMs.
+            # It is mapped internally to `Shell.allowed`.
             "name": "shell_allowed",
             "description": (
-                "Return the list of shell commands that are currently allowed "
-                "(e.g. `ls`, `cat`). This is a simple read-only query."
+                "Return the status of shell access as a structured JSON object. "
+                "The response includes whether execution is enabled, which commands are allowed, "
+                "and any relevant hints for the agent."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {},
+                # No arguments – this function simply reflects admin config.
                 "required": [],
                 "additionalProperties": False,
             },
@@ -47,20 +54,29 @@ utilities = [
     {
         "type": "function",
         "function": {
+            # The function name must match what you expose to LLMs.
+            # It is mapped internally to `Shell.run`.
             "name": "shell_run",
-            "description": "Run a safe shell command. Returns the output, if any, or an error message.",
+            "description": (
+                "Execute a virtual shell program that the agent supplies and return "
+                "the result as structured JSON.  The output includes stdout, stderr, "
+                "return code, or an error message if execution fails."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
+                    # Keep the key name `command` (as you requested) – internally we
+                    # simply pass it to Shell.run().
                     "command": {
                         "type": "string",
                         "description": (
-                            "The full shell command to run, e.g., 'ls -l agent/'. "
-                            "Only the following commands are allowed: date, tree, ls, cat, head, tail, grep, git. "
-                            "Arguments are supported, but pipes and shell features are not."
+                            "Agents may execute “virtual shell scripts” within the environment. "
+                            "This function supports full shell capabilities unless disabled or restricted by Admin. "
+                            "Use `shell_allowed` to see which commands are actually permitted."
                         ),
                     },
                 },
+                # The command string is required.
                 "required": ["command"],
                 "additionalProperties": False,
             },
@@ -69,7 +85,7 @@ utilities = [
     },
 ]
 
-file_managment = [
+_file = [
     {
         "type": "function",
         "function": {
@@ -134,7 +150,7 @@ file_managment = [
     },
 ]
 
-memories = [
+_memory = [
     {
         "type": "function",
         "function": {
@@ -199,4 +215,4 @@ memories = [
     },
 ]
 
-tools = utilities + file_managment + memories
+tools = _shell + _file + _memory
