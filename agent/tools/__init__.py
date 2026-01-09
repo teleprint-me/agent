@@ -33,7 +33,7 @@ _shell = [
     {
         "type": "function",
         "function": {
-            "name": "shell_allowed",
+            "name": "access",
             "description": (
                 "Return the status of shell access as a structured JSON object. "
                 "The response includes whether execution is enabled, which commands are allowed, "
@@ -51,7 +51,7 @@ _shell = [
     {
         "type": "function",
         "function": {
-            "name": "shell_run",
+            "name": "shell",
             "description": (
                 "Execute a virtual shell program that the agent supplies and return "
                 "the result as structured JSON.  The output includes stdout, stderr, "
@@ -81,7 +81,7 @@ _file = [
     {
         "type": "function",
         "function": {
-            "name": "file_read",
+            "name": "read",
             "description": "Reads one or more lines from a file, using 1-based (inclusive) line numbers.",
             "parameters": {
                 "type": "object",
@@ -110,7 +110,7 @@ _file = [
     {
         "type": "function",
         "function": {
-            "name": "file_write",
+            "name": "write",
             "description": "Writes text to a file. Optionally replaces a specific line range (1-based, inclusive). If no lines are specified, replaces the entire file.",
             "parameters": {
                 "type": "object",
@@ -146,7 +146,7 @@ _memory = [
     {
         "type": "function",
         "function": {
-            "name": "memory_store",
+            "name": "store",
             "description": "Store a memory. If a similar memory already exists, update it.",
             "parameters": {
                 "type": "object",
@@ -165,7 +165,7 @@ _memory = [
     {
         "type": "function",
         "function": {
-            "name": "memory_recall",
+            "name": "recall",
             "description": "Retrieve memories that match a query.",
             "parameters": {
                 "type": "object",
@@ -189,7 +189,7 @@ _memory = [
     {
         "type": "function",
         "function": {
-            "name": "memory_forget",
+            "name": "forget",
             "description": "Delete the memory that best matches the given query.",
             "parameters": {
                 "type": "object",

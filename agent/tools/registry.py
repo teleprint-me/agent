@@ -15,13 +15,13 @@ class ToolRegistry:
     def __init__(self):
         self._tools = {
             "weather": weather,
-            "file_read": file_read,
-            "file_write": file_write,
-            "memory_store": memory_store,
-            "memory_recall": memory_recall,
-            "memory_forget": memory_forget,
-            "shell_allowed": Shell.allowed,
-            "shell_run": Shell.run,
+            "access": Shell.access,
+            "shell": Shell.run,
+            "read": file_read,
+            "write": file_write,
+            "store": memory_store,
+            "recall": memory_recall,
+            "forget": memory_forget,
         }
 
     def register(self, name: str, function: callable):

@@ -314,7 +314,7 @@ class Shell:
 
     # tool: allow the model to query shell availability.
     @staticmethod
-    def allowed() -> str:
+    def access() -> str:
         """Return the terminal configuration as a serialized dictionary."""
         if not Terminal.executable():
             return json.dumps(
@@ -342,7 +342,7 @@ class Shell:
         """Execute the input shell program provided by the model."""
         # admin enabled shell?
         if not Terminal.executable():
-            return Shell.allowed()
+            return Shell.access()
 
         # check if the environment has bash
         path = Shell.path()
@@ -438,6 +438,6 @@ if __name__ == "__main__":
     default = "shopt -s extglob; wc -l file.txt ; rm /etc/passwd"
     program = " ".join(sys.argv[1:]) or default
 
-    print(f"command: `{program}`")
-    # print(f"allowed: {Shell.allowed()}")
+    print(f"program: `{program}`")
+    print(f"terminal: {Shell.access()}")
     print(f"run: {Shell.run(program)}")
