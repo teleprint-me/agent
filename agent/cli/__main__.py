@@ -248,7 +248,7 @@ if __name__ == "__main__":
     # set up the path to the current chat session
     messages_path = config.get_value("messages.path", DEFAULT_PATH_MSGS)
     if args.session:
-        messages_path = f"{messages_path}/{args.session}.json"
+        messages_path = f"{messages_path}/{Path(args.session).stem}.json"
         print(f"session     -> {args.session}")
     else:
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
