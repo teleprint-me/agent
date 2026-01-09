@@ -33,8 +33,6 @@ _shell = [
     {
         "type": "function",
         "function": {
-            # The function name must match what you expose to LLMs.
-            # It is mapped internally to `Shell.allowed`.
             "name": "shell_allowed",
             "description": (
                 "Return the status of shell access as a structured JSON object. "
@@ -44,7 +42,6 @@ _shell = [
             "parameters": {
                 "type": "object",
                 "properties": {},
-                # No arguments – this function simply reflects admin config.
                 "required": [],
                 "additionalProperties": False,
             },
@@ -54,8 +51,6 @@ _shell = [
     {
         "type": "function",
         "function": {
-            # The function name must match what you expose to LLMs.
-            # It is mapped internally to `Shell.run`.
             "name": "shell_run",
             "description": (
                 "Execute a virtual shell program that the agent supplies and return "
@@ -65,9 +60,7 @@ _shell = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    # Keep the key name `command` (as you requested) – internally we
-                    # simply pass it to Shell.run().
-                    "command": {
+                    "program": {
                         "type": "string",
                         "description": (
                             "Agents may execute “virtual shell scripts” within the environment. "
@@ -76,8 +69,7 @@ _shell = [
                         ),
                     },
                 },
-                # The command string is required.
-                "required": ["command"],
+                "required": ["program"],
                 "additionalProperties": False,
             },
             "strict": True,
