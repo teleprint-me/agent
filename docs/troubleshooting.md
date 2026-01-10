@@ -8,7 +8,7 @@
 | ---------- | ------------ | --------- | ----- |
 | 2026-01-04 | #18594       | 4974bf53c | Model loads into memory and accepts requests | 
 | 2026-01-04 | #17004       | d3dce4e0a | Model loads into memory and queries fail (500 error) |
-|            |              |           | Model fails to load into memory |
+| 2026-01-08 | #18679       | 64848deb1 | Model fails to load into memory |
 
 ### Issue: Model fails to chain tool calls
 
