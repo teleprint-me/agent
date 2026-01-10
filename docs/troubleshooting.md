@@ -12,10 +12,10 @@
 
 ### Issue: Model fails to chain tool calls
 
-| date       | pull request | commit    | issue                                |
-| ---------- | ------------ | --------- | ------------------------------------ |
+| date       | pull request | commit    | issue                                  |
+| ---------- | ------------ | --------- | -------------------------------------- |
 | 2026-01-03 | #18566       | c69c7ebc9 | Model emits early stop, fails to chain |
-|            |              |           | Model successfully chains tool calls |
+|            |              |           | Model successfully chains tool calls   |
 
 #### TODO: Likely commits affecting tool calling
 
