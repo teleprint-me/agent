@@ -14,7 +14,7 @@
 
 | date       | pull request | commit    | issue                                |
 | ---------- | ------------ | --------- | ------------------------------------ |
-| 2026-01-03 | #18566       | c69c7ebc9 | Model emits early stop               |
+| 2026-01-03 | #18566       | c69c7ebc9 | Model emits early stop, fails to chain |
 |            |              |           | Model successfully chains tool calls |
 
 #### TODO: Likely commits affecting tool calling
