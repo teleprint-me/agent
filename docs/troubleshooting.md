@@ -17,8 +17,8 @@
 | 2026-01-03 | #18566       | c69c7ebc9 | Model emits early stop, fails to chain |
 |            |              |           | Model successfully chains tool calls   |
 
-- b7622: Verfied to be problematic?
-- b7607: Any commit after this is affected?
+- b7622 (c69c7eb): Verfied to be problematic?
+- b7607 (ced765b): Any commit after this is affected?
 
 **resultant bug:**
 
@@ -44,19 +44,16 @@ metrics:
 **affected commits:**
 
 - c69c7ebc9 (graph : fix graph reuse logic when `n_pos_per_embd > 1` (#18566), 2026-01-03)
-- 18ddaea2a (vulkan: Optimize GGML_OP_CUMSUM (#18417), 2026-01-02)
 
 **commits to investigate:**
 
-- 18ddaea2a (vulkan: Optimize GGML_OP_CUMSUM (#18417), 2026-01-02)
-- 706e3f93a (vulkan: Implement mmvq for iq1_s/iq1_m (#18450), 2026-01-02)
-- 5755e52d1 (model : Maincoder-1B support (#18534), 2026-01-03)
-- f38de1634 (metal : adjust extra size for FA buffer to avoid reallocations (#18545), 2026-01-02)
-- af1e8e1a6 (graph : reduce topology branching (#18548), 2026-01-02)
-- d84a6a98b (vocab : reduce debug logs about non-EOG control tokens (#18541), 2026-01-02)
-- c6f0e832d (rpc : use unordered_map::reserve and emplace (#18513), 2026-01-02)
-- e86f3c222 (cuda : fix copy of large tensors (ggml_nbytes <= INT_MAX assertion) (#18433), 2026-01-02)
-- 169ee68ff (model : remove modern-bert iswa template (#18529), 2026-01-02)
-- ced765be4 (model: support youtu-vl model (#18479), 2026-01-02)
-
-Commit `18ddaea2a` seems to be affected as well.
+- [x] 18ddaea2a (vulkan: Optimize GGML_OP_CUMSUM (#18417), 2026-01-02)
+- [ ] 706e3f93a (vulkan: Implement mmvq for iq1_s/iq1_m (#18450), 2026-01-02)
+- [ ] 5755e52d1 (model : Maincoder-1B support (#18534), 2026-01-03)
+- [ ] f38de1634 (metal : adjust extra size for FA buffer to avoid reallocations (#18545), 2026-01-02)
+- [ ] af1e8e1a6 (graph : reduce topology branching (#18548), 2026-01-02)
+- [ ] d84a6a98b (vocab : reduce debug logs about non-EOG control tokens (#18541), 2026-01-02)
+- [ ] c6f0e832d (rpc : use unordered_map::reserve and emplace (#18513), 2026-01-02)
+- [ ] e86f3c222 (cuda : fix copy of large tensors (ggml_nbytes <= INT_MAX assertion) (#18433), 2026-01-02)
+- [ ] 169ee68ff (model : remove modern-bert iswa template (#18529), 2026-01-02)
+- [ ] ced765be4 (model: support youtu-vl model (#18479), 2026-01-02)
