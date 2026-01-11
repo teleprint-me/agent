@@ -58,8 +58,11 @@ metrics:
 
 **commit notes:**
 
-- Commits I can reproduce the issue in:
+- Commits in progress:
+  - f38de1634
+
+- Commits able to reproduce:
   - 18ddaea2a
 
-- Commits I'm unable to reproduce the issue in:
+- Commits unable to reproduce:
   - af1e8e1a6 (performance is okay, not great, not terrible)
