@@ -319,7 +319,10 @@ if __name__ == "__main__":
 
     # --- run ---
 
-    if args.run and args.keyword in ["container", "generated"]:
+    # deny execution of the following programs until the details have been resolved.
+    deny = ["container", "generated"]
+
+    if args.run and args.keyword in deny:
         print(
             f"Response: Your request to execute {args.keyword} "
             "is respectfully denied."
@@ -330,7 +333,7 @@ if __name__ == "__main__":
         )
         exit(1)
 
-    if args.run and args.keyword != "container":
+    if args.run and args.keyword not in deny:
         command = ["/usr/bin/bash", "-c", f"""{program}"""]
         result = subprocess.run(command, capture_output=True, check=True, text=True)
         print(result)
