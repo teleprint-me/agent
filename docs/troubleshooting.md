@@ -62,4 +62,4 @@ metrics:
   - 18ddaea2a
 
 - Commits I'm unable to reproduce the issue in:
-  - af1e8e1a6
+  - af1e8e1a6 (performance is okay, not great, not terrible)
