@@ -14,11 +14,13 @@
 
 | date       | pull request | commit    | issue                                  |
 | ---------- | ------------ | --------- | -------------------------------------- |
-| 2026-01-03 | #18566       | c69c7ebc9 | Model emits early stop, fails to chain |
+| 2026-01-02 | #18417       | 18ddaea2a | Model emits early stop, fails to chain |
 |            |              |           | Model successfully chains tool calls   |
 
-- b7622 (c69c7ebc9): Verfied to be problematic?
-- b7607 (ced765be4): Any commit after this is affected?
+**User Reported:**
+
+- Appearance:    b7622 (c69c7ebc9): (graph : fix graph reuse logic when `n_pos_per_embd > 1` (#18566), 2026-01-03)
+- Disappearance: b7607 (ced765be4): (model: support youtu-vl model (#18479), 2026-01-02)
 
 **resultant bug:**
 
@@ -43,7 +45,6 @@ metrics:
 
 **commits to investigate:**
 
-- [x] c69c7ebc9 (graph : fix graph reuse logic when `n_pos_per_embd > 1` (#18566), 2026-01-03)
 - [x] 18ddaea2a (vulkan: Optimize GGML_OP_CUMSUM (#18417), 2026-01-02)
 - [ ] 706e3f93a (vulkan: Implement mmvq for iq1_s/iq1_m (#18450), 2026-01-02)
 - [ ] 5755e52d1 (model : Maincoder-1B support (#18534), 2026-01-03)
@@ -58,7 +59,6 @@ metrics:
 **commit notes:**
 
 - Commits I can reproduce the issue in:
-  - c69c7ebc9
   - 18ddaea2a
 
 - Commits I'm unable to reproduce the issue in:
