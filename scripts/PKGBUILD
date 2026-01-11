@@ -11,7 +11,7 @@
 # name of the generated package (no hyphens)
 pkgname=llama-cpp 
 # overridden by pkgver() – short Git SHA
-pkgver=18ddaea2ae
+pkgver=af1e8e1a6c
 # release number for this repo snapshot
 pkgrel=1
 # supported architectures
@@ -82,7 +82,7 @@ conflicts=(
 #
 
 # VCS source – the short SHA is taken from pkgver()
-source=("git+https://github.com/ggml-org/llama.cpp.git#commit=18ddaea2a")
+source=("git+https://github.com/ggml-org/llama.cpp.git#commit=af1e8e1a6")
 
 # SKIP because this is a rolling git build
 sha256sums=('SKIP')
