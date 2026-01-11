@@ -126,7 +126,7 @@ DEFAULT_CONF = {
         "tools": tools,
     },
     "model": {
-        "chat": "gpt-oss-20b-mxfp4",
+        "chat": "gpt-oss-20b-f16",
         "embed": "qwen3-embedding-0.6b-q8_0",
         "complete": "llama32-instruct-1b-q8_0",
         "code": "qwen25-coder-1.5b-f16",
