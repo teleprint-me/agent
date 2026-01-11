@@ -17,8 +17,8 @@
 | 2026-01-03 | #18566       | c69c7ebc9 | Model emits early stop, fails to chain |
 |            |              |           | Model successfully chains tool calls   |
 
-- b7622 (c69c7eb): Verfied to be problematic?
-- b7607 (ced765b): Any commit after this is affected?
+- b7622 (c69c7ebc9): Verfied to be problematic?
+- b7607 (ced765be4): Any commit after this is affected?
 
 **resultant bug:**
 
@@ -41,12 +41,11 @@ metrics:
 
 #### TODO: Likely commits affecting tool calling
 
-**affected commits:**
-
-- c69c7ebc9 (graph : fix graph reuse logic when `n_pos_per_embd > 1` (#18566), 2026-01-03)
+I'm unable to reproduce in commit af1e8e1a6.
 
 **commits to investigate:**
 
+- [x] c69c7ebc9 (graph : fix graph reuse logic when `n_pos_per_embd > 1` (#18566), 2026-01-03)
 - [x] 18ddaea2a (vulkan: Optimize GGML_OP_CUMSUM (#18417), 2026-01-02)
 - [ ] 706e3f93a (vulkan: Implement mmvq for iq1_s/iq1_m (#18450), 2026-01-02)
 - [ ] 5755e52d1 (model : Maincoder-1B support (#18534), 2026-01-03)
@@ -57,3 +56,7 @@ metrics:
 - [ ] e86f3c222 (cuda : fix copy of large tensors (ggml_nbytes <= INT_MAX assertion) (#18433), 2026-01-02)
 - [ ] 169ee68ff (model : remove modern-bert iswa template (#18529), 2026-01-02)
 - [ ] ced765be4 (model: support youtu-vl model (#18479), 2026-01-02)
+- [ ] 3ccccc83f (Add conversion support for IQuestCoderForCausalLM (#18524), 2026-01-01)
+- [ ] d0a6a3147 (model : add support for JinaBertModel with non-gated ffn (#18475), 2026-01-02)
+- [ ] 2b2afade9 (convert : fix encoding of WPM vocab for BERT models (#18500), 2026-01-02)
+- [ ] f4f501925 (model: add Solar Open model (#18511), 2026-01-02)
