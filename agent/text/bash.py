@@ -347,8 +347,16 @@ if __name__ == "__main__":
     if args.run and args.keyword not in deny:
         print("Run:")
         try:
-            cmd = ["/usr/bin/bash", "-c", f"""{program}"""]
+            # build script
+            shebang = "#!/usr/bin/env bash"
+            setting = "set +m -eu -o pipefail"
+            script = f"{shebang}\n{setting}\n{program}"
+            print(f"```sh\n{script.strip()}\n```")
+            # build command
+            cmd = ["/usr/bin/bash", "-c", script]
+            # run command
             res = subprocess.run(cmd, capture_output=True, check=True, text=True)
+            # results
             print("status: ok")
             print(f"stdout: {res.stdout.strip() or '(No output)'}")
             print(f"stderr: {res.stderr.strip() or '(No error)'}")
