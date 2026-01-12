@@ -7,33 +7,36 @@ Issues
 ---
 
 tree-sitter is not perfect and it has holes.
-  - does not detect shebang and interprets them as comments.
+  - does not detect shebangs and interprets them as comments.
   - does not detect job control operators, e.g. `&`.
 
 ---
 Risks
 ---
 
-i think the part with the most risk is that shebangs modify control flow.
-you can technically tell the shell to run any program in any language.
+i think the part with the most risk is that interactive comments (aka shebangs)
+can modify control flow. you can technically tell the shell to run any program
+in any language.
 
 ---
 Notes
 ---
 
-subprocess.run() will not allow control flow execution and will raise
-an error. redirection is still possible and may be desirable in
-limited application(s).
+subprocess.run() will not allow interactive comment execution and will
+raise an error. redirection is still possible and may be desirable in limited
+application(s).
+
+interactive comments are disabled in non-interactive shells?
 
 ---
 References
 ---
 
-  - for man page, see https://linux.die.net/man/1/bash
-  - for more info, see https://linux.die.net/abs-guide/miscellany.html
-    - Advanced Bash-Scripting Guide, Chapter 33. Miscellany
-      - Section 1: Interactive and non-interactive shells and scripts
-      - Section 2: Shell Wrappers
+- for man page, see https://linux.die.net/man/1/bash
+- for more info, see https://linux.die.net/abs-guide/miscellany.html
+- Advanced Bash-Scripting Guide, Chapter 33. Miscellany
+    - Section 1: Interactive and non-interactive shells and scripts
+    - Section 2: Shell Wrappers
 """
 
 import functools
@@ -347,14 +350,14 @@ if __name__ == "__main__":
     if args.run and args.keyword not in deny:
         print("Run:")
         try:
-            # build script
+            # script
             shebang = "#!/usr/bin/env bash"
             setting = "set +m -eu -o pipefail"
             script = f"{shebang}\n{setting}\n{program}"
             print(f"```sh\n{script.strip()}\n```")
-            # build command
+            # command
             cmd = ["/usr/bin/bash", "-c", script]
-            # run command
+            # run
             res = subprocess.run(cmd, capture_output=True, check=True, text=True)
             # results
             print("status: ok")
