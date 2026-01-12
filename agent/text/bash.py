@@ -1,42 +1,38 @@
 # agent/text/bash.py
 """
-keep this as dead simple as possible.
+keep this as dead simple as possible
 
----
-Issues
----
+## Issues
+- **Shebang mis-parsing:**
+  tree-sitter treats a line that starts with `#!...` as a *comment*, so the interpreter choice is lost.
 
-tree-sitter is not perfect and it has holes.
-  - does not detect shebangs and interprets them as comments.
-  - does not detect job control operators, e.g. `&`.
+- **Job control gaps:**
+  operators such as `&`, `&&`, `||`, and `;` are not captured by some tree-sitter queries, meaning
+  background jobs can slip through unnoticed.
 
----
-Risks
----
+## Risks
+- A script's shebang determines which binary runs it (e.g., `/usr/bin/python`). If an attacker supplies
+  a file that is invoked via its shebang, they can run *any program or language interpreter*.
+- In interactive shells where `shopt -u interactive_comments` is set, lines beginning with `#` are parsed as
+  commands. This turns ordinary comments into executable code and opens the door to arbitrary execution.
 
-i think the part with the most risk is that interactive comments (aka shebangs)
-can modify control flow. you can technically tell the shell to run any program
-in any language.
+## Notes
+- **subprocess.run()**
+  (with `shell=False`) does *not* honour shebangs; it will raise an error if you try to execute a file that
+  starts with one.  Redirection (`>`, `<`, etc.) is still respected, so a malicious script can redirect its
+  output elsewhere even when run this way.
+- **interactive_comments** - only applies to interactive shells.
+  - In non-interactive mode every `#` line is ignored (treated as a comment) by default; the option does not
+    exist there.
+  - When enabled in an interactive shell, it behaves like normal comments (the same rule that makes
+    "comments" work).
 
----
-Notes
----
-
-subprocess.run() will not allow interactive comment execution and will
-raise an error. redirection is still possible and may be desirable in limited
-application(s).
-
-interactive comments are disabled in non-interactive shells?
-
----
-References
----
-
-- for man page, see https://linux.die.net/man/1/bash
-- for more info, see https://linux.die.net/abs-guide/miscellany.html
-- Advanced Bash-Scripting Guide, Chapter 33. Miscellany
-    - Section 1: Interactive and non-interactive shells and scripts
-    - Section 2: Shell Wrappers
+#### References
+- Bash manual: <https://linux.die.net/man/1/bash>
+- Miscellany section of POSIX shells guide: <https://linux.die.net/abs-guide/miscellany.html>
+- Advanced Bash-Scripting Guide - Chapter 33 (Miscellany)
+  - Section 1: Interactive and non-interactive shells and scripts
+  - Section 2: Shell Wrappers
 """
 
 import functools
@@ -122,6 +118,8 @@ main()
 PY
 """
 
+# this probably isn't necessary anymore,
+# but i'd like to keep it around for reference.
 _container = r"""
 # see `set` under `SHELL BUILTIN COMMANDS` in `man bash` for info
 # see `Shell Variables` under `PARAMETERS` in `man bash` for info
@@ -132,8 +130,8 @@ env -i \ # clear the environment for isolation
     PATH="/usr/bin:/usr/local/bin" \
     TERM="xterm-256color" \
     LANG=en_US.UTF-8 \ # whatever locale is needed
-    set -e \ # exit immediately on error
     set +m \ # disable job control
+    set -e \ # exit immediately on error
     set -u \ # treat unset variables as errors
     hash -r 2> /dev/null \ # forget past commands
     exec "$@" # jump into a program
