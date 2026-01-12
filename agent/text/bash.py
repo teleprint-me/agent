@@ -18,6 +18,14 @@ i think the part with the most risk is that shebangs modify control flow.
 you can technically tell the shell to run any program in any language.
 
 ---
+Notes
+---
+
+subprocess.run() will not allow control flow execution and will raise
+an error. redirection is still possible and may be desirable in
+limited application(s).
+
+---
 References
 ---
 
