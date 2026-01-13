@@ -6,7 +6,6 @@ https://stackoverflow.com/a/1446870/15147156
 """
 
 from pathlib import Path
-from string import printable
 
 
 def is_text_file(path: Path) -> bool:
@@ -31,14 +30,14 @@ def is_text_file(path: Path) -> bool:
         # Add printable char set
         characters = set(range(0x20, 0x7F))
         # Build a set containing every element from either operand
-        allowed = set(printable) | control
+        allowed = characters | control
 
     # Compute number of raw bytes
     byte_count = sum(1 for b in data if b not in allowed)
     # Compute ratio between raw bytes and data
     byte_ratio = byte_count / len(data)
     # If more than 30% non-text characters, classify as a binary file
-    return False if byte_ratio <= 0.30 else True
+    return False if byte_ratio >= 0.30 else True
 
 
 if __name__ == "__main__":
