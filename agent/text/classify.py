@@ -14,6 +14,7 @@ References:
     https://www.iana.org/assignments/media-types/media-types.xhtml
 """
 
+import os
 from pathlib import Path
 
 # some kind of black magic going on with str == bytes
@@ -43,65 +44,41 @@ EXT_TO_CLS = {
 }
 
 
+# --- Helpers – pure functions, easy to unit‑test ---
+
+
 def is_ascii(data: bytes, threshold: float = 0.30) -> bool:
-    """
-    Return True if `data` looks like ASCII.
-    """
+    """Return True if `data` looks like ASCII."""
 
     if not data:
         return True
-
-    # Add control char set
-    control: int = {
-        ord("\n"),  # line feed
-        ord("\r"),  # carriage return
-        ord("\t"),  # tab
-        ord("\b"),  # backspace
-    }
-
-    # Add printable char set
-    characters = set(range(0x20, 0x7F))
-    # Build a set containing every element from either operand
-    allowed = characters | control
-    # Compute number of raw bytes
-    byte_count = sum(1 for b in data if b not in allowed)
-    # Compute ratio between raw bytes and data
-    byte_ratio = byte_count / len(data)
-    # If more than x % non-text characters, classify as a binary
-    return byte_ratio < threshold
+    control_chars = {ord("\n"), ord("\r"), ord("\t"), ord("\b")}
+    printable = set(range(0x20, 0x7F))
+    allowed = printable | control_chars
+    non_text = sum(b not in allowed for b in data)
+    return (non_text / len(data)) < threshold
 
 
 def is_unicode(data: bytes) -> bool:
     """Return True if `data` looks like UTF-8."""
+
     if not data:
         return True
-
     try:
-        return bool(data.decode("utf-8"))
+        data.decode("utf-8")
+        return True
     except UnicodeDecodeError:
         return False
 
 
 def is_text(data: bytes, threshold: float = 0.30) -> bool:
-    """Return True if `data` looks like ASCII/UTF-8 text."""
+    """Return `True` for ASCII or UTF-8 text, otherwise `False`."""
 
-    # Empty file, text by definition
     if not data:
-        return True
-
-    # Binary files almost always contain NULL
+        return True  # empty file → "text"
     if 0 in data:
-        return False
-
-    # Plain text is ASCII
-    if is_ascii(data, threshold):
-        return True
-
-    # Binary files can not be decoded
-    if is_unicode(data):
-        return True
-
-    return False
+        return False  # NUL byte => binary
+    return is_ascii(data, threshold) or is_unicode(data)
 
 
 def magic(path: Path) -> dict[str, any]:
@@ -143,7 +120,6 @@ def collect(path: Path):
 
 if __name__ == "__main__":
     import json
-    import os
     from argparse import ArgumentParser
 
     parser = ArgumentParser()
