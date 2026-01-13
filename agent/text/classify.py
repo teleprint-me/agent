@@ -1,8 +1,11 @@
 """
-https://stackoverflow.com/a/1446870/15147156
-# Source - https://stackoverflow.com/a/1446870
-# Posted by Thomas, modified by community. See post 'Timeline' for change history
-# Retrieved 2026-01-12, License - CC BY-SA 3.0
+Simple text vs binary file classifier.
+
+Heuristic:
+* Empty files → text.
+* Any NULL byte (0x00) in the first 512 bytes → binary.
+* If >30 % of those bytes are outside the printable ASCII range + common whitespace,
+  we consider it binary; otherwise, text.
 """
 
 from pathlib import Path
@@ -12,6 +15,9 @@ def is_text_file(path: Path) -> bool:
     """
     Read the first 512 bytes of *path* and classify it.
     Return True if `data` looks like plain ASCII/UTF-8 text.
+    Source - https://stackoverflow.com/a/1446870
+    Posted by Thomas, modified by community. See post 'Timeline' for change history
+    Retrieved 2026-01-12, License - CC BY-SA 3.0
     """
 
     with open(path, "rb") as file:
