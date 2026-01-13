@@ -7,7 +7,11 @@ Heuristic:
 * If >30 % of those bytes are outside the printable ASCII range + common whitespace,
   we consider it binary; otherwise, text.
 
-Reference: https://stackoverflow.com/a/1446870/15147156
+References:
+  - Detecting Plain Text Files:
+    https://stackoverflow.com/a/1446870/15147156
+  - IANA Media Types:
+    https://www.iana.org/assignments/media-types/media-types.xhtml
 """
 
 from pathlib import Path
@@ -126,9 +130,13 @@ def collect(path: Path):
         return [magic(path)]
 
     collection = []
-    for dirname, _, filenames in os.walk(args.path):
+    for dirname, _, filenames in os.walk(path):
         for name in filenames:
             filepath = Path(f"{dirname}/{name}")
+            cls = EXT_TO_CLS.get(filepath.suffix, None)
+            if cls is None:
+                print(f"Warn: {filepath.suffix} is unsupported")
+                continue  # skip unsupported files
             collection.append(magic(filepath))
     return collection
 
