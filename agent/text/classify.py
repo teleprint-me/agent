@@ -31,11 +31,11 @@ def is_text_file(path: Path) -> bool:
         characters = set(range(0x20, 0x7F))
         # Build a set containing every element from either operand
         allowed = characters | control
+        # Compute number of raw bytes
+        byte_count = sum(1 for b in data if b not in allowed)
+        # Compute ratio between raw bytes and data
+        byte_ratio = byte_count / len(data)
 
-    # Compute number of raw bytes
-    byte_count = sum(1 for b in data if b not in allowed)
-    # Compute ratio between raw bytes and data
-    byte_ratio = byte_count / len(data)
     # If more than 30% non-text characters, classify as a binary file
     return False if byte_ratio >= 0.30 else True
 
