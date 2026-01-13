@@ -5,30 +5,40 @@ https://stackoverflow.com/a/1446870/15147156
 # Retrieved 2026-01-12, License - CC BY-SA 3.0
 """
 
-import string
+from pathlib import Path
 from string import printable
 
 
-def istext(filename):
-    """classify the input file path and return true if plaintext, otherwise false."""
+def is_text_file(path: Path) -> bool:
+    """
+    Read the first 512 bytes of *path* and classify it.
+    Return True if `data` looks like plain ASCII/UTF-8 text.
+    """
 
-    s = open(filename).read(512)
-    text_characters = "".join(map(chr, range(32, 127)) + list("\n\r\t\b"))
-    _null_trans = string.maketrans("", "")
-    if not s:
-        # Empty files are considered text
-        return True
-    if "\0" in s:
-        # Files with null bytes are likely binary
-        return False
-    # Get the non-text characters (maps a character to itself then
-    # use the 'remove' option to get rid of the text characters.)
-    t = s.translate(_null_trans, text_characters)
-    # If more than 30% non-text characters, then
-    # this is considered a binary file
-    if float(len(t)) / float(len(s)) > 0.30:
-        return False
-    return True
+    with open(path, "rb") as file:
+        data = file.read(512)
+
+        # Empty file, text by definition
+        if not data:
+            return True
+
+        # Binary files almost always contain NULL
+        if 0 in data:
+            return False
+
+        # Add control char set
+        control = {b"\n"[0], b"\r"[0], b"\t"[0], b"\b"[0]}
+        # Add printable char set
+        characters = set(range(0x20, 0x7F))
+        # Build a set containing every element from either operand
+        allowed = set(printable) | control
+
+    # Compute number of raw bytes
+    byte_count = sum(1 for b in data if b not in allowed)
+    # Compute ratio between raw bytes and data
+    byte_ratio = byte_count / len(data)
+    # If more than 30% non-text characters, classify as a binary file
+    return False if byte_ratio <= 0.30 else True
 
 
 if __name__ == "__main__":
@@ -38,4 +48,4 @@ if __name__ == "__main__":
     parser.add_argument("path", help="Input file to classify.")
     args = parser.parse_args()
 
-    print(f"Is text file: {istext(args.path)}")
+    print(f"Is text file: {is_text_file(args.path)}")
