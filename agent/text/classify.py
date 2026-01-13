@@ -45,7 +45,23 @@ EXT_TO_CLS = {
 }
 
 
-# --- Helpers – pure functions, easy to unit‑test ---
+def supported_suffixes() -> set[str]:
+    return set(EXT_TO_CLS.keys())
+
+
+# will need this later
+def supported_classes() -> set[str]:
+    return set(EXT_TO_CLS.values())
+
+
+def supported_walk(path: Path) -> iter:
+    """Yield only files whose suffix is in EXT_TO_CLS."""
+    for p in path.rglob("*"):
+        if p.is_file() and p.suffix.lower() in supported_suffixes():
+            yield p
+
+
+# --- Text classification ---
 
 
 def is_ascii(data: bytes, threshold: float = 0.30) -> bool:
@@ -82,7 +98,7 @@ def is_text(data: bytes, threshold: float = 0.30) -> bool:
     return is_ascii(data, threshold) or is_unicode(data)
 
 
-# --- The core metadata extractor ---
+# --- Mime classification ---
 
 
 def magic_mime_type(path: Path) -> str | None:
@@ -98,7 +114,7 @@ def magic_mime_class(path: Path) -> str | None:
     return EXT_TO_CLS.get(path.suffix.lower(), None)
 
 
-def magic_mime_data(path: Path) -> dict[str, str | None]:
+def magic_mime_file(path: Path) -> dict[str, str | None]:
     return {
         "class": magic_mime_class(path),
         "type": magic_mime_type(path),
@@ -106,11 +122,14 @@ def magic_mime_data(path: Path) -> dict[str, str | None]:
     }
 
 
+# --- File classification ---
+
+
 def classify(path: Path) -> dict[str, any]:
     """Return a serialisable dictionary describing *path*."""
     p = Path(path).resolve()
     data = p.read_bytes()[:512]  # 512‑byte sample
-    meta = magic_mime_data(p)
+    meta = magic_mime_file(p)
 
     return {
         "text": is_text(data),
@@ -123,7 +142,7 @@ def classify(path: Path) -> dict[str, any]:
     }
 
 
-def collect(path: Path):
+def collect(path: Path) -> list[dict[str, any]]:
     path = Path(path)
 
     if path.is_file():
