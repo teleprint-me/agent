@@ -18,7 +18,7 @@ import os
 from pathlib import Path
 
 # some kind of black magic going on with str == bytes
-from magic import detect_from_filename
+from magic import Magic
 
 # there has to be a better way than this 🫠
 EXT_TO_CLS = {
@@ -29,6 +29,7 @@ EXT_TO_CLS = {
     ".hpp": "cpp",
     ".rs": "rust",
     ".py": "python",
+    ".pyi": "python",
     ".sh": "bash",
     ".md": "markdown",
     ".htm": "html",
@@ -37,7 +38,7 @@ EXT_TO_CLS = {
     ".json": "json",
     ".js": "javascript",
     ".mjs": "javascript",
-    ".pdf": "postscript",
+    ".pdf": "postscript",  # not really a class but ok for now
     ".png": "image",
     ".jpg": "image",
     ".jpeg": "image",
@@ -77,26 +78,48 @@ def is_text(data: bytes, threshold: float = 0.30) -> bool:
     if not data:
         return True  # empty file → "text"
     if 0 in data:
-        return False  # NUL byte => binary
+        return False  # NUL byte → binary
     return is_ascii(data, threshold) or is_unicode(data)
 
 
-def magic(path: Path) -> dict[str, any]:
-    path = Path(path).resolve()
-    magic = detect_from_filename(path)
-    data = path.read_bytes()[:512]
+# --- The core metadata extractor ---
 
-    # this should be serializable (se-​ri-​al-​iza-ble 🧐)
+
+def magic_mime_type(path: Path) -> str | None:
+    return Magic(mime=True).from_file(path) or None
+
+
+def magic_mime_encoding(path: Path) -> str | None:
+    return Magic(mime_encoding=True).from_file(path) or None
+
+
+def magic_mime_class(path: Path) -> str | None:
+    # our own extension → class mapping
+    return EXT_TO_CLS.get(path.suffix.lower(), None)
+
+
+def magic_mime_data(path: Path) -> dict[str, str | None]:
+    return {
+        "class": magic_mime_class(path),
+        "type": magic_mime_type(path),
+        "encoding": magic_mime_encoding(path),
+    }
+
+
+def classify(path: Path) -> dict[str, any]:
+    """Return a serialisable dictionary describing *path*."""
+    p = Path(path).resolve()
+    data = p.read_bytes()[:512]  # 512‑byte sample
+    meta = magic_mime_data(p)
+
     return {
         "text": is_text(data),
-        "path": str(path),
-        "parent": str(path.parent),
-        "stem": path.stem,
-        "size": path.stat().st_size,
-        "suffix": path.suffix or None,
-        "class": EXT_TO_CLS.get(path.suffix, None),
-        "mime_type": getattr(magic, "mime_type", None),
-        "encoding": getattr(magic, "encoding", None),
+        "path": str(p),
+        "parent": str(p.parent),
+        "stem": p.stem,
+        "size": p.stat().st_size,
+        "suffix": p.suffix or None,
+        **meta,  # libmagic output (may be None)
     }
 
 
@@ -114,7 +137,7 @@ def collect(path: Path):
             if cls is None:
                 print(f"Warn: {filepath.suffix} is unsupported")
                 continue  # skip unsupported files
-            collection.append(magic(filepath))
+            collection.append(classify(filepath))
     return collection
 
 
