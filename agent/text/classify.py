@@ -17,11 +17,20 @@ from magic import detect_from_filename
 
 def is_ascii(data: bytes, threshold: float = 0.30) -> bool:
     """
-    Return True if `data` looks like plain ASCII text.
+    Return True if `data` looks like ASCII.
     """
 
+    if not data:
+        return True
+
     # Add control char set
-    control = {b"\n"[0], b"\r"[0], b"\t"[0], b"\b"[0]}
+    control: int = {
+        ord("\n"),  # line feed
+        ord("\r"),  # carriage return
+        ord("\t"),  # tab
+        ord("\b"),  # backspace
+    }
+
     # Add printable char set
     characters = set(range(0x20, 0x7F))
     # Build a set containing every element from either operand
@@ -34,10 +43,19 @@ def is_ascii(data: bytes, threshold: float = 0.30) -> bool:
     return byte_ratio < threshold
 
 
+def is_unicode(data: bytes) -> bool:
+    """Return True if `data` looks like UTF-8."""
+    if not data:
+        return True
+
+    try:
+        return bool(data.decode("utf-8"))
+    except UnicodeDecodeError:
+        return False
+
+
 def is_text(data: bytes, threshold: float = 0.30) -> bool:
-    """
-    Return True if `data` looks like plain UTF-8 text.
-    """
+    """Return True if `data` looks like ASCII/UTF-8 text."""
 
     # Empty file, text by definition
     if not data:
@@ -47,32 +65,32 @@ def is_text(data: bytes, threshold: float = 0.30) -> bool:
     if 0 in data:
         return False
 
+    # Plain text is ASCII
     if is_ascii(data, threshold):
         return True
 
     # Binary files can not be decoded
-    try:
-        return bool(data.decode())
-    except UnicodeDecodeError:
-        return False
+    if is_unicode(data):
+        return True
+
+    return False
 
 
 def classify(path: Path) -> dict[str, any]:
-    path = Path(path)
-    with open(path, "rb") as file:
-        data = file.read(512)
-        magic = detect_from_filename(path)
-        return {
-            "text": is_text(data),
-            "path": str(path.absolute()),
-            "parent": str(path.parent.absolute()),
-            "suffix": str(path.suffix),
-            "stem": str(path.stem),
-            "size": path.stat().st_size,
-            "encoding": magic.encoding,
-            "type": magic.mime_type,
-            "name": magic.name,
-        }
+    path = Path(path).resolve()
+    magic = detect_from_filename(path)
+    data = path.read_bytes()[:512]
+
+    return {
+        "text": is_text(data),
+        "path": str(path),
+        "parent": str(path.parent),
+        "stem": path.stem,
+        "size": path.stat().st_size,
+        "suffix": getattr(path, "suffix", None),
+        "mime_type": getattr(magic, "mime_type", None),
+        "encoding": getattr(magic, "encoding", None),
+    }
 
 
 if __name__ == "__main__":
