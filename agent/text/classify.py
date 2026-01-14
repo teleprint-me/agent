@@ -220,13 +220,7 @@ class TextCrawler:
         with ThreadPoolExecutor(max_workers=self.max_workers) as exe:
             future_to_path = {exe.submit(self.classify, fp): fp for fp in candidates}
             for fut in as_completed(future_to_path, timeout=self.timeout):
-                try:
-                    results.append(fut.result())
-                except Exception as exc:  # pragma: no cover
-                    logging.warning(
-                        "Failed to classify %s: %s", future_to_path[fut], exc
-                    )
-
+                results.append(fut.result())
         return results
 
 
