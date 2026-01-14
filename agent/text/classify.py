@@ -211,7 +211,7 @@ class TextCrawler:
         p = Path(path)
 
         if p.is_file():
-            return [classify(p)]
+            return [self.classify(p)]
 
         # Collect all supported files first;
         # this avoids the overhead of submitting a task per file in a loop.
