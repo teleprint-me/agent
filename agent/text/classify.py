@@ -24,6 +24,7 @@ from typing import Final, Iterable, Optional, Union
 # some kind of black magic going on with str == bytes
 from magic import Magic
 
+# there has to be a better way than this 🫠
 _EXT_TO_CLS: dict[str, str] = {
     ".txt": "text",
     ".c": "c",
@@ -33,7 +34,7 @@ _EXT_TO_CLS: dict[str, str] = {
     ".rs": "rust",
     ".py": "python",
     ".pyi": "python",
-    ".sh": "bash",
+    ".sh": "shellscript",
     ".md": "markdown",
     ".htm": "html",
     ".html": "html",
@@ -133,7 +134,7 @@ class TextDetector:
 
 
 class TextMagic:
-    """Wrap libmagic; return dict(type, encoding, class)."""
+    """Wrap libmagic to guess file types."""
 
     def __init__(self, ext: Optional[TextExtension] = None):
         self._magic = Magic(mime=True, mime_encoding=True)
@@ -141,8 +142,10 @@ class TextMagic:
 
     def from_file(self, name: Union[str, Path]) -> dict[str, Optional[str]]:
         """
-        Returns (mime_type, encoding).  `encoding` is a charset string,
-        e.g. 'utf-8', or None if libmagic couldn't detect it.
+        Returns a dictionary classifying the files type, encoding, and class.
+        type is of format <type>/<subtype>, safe for any format.
+        encoding is utf-8 or binary.
+        class is None if it does not exist or it is a binary file.
         """
 
         # result: str = "text/plain; charset=utf-8"
@@ -156,17 +159,41 @@ class TextMagic:
         if _type:
             mime_type = _type.strip().lower()
 
+        # split the type from the subtype
+        mime_subtype = None
+        if mime_type:
+            mime_type, mime_subtype = mime_type.split("/")
+
         # get the mime encoding
         mime_enc = None
         if _enc:
             mime_enc = _enc.split("=")[-1].strip().lower()
 
+        # force utf-8 format for text
+        if "ascii" in mime_enc:
+            mime_enc = "utf-8"
+
         # get the classifier to validate mime-types
         mime_cls = self._extension.path(name)
+        # this is super annoying
+        if not mime_cls and mime_subtype:
+            _cls = None
+            if "-" in mime_subtype:
+                _tmp = mime_subtype.split("-")
+                _cls = _tmp[-1]
+
+            _subcls = None
+            if "." in _cls:
+                _tmp = _cls.split(".")
+                _subcls = _tmp[-1]
+
+            if _subcls or _cls:
+                mime_cls = _subcls or _cls
 
         # return the results as a tuple
         return {
             "type": mime_type,
+            "subtype": mime_subtype,
             "encoding": mime_enc,
             "class": mime_cls,
         }
@@ -191,22 +218,23 @@ class TextCrawler:
         p = Path(name).resolve()
         data = p.read_bytes()[:512]  # 512‑byte sample
         is_text = self.detector.is_text(data)
-        meta = self.magic.from_file(p)
+        magic = self.magic.from_file(p)
+        suffix = self.extension.inverse.get(magic.get("class"))
 
         return {
             "path": str(p),
             "parent": str(p.parent),
             "stem": p.stem,
             "size": p.stat().st_size,
-            "suffix": p.suffix or None,
-            "text": is_text,
-            **meta,  # libmagic output (may be None)
+            "suffix": p.suffix or suffix,
+            "type": "text" if is_text else "binary",
+            "magic": magic,
         }
 
     def collect(self, path: Union[str, Path]) -> list[dict[str, any]]:
         """
-        Recursively walk *path* (file or directory), classify each supported file,
-        and return a **list** of serialisable dictionaries.
+        Recursively walk path (file or directory), classify each supported file,
+        and return a list of serialisable dictionaries.
         """
         p = Path(path)
 
