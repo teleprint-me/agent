@@ -14,10 +14,10 @@ References:
     https://www.iana.org/assignments/media-types/media-types.xhtml
 """
 
-import os
+import multiprocessing
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Iterable, Optional, Union
 
 # some kind of black magic going on with str == bytes
 from magic import Magic
@@ -58,9 +58,9 @@ def supported_classes() -> set[str]:
     return set(EXT_TO_CLS.values())
 
 
-def supported_candidates(path: Path) -> Iterable[Path]:
+def supported_candidates(path: Union[str, Path]) -> Iterable[Path]:
     """Yield only files whose suffix is in EXT_TO_CLS."""
-    for p in path.rglob("*"):
+    for p in Path(path).rglob("*"):
         if p.is_file() and p.suffix.lower() in supported_suffixes():
             yield p
 
@@ -105,20 +105,20 @@ def is_text(data: bytes, threshold: float = 0.30) -> bool:
 # --- Mime classification ---
 
 
-def magic_mime_type(path: Path) -> Optional[str]:
-    return Magic(mime=True).from_file(path) or None
+def magic_mime_type(path: Union[str, Path]) -> Optional[str]:
+    return Magic(mime=True).from_file(Path(path)) or None
 
 
-def magic_mime_encoding(path: Path) -> Optional[str]:
-    return Magic(mime_encoding=True).from_file(path) or None
+def magic_mime_encoding(path: Union[str, Path]) -> Optional[str]:
+    return Magic(mime_encoding=True).from_file(Path(path)) or None
 
 
-def magic_mime_class(path: Path) -> Optional[str]:
+def magic_mime_class(path: Union[str, Path]) -> Optional[str]:
     # our own extension → class mapping
-    return EXT_TO_CLS.get(path.suffix.lower(), None)
+    return EXT_TO_CLS.get(Path(path).suffix.lower(), None)
 
 
-def magic_mime_file(path: Path) -> dict[str, Optional[str]]:
+def magic_mime_file(path: Union[str, Path]) -> dict[str, Optional[str]]:
     return {
         "class": magic_mime_class(path),
         "type": magic_mime_type(path),
@@ -129,14 +129,14 @@ def magic_mime_file(path: Path) -> dict[str, Optional[str]]:
 # --- File classification ---
 
 
-def classify(path: Path) -> dict[str, any]:
+def classify(path: Union[str, Path], threshold: float = 0.30) -> dict[str, any]:
     """Return a serialisable dictionary describing *path*."""
     p = Path(path).resolve()
     data = p.read_bytes()[:512]  # 512‑byte sample
     meta = magic_mime_file(p)
 
     return {
-        "text": is_text(data),
+        "text": is_text(data, threshold),
         "path": str(p),
         "parent": str(p.parent),
         "stem": p.stem,
@@ -150,7 +150,7 @@ def classify(path: Path) -> dict[str, any]:
 
 
 def collect(
-    path: Path,
+    path: Union[str, Path],
     max_workers: int = 4,
     timeout: float = 30.0,
 ) -> list[dict[str, any]]:
@@ -160,17 +160,20 @@ def collect(
 
     Parameters
     ----------
-    path : pathlib.Path | str
+    path : Union[str, pathlib.Path]
         Target to scan.
-    parallel : bool
-        If True, use ThreadPoolExecutor.  Good for very large trees but not needed for small ones.
     max_workers : int
-        Number of threads when *parallel* is true (default: CPU count).
+        Number of threads when *parallel* is true (default: 4).
+    timeout : float
+        The maximum number of seconds to wait (default: 30.0).
     """
     p = Path(path)
 
     if p.is_file():
         return [classify(p)]
+
+    if max_workers <= 0:
+        max_workers = multiprocessing.cpu_count()
 
     # Collect all supported files first;
     # this avoids the overhead of submitting a task per file in a loop.
@@ -191,9 +194,24 @@ if __name__ == "__main__":
     import json
     from argparse import ArgumentParser
 
-    parser = ArgumentParser()
-    parser.add_argument("path", help="Input file to classify.")
+    parser = ArgumentParser(description="Classify files by type & text-ability.")
+    parser.add_argument(
+        "path",
+        help="File or directory to scan.",
+    )
+    parser.add_argument(
+        "--max-workers",
+        type=int,
+        default=4,
+        help="Number of cpu cores to utilize (default: 4).",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=30.0,
+        help="The maximum number of seconds to wait (default: 30.0).",
+    )
     args = parser.parse_args()
 
-    for cls in collect(args.path):
+    for cls in collect(args.path, args.max_workers, args.timeout):
         print(f"class: {json.dumps(cls, indent=2)}")
