@@ -14,18 +14,17 @@ References:
     https://www.iana.org/assignments/media-types/media-types.xhtml
 """
 
-import multiprocessing
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from functools import cached_property
+from multiprocessing import cpu_count
 from pathlib import Path
-from typing import Iterable, Optional, Union
+from types import MappingProxyType
+from typing import Final, Iterable, Optional, Union
 
 # some kind of black magic going on with str == bytes
 from magic import Magic
 
-# --- Supported classes ---
-
-# there has to be a better way than this 🫠
-EXT_TO_CLS = {
+_EXT_TO_CLS: dict[str, str] = {
     ".txt": "text",
     ".c": "c",
     ".h": "c",
@@ -42,152 +41,193 @@ EXT_TO_CLS = {
     ".json": "json",
     ".js": "javascript",
     ".mjs": "javascript",
-    ".pdf": "postscript",  # not really a class but ok for now
+    ".pdf": "application",
     ".png": "image",
     ".jpg": "image",
     ".jpeg": "image",
 }
 
-
-def supported_suffixes() -> set[str]:
-    return set(EXT_TO_CLS.keys())
-
-
-# will need this later
-def supported_classes() -> set[str]:
-    return set(EXT_TO_CLS.values())
+# expose a *read‑only* view of the mapping
+_MAPPING: MappingProxyType[str, str] = MappingProxyType(_EXT_TO_CLS)
+_INVERSE: dict[str, str] = {cls: ext for ext, cls in _MAPPING.items()}
+_SUFFIXES: frozenset[str] = frozenset(_EXT_TO_CLS)
+_CLASSES: frozenset[str] = frozenset(_EXT_TO_CLS.values())
 
 
-def supported_candidates(path: Union[str, Path]) -> Iterable[Path]:
-    """Yield only files whose suffix is in EXT_TO_CLS."""
-    for p in Path(path).rglob("*"):
-        if p.is_file() and p.suffix.lower() in supported_suffixes():
-            yield p
+class TextExtension:
+    """Read-only mapping from file extensions to semantic class names."""
+
+    @property
+    def mapping(self) -> dict[str, str]:
+        """Return a mapping of file extensions to class names."""
+        return _MAPPING
+
+    @property
+    def inverse(self) -> dict[str, str]:
+        """Return a inverted mapping of class names to file extensions."""
+        return _INVERSE
+
+    @property
+    def suffixes(self) -> set[str]:
+        """All known file extension keys (with the leading dot)."""
+        return _SUFFIXES
+
+    @property
+    def classes(self) -> set[str]:
+        """All semantic class names that appear in the mapping."""
+        return _CLASSES
+
+    def name(self, suffix: str) -> Optional[str]:
+        """Return the mapped class name from a file suffix."""
+        return _MAPPING.get(suffix, None)
+
+    def path(self, name: Union[str, Path]) -> Optional[str]:
+        """Return the mapped class name from a file path."""
+        suffix = Path(name).suffix.lower()
+        return self.name(suffix)
+
+    def candidates(self, name: Union[str, Path]) -> Iterable[Path]:
+        """Yield file names that have known extensions."""
+        for p in Path(name).rglob("*"):
+            if p.is_file() and p.suffix.lower() in _MAPPING:
+                yield p
 
 
-# --- Text classification ---
+class TextDetector:
+    def __init__(self, threshold: float = 0.30):
+        self.threshold = threshold
+
+    def is_ascii(self, data: bytes) -> bool:
+        """Return True if `data` looks like ASCII."""
+
+        if not data:
+            return True
+        control_chars = {ord("\n"), ord("\r"), ord("\t"), ord("\b")}
+        printable = set(range(0x20, 0x7F))
+        allowed = printable | control_chars
+        non_text = sum(b not in allowed for b in data)
+        return (non_text / len(data)) < self.threshold
+
+    def is_unicode(self, data: bytes) -> bool:
+        """Return True if `data` looks like UTF-8."""
+
+        if not data:
+            return True
+        try:
+            data.decode("utf-8")
+            return True
+        except UnicodeDecodeError:
+            return False
+
+    def is_text(self, data: bytes) -> bool:
+        """Return `True` for ASCII or UTF-8 text, otherwise `False`."""
+
+        if not data:
+            return True  # empty file → "text"
+        if 0 in data:
+            return False  # NUL byte → binary
+        return self.is_ascii(data) or self.is_unicode(data)
+
+    def is_binary(self, data: bytes) -> bool:
+        return not self.is_text(data)
 
 
-def is_ascii(data: bytes, threshold: float = 0.30) -> bool:
-    """Return True if `data` looks like ASCII."""
+class TextMagic:
+    """Wrap libmagic; return dict(type, encoding, class)."""
 
-    if not data:
-        return True
-    control_chars = {ord("\n"), ord("\r"), ord("\t"), ord("\b")}
-    printable = set(range(0x20, 0x7F))
-    allowed = printable | control_chars
-    non_text = sum(b not in allowed for b in data)
-    return (non_text / len(data)) < threshold
+    def __init__(self, ext: Optional[TextExtension] = None):
+        self._magic = Magic(mime=True, mime_encoding=True)
+        self._extension = ext if ext else TextExtension()
 
+    def from_file(self, name: Union[str, Path]) -> dict[str, Optional[str]]:
+        """
+        Returns (mime_type, encoding).  `encoding` is a charset string,
+        e.g. 'utf-8', or None if libmagic couldn't detect it.
+        """
 
-def is_unicode(data: bytes) -> bool:
-    """Return True if `data` looks like UTF-8."""
+        # result: str = "text/plain; charset=utf-8"
+        result = self._magic.from_file(name)
 
-    if not data:
-        return True
-    try:
-        data.decode("utf-8")
-        return True
-    except UnicodeDecodeError:
-        return False
+        # parse out the metadata
+        _type, _enc = result.split(";")
 
+        # get the mime type
+        mime_type = None
+        if _type:
+            mime_type = _type.strip().lower()
 
-def is_text(data: bytes, threshold: float = 0.30) -> bool:
-    """Return `True` for ASCII or UTF-8 text, otherwise `False`."""
+        # get the mime encoding
+        mime_enc = None
+        if _enc:
+            mime_enc = _enc.split("=")[-1].strip().lower()
 
-    if not data:
-        return True  # empty file → "text"
-    if 0 in data:
-        return False  # NUL byte → binary
-    return is_ascii(data, threshold) or is_unicode(data)
+        # get the classifier to validate mime-types
+        mime_cls = self._extension.path(name)
 
-
-# --- Mime classification ---
-
-
-def magic_mime_type(path: Union[str, Path]) -> Optional[str]:
-    return Magic(mime=True).from_file(Path(path)) or None
-
-
-def magic_mime_encoding(path: Union[str, Path]) -> Optional[str]:
-    return Magic(mime_encoding=True).from_file(Path(path)) or None
+        # return the results as a tuple
+        return {
+            "type": mime_type,
+            "encoding": mime_enc,
+            "class": mime_cls,
+        }
 
 
-def magic_mime_class(path: Union[str, Path]) -> Optional[str]:
-    # our own extension → class mapping
-    return EXT_TO_CLS.get(Path(path).suffix.lower(), None)
+class TextCrawler:
+    def __init__(
+        self,
+        extension: Optional[TextExtension] = None,
+        threshold: float = 0.30,
+        max_workers: int = 4,
+        timeout: float = 30.0,
+    ):
+        self.extension = extension if extension else TextExtension()
+        self.magic = TextMagic(self.extension)
+        self.detector = TextDetector(threshold)
+        self.max_workers = max_workers if max_workers > 0 else cpu_count()
+        self.timeout = timeout
 
+    def classify(self, name: Union[str, Path]) -> dict[str, any]:
+        """Return a serialisable dictionary describing the path name."""
+        p = Path(name).resolve()
+        data = p.read_bytes()[:512]  # 512‑byte sample
+        is_text = self.detector.is_text(data)
+        meta = self.magic.from_file(p)
 
-def magic_mime_file(path: Union[str, Path]) -> dict[str, Optional[str]]:
-    return {
-        "class": magic_mime_class(path),
-        "type": magic_mime_type(path),
-        "encoding": magic_mime_encoding(path),
-    }
+        return {
+            "path": str(p),
+            "parent": str(p.parent),
+            "stem": p.stem,
+            "size": p.stat().st_size,
+            "suffix": p.suffix or None,
+            "text": is_text,
+            **meta,  # libmagic output (may be None)
+        }
 
+    def collect(self, path: Union[str, Path]) -> list[dict[str, any]]:
+        """
+        Recursively walk *path* (file or directory), classify each supported file,
+        and return a **list** of serialisable dictionaries.
+        """
+        p = Path(path)
 
-# --- File classification ---
+        if p.is_file():
+            return [classify(p)]
 
+        # Collect all supported files first;
+        # this avoids the overhead of submitting a task per file in a loop.
+        candidates = list(self.extension.candidates(p))
+        results: list[dict[str, any]] = []
+        with ThreadPoolExecutor(max_workers=self.max_workers) as exe:
+            future_to_path = {exe.submit(self.classify, fp): fp for fp in candidates}
+            for fut in as_completed(future_to_path, timeout=self.timeout):
+                try:
+                    results.append(fut.result())
+                except Exception as exc:  # pragma: no cover
+                    logging.warning(
+                        "Failed to classify %s: %s", future_to_path[fut], exc
+                    )
 
-def classify(path: Union[str, Path], threshold: float = 0.30) -> dict[str, any]:
-    """Return a serialisable dictionary describing *path*."""
-    p = Path(path).resolve()
-    data = p.read_bytes()[:512]  # 512‑byte sample
-    meta = magic_mime_file(p)
-
-    return {
-        "text": is_text(data, threshold),
-        "path": str(p),
-        "parent": str(p.parent),
-        "stem": p.stem,
-        "size": p.stat().st_size,
-        "suffix": p.suffix or None,
-        **meta,  # libmagic output (may be None)
-    }
-
-
-# --- File collection ---
-
-
-def collect(
-    path: Union[str, Path],
-    max_workers: int = 4,
-    timeout: float = 30.0,
-) -> list[dict[str, any]]:
-    """
-    Recursively walk *path* (file or directory), classify each supported file,
-    and return a **list** of serialisable dictionaries.
-
-    Parameters
-    ----------
-    path : Union[str, pathlib.Path]
-        Target to scan.
-    max_workers : int
-        Number of threads when *parallel* is true (default: 4).
-    timeout : float
-        The maximum number of seconds to wait (default: 30.0).
-    """
-    p = Path(path)
-
-    if p.is_file():
-        return [classify(p)]
-
-    if max_workers <= 0:
-        max_workers = multiprocessing.cpu_count()
-
-    # Collect all supported files first;
-    # this avoids the overhead of submitting a task per file in a loop.
-    candidates = list(supported_candidates(p))
-    results: list[dict[str, any]] = []
-    with ThreadPoolExecutor(max_workers=max_workers) as exe:
-        future_to_path = {exe.submit(classify, fp): fp for fp in candidates}
-        for fut in as_completed(future_to_path, timeout=timeout):
-            try:
-                results.append(fut.result())
-            except Exception as exc:  # pragma: no cover
-                logging.warning("Failed to classify %s: %s", future_to_path[fut], exc)
-
-    return results
+        return results
 
 
 if __name__ == "__main__":
@@ -213,5 +253,6 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    for cls in collect(args.path, args.max_workers, args.timeout):
+    crawler = TextCrawler(max_workers=args.max_workers, timeout=args.timeout)
+    for cls in crawler.collect(args.path):
         print(f"class: {json.dumps(cls, indent=2)}")
