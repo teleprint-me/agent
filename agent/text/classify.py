@@ -15,10 +15,14 @@ References:
 """
 
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+from typing import Iterable, Optional
 
 # some kind of black magic going on with str == bytes
 from magic import Magic
+
+# --- Supported classes ---
 
 # there has to be a better way than this 🫠
 EXT_TO_CLS = {
@@ -54,7 +58,7 @@ def supported_classes() -> set[str]:
     return set(EXT_TO_CLS.values())
 
 
-def supported_walk(path: Path) -> iter:
+def supported_candidates(path: Path) -> Iterable[Path]:
     """Yield only files whose suffix is in EXT_TO_CLS."""
     for p in path.rglob("*"):
         if p.is_file() and p.suffix.lower() in supported_suffixes():
@@ -101,20 +105,20 @@ def is_text(data: bytes, threshold: float = 0.30) -> bool:
 # --- Mime classification ---
 
 
-def magic_mime_type(path: Path) -> str | None:
+def magic_mime_type(path: Path) -> Optional[str]:
     return Magic(mime=True).from_file(path) or None
 
 
-def magic_mime_encoding(path: Path) -> str | None:
+def magic_mime_encoding(path: Path) -> Optional[str]:
     return Magic(mime_encoding=True).from_file(path) or None
 
 
-def magic_mime_class(path: Path) -> str | None:
+def magic_mime_class(path: Path) -> Optional[str]:
     # our own extension → class mapping
     return EXT_TO_CLS.get(path.suffix.lower(), None)
 
 
-def magic_mime_file(path: Path) -> dict[str, str | None]:
+def magic_mime_file(path: Path) -> dict[str, Optional[str]]:
     return {
         "class": magic_mime_class(path),
         "type": magic_mime_type(path),
@@ -142,22 +146,45 @@ def classify(path: Path) -> dict[str, any]:
     }
 
 
-def collect(path: Path) -> list[dict[str, any]]:
-    path = Path(path)
+# --- File collection ---
 
-    if path.is_file():
-        return [magic(path)]
 
-    collection = []
-    for dirname, _, filenames in os.walk(path):
-        for name in filenames:
-            filepath = Path(f"{dirname}/{name}")
-            cls = EXT_TO_CLS.get(filepath.suffix, None)
-            if cls is None:
-                print(f"Warn: {filepath.suffix} is unsupported")
-                continue  # skip unsupported files
-            collection.append(classify(filepath))
-    return collection
+def collect(
+    path: Path,
+    max_workers: int = 4,
+    timeout: float = 30.0,
+) -> list[dict[str, any]]:
+    """
+    Recursively walk *path* (file or directory), classify each supported file,
+    and return a **list** of serialisable dictionaries.
+
+    Parameters
+    ----------
+    path : pathlib.Path | str
+        Target to scan.
+    parallel : bool
+        If True, use ThreadPoolExecutor.  Good for very large trees but not needed for small ones.
+    max_workers : int
+        Number of threads when *parallel* is true (default: CPU count).
+    """
+    p = Path(path)
+
+    if p.is_file():
+        return [classify(p)]
+
+    # Collect all supported files first;
+    # this avoids the overhead of submitting a task per file in a loop.
+    candidates = list(supported_candidates(p))
+    results: list[dict[str, any]] = []
+    with ThreadPoolExecutor(max_workers=max_workers) as exe:
+        future_to_path = {exe.submit(classify, fp): fp for fp in candidates}
+        for fut in as_completed(future_to_path, timeout=timeout):
+            try:
+                results.append(fut.result())
+            except Exception as exc:  # pragma: no cover
+                logging.warning("Failed to classify %s: %s", future_to_path[fut], exc)
+
+    return results
 
 
 if __name__ == "__main__":
