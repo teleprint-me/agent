@@ -245,24 +245,39 @@ if __name__ == "__main__":
 
     args = parse_args()
 
-    # 1️⃣ Parse a real file ---------------------------------------------
+    # Parse a real file
     tree_file = get_tree(args.path)
 
     # note: language.version is deprecated. use language.abi_version instead.
     # a warning will be emitted to standard output if version is used.
     print(f"Language Name: {tree_file.language.name}")
     print(f"ABI Version: {tree_file.language.abi_version}")
+    print(f"Root Node Type: {tree_file.root_node.type}")
+    print(f"Number of children: {tree_file.root_node.child_count}")
 
     walk(tree_file.root_node)
 
-    # 2️⃣ Parse from string (language name + source) --------------------
+    # Parse from string (language name + source)
     source_code = """
-    def hello():
-        print("Hello, world!")
+    class Foo:
+        @property
+        def bar(self):
+            return "bar"
+
+    def baz(foo: Foo):
+        print(foo.bar)
+
+    def main():
+        foo = Foo()
+        baz(foo)
+
+    main()
     """
     tree_source = get_tree("python", source=source_code)
 
-    print(tree_source.root_node.type)
-    print(tree_source.root_node.child_count)
+    print(f"Language Name: {tree_source.language.name}")
+    print(f"ABI Version: {tree_source.language.abi_version}")
+    print(f"Root Node Type: {tree_source.root_node.type}")
+    print(f"Number of children: {tree_source.root_node.child_count}")
 
     walk(tree_source.root_node)
