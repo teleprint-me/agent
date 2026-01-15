@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
 
+# catch errors and exit
+set -eu
+
 #
 # requirements.sh - install pip dependencies for agent
 #
+
+# Clear the cache to resolve conflicts
+python -m pip cache purge
 
 # Virtual Environment
 python -m venv .venv
@@ -25,14 +31,14 @@ pip install -r requirements/web.txt # optional: only available for cli tool
 
 # Temporary fix for python-poppler issue #93
 # https://github.com/cbrunet/python-poppler/issues/93
-pip install git+https://github.com/opale-ai/python-poppler.git@ca6678d
+pip install 'git+https://github.com/opale-ai/python-poppler.git@ca6678d'
 
 #
 # GGUF dependencies: Execute each package in consecutive order
 #
 
 # NOTE: This is required to get convert_hf_to_gguf.py to work
-pip install torch~=2.6.0 --index-url https://download.pytorch.org/whl/cpu
+pip install 'torch>=2.6.0' --index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements/gguf.txt
 pip install git+https://github.com/ggml-org/llama.cpp@master#subdirectory=gguf-py
 
