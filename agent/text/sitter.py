@@ -88,6 +88,11 @@ def _capsule_from_path(name: Union[str, Path]) -> CapsuleType:
     """
     suffix = Path(name).suffix.lower()
     lang = _EXT_TO_PKG.get(suffix)
+    if not lang:
+        raise ValueError(
+            f"Unsupported file extension '{suffix}'. "
+            "Supported extensions are: {sorted(_PKG_TO_EXT.keys())}"
+        )
     return _capsule_from_name(lang)
 
 
