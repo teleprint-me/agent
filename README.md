@@ -514,6 +514,7 @@ code, the PR will be closed with no further deliberation.
 - [jsonpycraft](https://github.com/teleprint-me/json-py-craft/tree/main/docs)
 - [Pygments](https://pygments.org/docs/)
 - [prompt-toolkit](https://python-prompt-toolkit.readthedocs.io/en/stable/index.html)
+- [tree-sitter](https://tree-sitter.github.io/py-tree-sitter/)
 
 Note that there is no need for fancy tools like Rich. Pygments and
 prompt-toolkit should be sufficient for most of the desired features.
