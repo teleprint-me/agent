@@ -91,7 +91,7 @@ def _capsule_from_path(name: Union[str, Path]) -> CapsuleType:
     if not lang:
         raise ValueError(
             f"Unsupported file extension '{suffix}'. "
-            "Supported extensions are: {sorted(_PKG_TO_EXT.keys())}"
+            f"Supported extensions are: {sorted(_EXT_TO_PKG.keys())}"
         )
     return _capsule_from_name(lang)
 
