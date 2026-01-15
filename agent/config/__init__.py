@@ -84,9 +84,9 @@ DEFAULT_CONF = {
     },
     "model": {
         "chat": "gpt-oss-20b-f16",
-        "embed": "qwen3-embedding-0.6b-q8_0",
-        "complete": "llama32-instruct-1b-q8_0",
-        "code": "qwen25-coder-1.5b-f16",
+        "embed": "qwen3-embedding-0.6b-f16",
+        "complete": "llama-3.2-1b-instruct-f16",
+        "code": "qwen2.5-coder-1.5b-f16",
     },
     "requests": {
         "scheme": "http",
