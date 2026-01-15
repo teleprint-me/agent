@@ -53,24 +53,64 @@ for _k, _v in _PKG_TO_EXT.items():
 _MODULE_NAMES = []
 for _d in importlib.metadata.distributions():
     if _d.name.startswith("tree-sitter-"):
-        _MODULE_NAMES.append(_d.name)
+        # tree-sitter-{lang} -> tree_sitter_{lang}
+        _MODULE_NAMES.append(_d.name.replace("-", "_"))
 
 
 @lru_cache(maxsize=None)
 def _capsule_from_name(lang: str) -> CapsuleType:
     """
-    Import `lang` and return the `language()` capsule.
+    Import a `tree-sitter-<lang>` package and return its `language()` capsule.
 
-    Returns: CapsuleType | None
-        The PyCapsule that :class:`tree_sitter.Language` expects, or
-        `None` if the module cannot be imported or does not expose
-        `language()`.
+    Parameters
+    ----------
+    lang : str
+        Language identifier (e.g. "python", "c").  Case‑insensitive.
 
-    Raises ModuleNotFoundError if the module does not exist.
-    Raises AttributeError if the API contract is broken.
+    Returns
+    -------
+    CapsuleType
+        The PyCapsule returned by the module’s `language()`, ready for use with
+        :class:`tree_sitter.Language`.
+
+    Raises
+    ------
+    ValueError
+        If *lang* is not a supported tree‑sitter package.
+    ModuleNotFoundError
+        (unlikely after the check) – only if the import fails unexpectedly.
+    AttributeError
+        When the module does **not** expose `language()` as expected.
+
+    Notes
+    -----
+    The function remains cached (`lru_cache`) so repeated calls for a language are O(1).
     """
-    module = importlib.import_module(f"tree_sitter_{lang}")
-    return module.language()
+    # Normalise input to lower‑case
+    lang = lang.lower()
+
+    # Quick sanity check
+    module_name = f"tree_sitter_{lang}"
+    if module_name not in _MODULE_NAMES:
+        raise ValueError(
+            f"No tree‑sitter package found for language '{lang}'. "
+            f"Supported languages are: {', '.join(_PKG_TO_EXT.keys())}"
+        )
+
+    # Import the module
+    try:
+        module = importlib.import_module(module_name)
+    except ModuleNotFoundError as exc:  # pragma: no cover
+        # This should never happen, but we keep it explicit.
+        raise ModuleNotFoundError(f"Failed to load package '{module_name}'.") from exc
+
+    # Verify the API contract
+    if not hasattr(module, "language"):
+        raise AttributeError(
+            f"The module '{module_name}' does not expose a 'language()' function."
+        )
+
+    return getattr(module, "language")()
 
 
 @lru_cache(maxsize=None)
@@ -83,8 +123,7 @@ def _capsule_from_path(name: Union[str, Path]) -> CapsuleType:
         `None` if the module cannot be imported or does not expose
         `language()`.
 
-    Raises ModuleNotFoundError if the module does not exist.
-    Raises AttributeError if the API contract is broken.
+    Raises ValueError if the extension does not exist.
     """
     suffix = Path(name).suffix.lower()
     lang = _EXT_TO_PKG.get(suffix)
@@ -123,11 +162,11 @@ def get_parser(cls: Union[str, Path]) -> Parser:
     return Parser(language)
 
 
-def get_tree(cls: Union[str, Path], name: Optional[Union[str, Path]] = None) -> Tree:
+def get_tree(cls: Union[str, Path], source: Optional[str] = None) -> Tree:
     """
-    Parse *cls* if it is a file path; otherwise treat it as a language name and parse *name*.
+    Parse *cls* if it is a file path; otherwise treat it as a language name and parse *source*.
 
-    Raises ValueError when neither `cls` nor `name` point to an existing source file,
+    Raises ValueError when neither `cls` nor `source` point to an existing source file,
     or when the language for that file cannot be found.
     """
     p_cls = Path(cls)
@@ -136,14 +175,11 @@ def get_tree(cls: Union[str, Path], name: Optional[Union[str, Path]] = None) -> 
         return parser.parse(p_cls.read_bytes())
 
     # cls is a language identifier – we need the file to parse
-    if not name or not Path(name).is_file():  # <- guard against None / missing file
-        raise ValueError(
-            f"Expected `name` to be an existing source file when `cls={cls}` "
-            "doesn't point at one."
-        )
+    if not source:  # <- guard against None / missing file
+        raise ValueError(f"Expected `source` when `cls={cls}` doesn't point at one.")
 
     parser = get_parser(cls)
-    return parser.parse(Path(name).read_bytes())
+    return parser.parse(bytes(source))
 
 
 # Public API
