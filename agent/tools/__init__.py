@@ -65,7 +65,7 @@ _shell = [
                         "description": (
                             "Agents may execute “virtual shell scripts” within the environment. "
                             "This function supports full shell capabilities unless disabled or restricted by Admin. "
-                            "Use `shell_allowed` to see which commands are actually permitted."
+                            "Use `access` to see which commands are actually permitted."
                         ),
                     },
                 },
