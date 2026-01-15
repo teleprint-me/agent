@@ -1,3 +1,4 @@
+# agent/text/crawler.py
 """
 Simple text vs binary file classifier.
 
