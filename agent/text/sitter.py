@@ -114,9 +114,9 @@ def _capsule_from_name(lang: str) -> CapsuleType:
 
 
 @lru_cache(maxsize=None)
-def _capsule_from_path(name: Union[str, Path]) -> CapsuleType:
+def _capsule_from_path(path: Union[str, Path]) -> CapsuleType:
     """
-    Import `name` and return the `language()` capsule.
+    Import `path` and return the `language()` capsule.
 
     Returns: CapsuleType | None
         The PyCapsule that :class:`tree_sitter.Language` expects, or
@@ -125,7 +125,7 @@ def _capsule_from_path(name: Union[str, Path]) -> CapsuleType:
 
     Raises ValueError if the extension does not exist.
     """
-    suffix = Path(name).suffix.lower()
+    suffix = Path(path).suffix.lower()
     lang = _EXT_TO_PKG.get(suffix)
     if not lang:
         raise ValueError(
@@ -136,21 +136,21 @@ def _capsule_from_path(name: Union[str, Path]) -> CapsuleType:
 
 
 @lru_cache(maxsize=None)
-def get_language(cls: Union[str, Path]) -> Language:
+def get_language(lang_or_path: Union[str, Path]) -> Language:
     """
     Return a :class:`tree_sitter.Language` instance.
 
     The function is idempotent: repeated calls for the same language
     reuse the cached `Language` object.
     """
-    if Path(cls).is_file():
-        capsule = _capsule_from_path(cls)
+    if Path(lang_or_path).is_file():
+        capsule = _capsule_from_path(lang_or_path)
         return Language(capsule)
-    capsule = _capsule_from_name(cls)
+    capsule = _capsule_from_name(lang_or_path)
     return Language(capsule)  # note: capsule type is void*
 
 
-def get_parser(cls: Union[str, Path]) -> Parser:
+def get_parser(lang_or_path: Union[str, Path]) -> Parser:
     """
     Create a fresh :class:`tree_sitter.Parser` for a language.
 
@@ -158,28 +158,69 @@ def get_parser(cls: Union[str, Path]) -> Parser:
     because parsers hold mutable state that is useful when editing a file
     incrementally.
     """
-    language = get_language(cls)
+    language = get_language(lang_or_path)
     return Parser(language)
 
 
-def get_tree(cls: Union[str, Path], source: Optional[str] = None) -> Tree:
+def get_tree(
+    lang_or_path: Union[str, Path],
+    source: Optional[Union[str, bytes]] = None,
+) -> Tree:
     """
-    Parse *cls* if it is a file path; otherwise treat it as a language name and parse *source*.
+    Parse a source file or string with tree‑sitter.
 
-    Raises ValueError when neither `cls` nor `source` point to an existing source file,
-    or when the language for that file cannot be found.
+    Parameters
+    ----------
+    lang_or_path : str | pathlib.Path
+        * If it points at an existing regular file → that file is parsed.
+        * Otherwise interpreted as the language identifier (e.g. ``"python"``,
+          ``"c"``, …).  In this mode a source string must be supplied via
+          **source**.
+
+    source : str | bytes, optional
+        Raw source code to parse when *lang_or_path* is not an existing file.
+        When given as text it will be UTF‑8 encoded automatically.  If the
+        caller already has a byte‑string just pass that; no double‑encoding
+        occurs.
+
+    Returns
+    -------
+    tree_sitter.Tree
+
+    Raises
+    ------
+    ValueError
+        * `source` is missing while ``lang_or_path`` does not point at an existing file.
+        * The language for the supplied source cannot be found (handled in
+          :func:`_capsule_from_name` / :func:`get_parser`).
+
+    Notes
+    -----
+    This function remains fast because both :func:`get_language` and
+    :func:`get_parser` are cached via ``lru_cache``.
     """
-    p_cls = Path(cls)
-    if p_cls.is_file():
-        parser = get_parser(p_cls)
-        return parser.parse(p_cls.read_bytes())
+    path = Path(lang_or_path)
 
-    # cls is a language identifier – we need the file to parse
-    if not source:  # <- guard against None / missing file
-        raise ValueError(f"Expected `source` when `cls={cls}` doesn't point at one.")
+    # Case 1 – a real file exists → parse it directly
+    if path.is_file():
+        parser = get_parser(path)
+        return parser.parse(path.read_bytes())
 
-    parser = get_parser(cls)
-    return parser.parse(bytes(source))
+    # --------------------------------------------------------------------
+    # Case 2 – treat *lang_or_path* as the language name.
+    #
+    # We deliberately raise if no source was supplied; that keeps debugging
+    # simple and matches a “crash‑fast” philosophy.
+    if source is None:
+        raise ValueError(
+            f"Expected `src` when `{lang_or_path}` does not refer to a file."
+        )
+
+    # Convert the source into raw bytes (UTF‑8 for str, identity for bytes)
+    data = source.encode() if isinstance(source, str) else bytes(source)
+
+    parser = get_parser(lang_or_path)
+    return parser.parse(data)
 
 
 # Public API
