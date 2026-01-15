@@ -63,10 +63,6 @@ DEFAULT_CONF = {
         "content": "My name is ChatGPT. I am a helpful assistant.",
         "type": "str",
     },
-    "style": {
-        "content": style_dark,
-        "type": "dict",
-    },
     "terminal": {
         "shell": "/usr/bin/bash",
         "executable": False,
@@ -85,6 +81,12 @@ DEFAULT_CONF = {
             "diff",
             "git",
         ],
+    },
+    "model": {
+        "chat": "gpt-oss-20b-f16",
+        "embed": "qwen3-embedding-0.6b-q8_0",
+        "complete": "llama32-instruct-1b-q8_0",
+        "code": "qwen25-coder-1.5b-f16",
     },
     "requests": {
         "scheme": "http",
@@ -125,12 +127,10 @@ DEFAULT_CONF = {
         "cache_prompt": True,
         "tools": tools,
     },
-    "model": {
-        "chat": "gpt-oss-20b-f16",
-        "embed": "qwen3-embedding-0.6b-q8_0",
-        "complete": "llama32-instruct-1b-q8_0",
-        "code": "qwen25-coder-1.5b-f16",
-    },
+    "style": {
+        "content": style_dark,
+        "type": "dict",
+    }
 }
 
 
