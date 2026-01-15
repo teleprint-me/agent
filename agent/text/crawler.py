@@ -30,6 +30,7 @@ _EXT_TO_CLS: dict[str, str] = {
     ".txt": "text",
     ".c": "c",
     ".h": "c",
+    ".cc": "cpp",
     ".cpp": "cpp",
     ".hpp": "cpp",
     ".rs": "rust",
@@ -43,10 +44,10 @@ _EXT_TO_CLS: dict[str, str] = {
     ".json": "json",
     ".js": "javascript",
     ".mjs": "javascript",
-    ".pdf": "application",
-    ".png": "image",
-    ".jpg": "image",
-    ".jpeg": "image",
+    ".pdf": "pdf",
+    ".png": "png",
+    ".jpg": "jpg",
+    ".jpeg": "jpeg",
 }
 
 # expose a *read‑only* view of the mapping
