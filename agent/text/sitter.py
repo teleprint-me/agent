@@ -257,10 +257,15 @@ if __name__ == "__main__":
 
     # Parse from string (language name + source)
     source_code = """
+    import fubar
+    from padme import hum
+
+    QUX = "bar"
+
     class Foo:
         @property
         def bar(self):
-            return "bar"
+            return QUX
 
     def baz(foo: Foo):
         print(foo.bar)
@@ -269,7 +274,8 @@ if __name__ == "__main__":
         foo = Foo()
         baz(foo)
 
-    main()
+    if __name__ == "__main__":
+        main()
     """
     tree_source = get_tree("python", source=source_code)
 
