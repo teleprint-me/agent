@@ -32,122 +32,113 @@ from tree_sitter import Language, Parser, Tree
 
 # Extension: tree-sitter package name mapping
 # Note: Markdown & LaTeX are not supported by tree-sitter.
-_EXT_TO_PKG = {
-    ".c": "c",
-    ".h": "c",
-    ".cpp": "cpp",
-    ".hpp": "cpp",
-    ".rs": "rust",
-    ".py": "python",
-    ".sh": "bash",
-    ".md": "markdown",
-    ".json": "json",
-    ".html": "html",
-    ".css": "css",
-    ".js": "javascript",
-    ".mjs": "javascript",
+_PKG_TO_EXT: dict[str, set[str]] = {
+    "bash": {".sh"},
+    "c": {".c", ".h"},
+    "cpp": {".cc", ".cpp", ".hpp"},
+    "css": {".css"},
+    "html": {".htm", ".html"},
+    "javascript": {".js", ".mjs"},
+    "json": {".json"},
+    "markdown": {".md"},
+    "python": {".py", ".pyi"},
+    "rust": {".rs"},
 }
 
+_EXT_TO_PKG: dict[str, str] = {}
+for _k, _v in _PKG_TO_EXT.items():
+    for _ext in _v:
+        _EXT_TO_PKG[_ext] = _k
 
-def _module_name_for_path(path: Union[str, Path]) -> Optional[str]:
-    """
-    Convert a file path into the name of the tree-sitter package
-    that implements the language.
-
-    Parameters
-    ----------
-    path
-        Path to a source file.
-
-    Returns
-    -------
-    str | None
-        The import-able package name (e.g. `"tree_sitter_c"`) or
-        `None` if the extension is unknown.
-    """
-    suffix = Path(path).suffix.lower()
-    pkg = _EXT_TO_PKG.get(suffix)
-    return f"tree_sitter_{pkg}" if pkg else None
+_MODULE_NAMES = []
+for _d in importlib.metadata.distributions():
+    if _d.name.startswith("tree-sitter-"):
+        _MODULE_NAMES.append(_d.name)
 
 
 @lru_cache(maxsize=None)
-def _capsule_for_name(name: str) -> Optional[CapsuleType]:
+def _capsule_from_name(lang: str) -> CapsuleType:
     """
-    Import `name` and return the `language()` capsule.
+    Import `lang` and return the `language()` capsule.
 
-    Parameters
-    ----------
-    name
-        Importable module name, e.g. `"tree_sitter_c"`.  Must be
-        non-empty.
-
-    Returns
-    -------
-    CapsuleType | None
+    Returns: CapsuleType | None
         The PyCapsule that :class:`tree_sitter.Language` expects, or
         `None` if the module cannot be imported or does not expose
         `language()`.
-    """
-    try:
-        module = importlib.import_module(name)
-    except ImportError:
-        return None
 
-    # The C extension always provides a `language()` function.
-    return getattr(module, "language", lambda: None)()
+    Raises ModuleNotFoundError if the module does not exist.
+    Raises AttributeError if the API contract is broken.
+    """
+    module = importlib.import_module(f"tree_sitter_{lang}")
+    return module.language()
 
 
 @lru_cache(maxsize=None)
-def get_language(path: Union[str, Path]) -> Optional[Language]:
+def _capsule_from_path(name: Union[str, Path]) -> CapsuleType:
     """
-    Return a :class:`tree_sitter.Language` instance for *path*.
+    Import `name` and return the `language()` capsule.
+
+    Returns: CapsuleType | None
+        The PyCapsule that :class:`tree_sitter.Language` expects, or
+        `None` if the module cannot be imported or does not expose
+        `language()`.
+
+    Raises ModuleNotFoundError if the module does not exist.
+    Raises AttributeError if the API contract is broken.
+    """
+    suffix = Path(name).suffix.lower()
+    lang = _EXT_TO_PKG.get(suffix)
+    return _capsule_from_name(lang)
+
+
+@lru_cache(maxsize=None)
+def get_language(cls: Union[str, Path]) -> Language:
+    """
+    Return a :class:`tree_sitter.Language` instance.
 
     The function is idempotent: repeated calls for the same language
     reuse the cached `Language` object.
     """
-    module_name = _module_name_for_path(path)
-    if not module_name:
-        return None
-    capsule = _capsule_for_name(module_name)
-    if capsule is None:
-        return None
-    return Language(capsule)  # note: type is void*
+    if Path(cls).is_file():
+        capsule = _capsule_from_path(cls)
+        return Language(capsule)
+    capsule = _capsule_from_name(cls)
+    return Language(capsule)  # note: capsule type is void*
 
 
-def get_parser(path: Union[str, Path]) -> Optional[Parser]:
+def get_parser(cls: Union[str, Path]) -> Parser:
     """
-    Create a fresh :class:`tree_sitter.Parser` for the language of *path*.
+    Create a fresh :class:`tree_sitter.Parser` for a language.
 
     A new `Parser` instance is returned each time - this is intentional
     because parsers hold mutable state that is useful when editing a file
     incrementally.
     """
-    language = get_language(path)
-    if language is None:
-        return None
+    language = get_language(cls)
     return Parser(language)
 
 
-def get_tree(path: Union[str, Path]) -> Optional[Tree]:
+def get_tree(cls: Union[str, Path], name: Optional[Union[str, Path]] = None) -> Tree:
     """
-    Parse *path* and return a :class:`tree_sitter.Tree`.
+    Parse *cls* if it is a file path; otherwise treat it as a language name and parse *name*.
 
-    The function silently returns `None` for unsupported files or
-    missing language packages.  It reads the file *once* and feeds the raw
-    bytes to the parser.
+    Raises ValueError when neither `cls` nor `name` point to an existing source file,
+    or when the language for that file cannot be found.
     """
-    p = Path(path)
-    if not p.is_file():
-        return None
+    p_cls = Path(cls)
+    if p_cls.is_file():
+        parser = get_parser(p_cls)
+        return parser.parse(p_cls.read_bytes())
 
-    parser = get_parser(p)
-    if parser is None:
-        return None
+    # cls is a language identifier – we need the file to parse
+    if not name or not Path(name).is_file():  # <- guard against None / missing file
+        raise ValueError(
+            f"Expected `name` to be an existing source file when `cls={cls}` "
+            "doesn't point at one."
+        )
 
-    try:
-        return parser.parse(p.read_bytes())
-    except OSError:  # e.g. permission denied, vanished, etc.
-        return None
+    parser = get_parser(cls)
+    return parser.parse(Path(name).read_bytes())
 
 
 # Public API
@@ -155,43 +146,28 @@ __all__ = ["get_language", "get_parser", "get_tree"]
 
 # example usage
 if __name__ == "__main__":
-    from argparse import ArgumentParser
+    from argparse import ArgumentParser, Namespace
 
-    parser = ArgumentParser(description="Parse a source file with tree-sitter.")
-    parser.add_argument("path", help="Path to a plain text source file")
-    args = parser.parse_args()
+    def parse_args() -> Namespace:
+        parser = ArgumentParser(description="Parse a source file with tree-sitter.")
+        parser.add_argument("path", help="Path to a plain text source file")
+        return parser.parse_args()
+
+    def walk(root: Node, depth: int = 0, margin: int = 30) -> None:
+        """Pretty-print a small subtree."""
+        indent = "  " * depth
+        txt = root.text[:margin].decode("utf8", errors="replace")
+        print(f"{indent}{root.type:2} ({txt!r})")
+        for node in root.children:
+            walk(node, depth + 1)
+
+    args = parse_args()
 
     tree = get_tree(args.path)
-    if tree is None:
-        print("Could not parse the file - unsupported language or missing parser.")
-        sys.exit(1)
 
     # note: language.version is deprecated. use language.abi_version instead.
     # a warning will be emitted to standard output if version is used.
-    print(
-        f"Language: name: {tree.language.name}, abi version: {tree.language.abi_version}"
-    )
-    print("Children:", tree.root_node.child_count)  # e.g. 1
-    print("Named children:", tree.root_node.named_child_count)  # e.g. 1
-    print("Descendants (incl. self):", tree.root_node.descendant_count)  # e.g. 5
+    print(f"Language Name: {tree.language.name}")
+    print(f"ABI Version: {tree.language.abi_version}")
 
-    # Depth-first search
-    cursor = tree.walk()
-    # Skip root node
-    cursor.goto_first_child()
-    # Count first node
-    node_count = 1
-    while True:
-        print(f"--- node {node_count}: {cursor.node.type} ---")
-        print(cursor.node.text.decode())
-        node_count += 1
-        if cursor.goto_first_child():
-            continue
-        if cursor.goto_next_sibling():
-            continue
-        while not cursor.goto_parent():
-            break
-        if cursor.goto_next_sibling():
-            continue
-        break
-    print(f"Counted {node_count} nodes via cursor")
+    walk(tree.root_node)
