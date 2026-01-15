@@ -50,7 +50,7 @@ for _k, _v in _PKG_TO_EXT.items():
     for _ext in _v:
         _EXT_TO_PKG[_ext] = _k
 
-_MODULE_NAMES = []
+_MODULE_NAMES: list[str] = []
 for _d in importlib.metadata.distributions():
     if _d.name.startswith("tree-sitter-"):
         # tree-sitter-{lang} -> tree_sitter_{lang}
@@ -173,8 +173,8 @@ def get_tree(
     ----------
     lang_or_path : str | pathlib.Path
         * If it points at an existing regular file → that file is parsed.
-        * Otherwise interpreted as the language identifier (e.g. ``"python"``,
-          ``"c"``, …).  In this mode a source string must be supplied via
+        * Otherwise interpreted as the language identifier (e.g. `"python"`,
+          `"c"`, …).  In this mode a source string must be supplied via
           **source**.
 
     source : str | bytes, optional
@@ -190,14 +190,14 @@ def get_tree(
     Raises
     ------
     ValueError
-        * `source` is missing while ``lang_or_path`` does not point at an existing file.
+        * `source` is missing while `lang_or_path` does not point at an existing file.
         * The language for the supplied source cannot be found (handled in
           :func:`_capsule_from_name` / :func:`get_parser`).
 
     Notes
     -----
     This function remains fast because both :func:`get_language` and
-    :func:`get_parser` are cached via ``lru_cache``.
+    :func:`get_parser` are cached via `lru_cache`.
     """
     path = Path(lang_or_path)
 
@@ -206,9 +206,7 @@ def get_tree(
         parser = get_parser(path)
         return parser.parse(path.read_bytes())
 
-    # --------------------------------------------------------------------
     # Case 2 – treat *lang_or_path* as the language name.
-    #
     # We deliberately raise if no source was supplied; that keeps debugging
     # simple and matches a “crash‑fast” philosophy.
     if source is None:
