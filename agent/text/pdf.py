@@ -6,7 +6,6 @@ A Python script for converting PDF files to plaintext.
 Copyright (C) 2024 Austin Berrio
 """
 
-import argparse
 import os
 from pathlib import Path
 from typing import List, Union
@@ -32,31 +31,35 @@ def convert_pdf_to_text(file_name: Union[str, Path]) -> List[str]:
     return pages
 
 
-def get_arguments() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Convert a PDF document into text and optionally save or print it."
-    )
-    parser.add_argument(
-        "-i",
-        "--input_path",
-        type=str,
-        required=True,
-        help="The path to the PDF document to be converted.",
-    )
-    parser.add_argument(
-        "-o",
-        "--output_path",
-        type=str,
-        default="",
-        help="The path to save the extracted text. If not provided, the text will be printed to stdout.",
-    )
-    return parser.parse_args()
-
-
-def main(args: argparse.Namespace):
+# Usage example
+if __name__ == "__main__":
     """
     Convert a PDF document into text and optionally save or print it.
     """
+
+    from argparse import ArgumentParser, Namespace
+
+    def parse_args() -> Namespace:
+        parser = ArgumentParser(
+            description="Convert a PDF document into text and optionally save or print it."
+        )
+        parser.add_argument(
+            "-i",
+            "--input_path",
+            type=str,
+            required=True,
+            help="The path to the PDF document to be converted.",
+        )
+        parser.add_argument(
+            "-o",
+            "--output_path",
+            type=str,
+            default="",
+            help="The path to save the extracted text. If not provided, the text will be printed to stdout.",
+        )
+        return parser.parse_args()
+
+    args = parse_args()
     input_path = args.input_path
     output_path = args.output_path
 
@@ -76,8 +79,3 @@ def main(args: argparse.Namespace):
     else:
         for page in pages:
             print(page)
-
-
-if __name__ == "__main__":
-    args = get_arguments()
-    main(args)
