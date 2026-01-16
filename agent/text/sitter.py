@@ -1,5 +1,7 @@
-# agent/parser/loader.py
+# agent/text/sitter.py
 """
+Copyright (C) 2023 Austin Berrio
+
 Utilities for loading Tree-Sitter languages, parsers, and trees.
 
 Public helpers

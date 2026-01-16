@@ -1,5 +1,7 @@
-# agent/parser/c.py
+# agent/text/parser.py
 """
+Copyright (C) 2023 Austin Berrio
+
 A tiny, standalone language parser that splits a source file into semantic "chunks":
   - consecutive import/include directives
   - function definitions

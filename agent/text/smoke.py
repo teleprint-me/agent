@@ -1,5 +1,7 @@
+# agent/text/smoke.py
 """
-Script: tiny.data.smoke
+Copyright (C) 2023 Austin Berrio
+
 Description: Runs a smoke test on a generated dataset to detect discrepancies and determine max sequence length.
 
 Discrepancies include:
@@ -95,7 +97,9 @@ def validate_pairs(dataset: List[Dict[str, str]]) -> List[str]:
             warnings.append(f"Target {idx}: {target_text}")
 
         if input_text[0] in TERMINALS:
-            warnings.append(f"Pair {idx}: Input starts with a terminal symbol ({input_text[0]}).")
+            warnings.append(
+                f"Pair {idx}: Input starts with a terminal symbol ({input_text[0]})."
+            )
 
         if input_text[0] == "'" or target_text[0] == "'":
             warnings.append(f"Pair {idx}: Sequence begins with an apostrophe.")

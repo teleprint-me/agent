@@ -1,6 +1,8 @@
+# agent/text/grammar.py
 """
-Module: agent.text.grammar
-Description: Defines the rules for parsing English text.
+Copyright (C) 2023 Austin Berrio
+
+Define rules for parsing English text.
 
 BNF Grammar for English (WIP)
 =============================

@@ -1,7 +1,6 @@
+# agent/text/web.py
 """
-text_extraction/processor/web.py
-
-Copyright (C) 2024 Austin Berrio
+Copyright (C) 2023 Austin Berrio
 """
 
 import argparse

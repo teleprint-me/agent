@@ -1,7 +1,6 @@
+# agent/text/ocr.py
 """
-text_extraction/ocr.py
-
-Copyright (C) 2024 Austin Berrio
+Copyright (C) 2023 Austin Berrio
 
 A command-line OCR tool that performs various image processing operations and extracts text from images.
 

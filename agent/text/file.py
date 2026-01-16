@@ -1,7 +1,6 @@
+# agent/text/file.py
 """
-Module: agent.text.file
-
-Copyright (C) 2024 Austin Berrio
+Copyright (C) 2023 Austin Berrio
 """
 
 import logging

@@ -1,9 +1,8 @@
+# agent/text/pdf.py
 """
-text_extraction/pdf.py
+Copyright (C) 2023 Austin Berrio
 
 A Python script for converting PDF files to plaintext.
-
-Copyright (C) 2024 Austin Berrio
 """
 
 import os

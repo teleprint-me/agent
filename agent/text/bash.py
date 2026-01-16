@@ -1,5 +1,7 @@
 # agent/text/bash.py
 """
+Copyright (C) 2023 Austin Berrio
+
 keep this as dead simple as possible
 
 ## Issues

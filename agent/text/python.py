@@ -1,4 +1,7 @@
+# agent/text/python.py
 """
+Copyright (C) 2023 Austin Berrio
+
 https://docs.python.org/3/library/ast.html
 """
 
@@ -6,6 +9,7 @@ import ast
 import re
 from argparse import ArgumentParser, Namespace
 from typing import List
+
 import magic
 
 

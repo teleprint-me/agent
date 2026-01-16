@@ -1,6 +1,8 @@
+# agent/text/logger.py
 """
-Module: text.logger
-Description: A simple automated logger factory. This module provides a class `TinyLogger` to
+Copyright (C) 2023 Austin Berrio
+
+A simple automated logger factory. This module provides a class `TinyLogger` to
 easily create and configure logger instances for your Python applications.
 
 The `TextLogger` class offers methods to create new loggers, set their handlers, and retrieve

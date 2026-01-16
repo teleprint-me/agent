@@ -1,5 +1,7 @@
 # agent/text/crawler.py
 """
+Copyright (C) 2023 Austin Berrio
+
 Simple text vs binary file classifier.
 
 Heuristic:

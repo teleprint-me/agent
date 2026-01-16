@@ -1,7 +1,6 @@
+# agent/text/html.py
 """
-Copyright (C) 2024 Austin Berrio
-
-Script: agent.text.html
+Copyright (C) 2023 Austin Berrio
 
 A Python script for converting HTML files to Markdown format.
 
