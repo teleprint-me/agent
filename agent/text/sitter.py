@@ -125,7 +125,7 @@ def _capsule_from_path(path: Union[str, Path]) -> CapsuleType:
 
     Raises ValueError if the extension does not exist.
     """
-    suffix = Path(path).suffix.lower()
+    suffix = Path(path).resolve().suffix.lower()
     lang = _EXT_TO_PKG.get(suffix)
     if not lang:
         raise ValueError(
@@ -135,7 +135,6 @@ def _capsule_from_path(path: Union[str, Path]) -> CapsuleType:
     return _capsule_from_name(lang)
 
 
-@lru_cache(maxsize=None)
 def get_language(lang_or_path: Union[str, Path]) -> Language:
     """
     Return a :class:`tree_sitter.Language` instance.
@@ -211,7 +210,7 @@ def get_tree(
     # simple and matches a “crash‑fast” philosophy.
     if source is None:
         raise ValueError(
-            f"Expected `src` when `{lang_or_path}` does not refer to a file."
+            f"Expected `source` when `{lang_or_path}` does not refer to a file."
         )
 
     # Convert the source into raw bytes (UTF‑8 for str, identity for bytes)
