@@ -30,9 +30,10 @@ except (ModuleNotFoundError, ImportError):  # pragma: no cover
 
 from tree_sitter import Language, Parser, Tree
 
-# Extension: tree-sitter package name mapping
-# Note: Markdown & LaTeX are not supported by tree-sitter.
-_PKG_TO_EXT: dict[str, set[str]] = {
+# Extension: tree-sitter package name mapping.
+# Note: LaTeX is not supported by tree-sitter.
+# there has to be a better way than this 🫠
+_MOD_TO_EXT: dict[str, set[str]] = {
     "bash": {".sh"},
     "c": {".c", ".h"},
     "cpp": {".cc", ".cpp", ".hpp"},
@@ -45,10 +46,10 @@ _PKG_TO_EXT: dict[str, set[str]] = {
     "rust": {".rs"},
 }
 
-_EXT_TO_PKG: dict[str, str] = {}
-for _k, _v in _PKG_TO_EXT.items():
+_EXT_TO_MOD: dict[str, str] = {}
+for _k, _v in _MOD_TO_EXT.items():
     for _ext in _v:
-        _EXT_TO_PKG[_ext] = _k
+        _EXT_TO_MOD[_ext] = _k
 
 _MODULE_NAMES: list[str] = []
 for _d in importlib.metadata.distributions():
@@ -94,7 +95,7 @@ def _capsule_from_name(lang: str) -> CapsuleType:
     if module_name not in _MODULE_NAMES:
         raise ValueError(
             f"No tree‑sitter package found for language '{lang}'. "
-            f"Supported languages are: {', '.join(_PKG_TO_EXT.keys())}"
+            f"Supported languages are: {', '.join(_MOD_TO_EXT.keys())}"
         )
 
     # Import the module
@@ -126,11 +127,11 @@ def _capsule_from_path(path: Union[str, Path]) -> CapsuleType:
     Raises ValueError if the extension does not exist.
     """
     suffix = Path(path).resolve().suffix.lower()
-    lang = _EXT_TO_PKG.get(suffix)
+    lang = _EXT_TO_MOD.get(suffix)
     if not lang:
         raise ValueError(
             f"Unsupported file extension '{suffix}'. "
-            f"Supported extensions are: {sorted(_EXT_TO_PKG.keys())}"
+            f"Supported extensions are: {sorted(_EXT_TO_MOD.keys())}"
         )
     return _capsule_from_name(lang)
 

@@ -25,36 +25,27 @@ from typing import Final, Iterable, Optional, Union
 # some kind of black magic going on with str == bytes
 from magic import Magic
 
+from agent.text.sitter import _EXT_TO_MOD, _MOD_TO_EXT
+
 # there has to be a better way than this 🫠
-_EXT_TO_CLS: dict[str, str] = {
-    ".txt": "text",
-    ".c": "c",
-    ".h": "c",
-    ".cc": "cpp",
-    ".cpp": "cpp",
-    ".hpp": "cpp",
-    ".rs": "rust",
-    ".py": "python",
-    ".pyi": "python",
-    ".sh": "shellscript",
-    ".md": "markdown",
-    ".htm": "html",
-    ".html": "html",
-    ".css": "css",
-    ".json": "json",
-    ".js": "javascript",
-    ".mjs": "javascript",
-    ".pdf": "pdf",
-    ".png": "png",
-    ".jpg": "jpg",
-    ".jpeg": "jpeg",
-}
+_MOD_TO_EXT.update(
+    {
+        # optical character recognition supported files
+        "tesseract": {".png", ".jpg", ".jpeg"},
+        # portable document format
+        "poppler": {".pdf"},
+    }
+)
+
+for _k, _v in _MOD_TO_EXT.items():
+    for _ext in _v:
+        _EXT_TO_MOD[_ext] = _k
 
 # expose a *read‑only* view of the mapping
-_MAPPING: MappingProxyType[str, str] = MappingProxyType(_EXT_TO_CLS)
+_MAPPING: MappingProxyType[str, str] = MappingProxyType(_EXT_TO_MOD)
 _INVERSE: dict[str, str] = {cls: ext for ext, cls in _MAPPING.items()}
-_SUFFIXES: frozenset[str] = frozenset(_EXT_TO_CLS)
-_CLASSES: frozenset[str] = frozenset(_EXT_TO_CLS.values())
+_SUFFIXES: frozenset[str] = frozenset(_EXT_TO_MOD)
+_CLASSES: frozenset[str] = frozenset(_EXT_TO_MOD.values())
 
 
 class TextExtension:
