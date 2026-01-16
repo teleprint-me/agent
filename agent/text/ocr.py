@@ -35,8 +35,6 @@ For more information about image erosion and dilation:
     https://docs.opencv.org/3.4/db/df6/tutorial_erosion_dilatation.html
 """
 
-import argparse
-
 import cv2
 import numpy as np
 import pytesseract
@@ -198,75 +196,78 @@ class ImageProcessor:
         return extracted_text
 
 
-def get_arguments() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Perform image processing operations and extract text from images."
-    )
-    parser.add_argument(
-        "-i",
-        "--image_path",
-        required=True,
-        type=str,
-        help="The file path to the input image.",
-    )
-    parser.add_argument(
-        "-o",
-        "--text_path",
-        type=str,
-        default="",
-        help="The file path to save the extracted text. Default is an empty string (print to console).",
-    )
-    parser.add_argument(
-        "-r",
-        "--rotate",
-        type=int,
-        default=0,
-        help="Rotate the image by the specified angle in degrees. Default is 0.",
-    )
-    parser.add_argument(
-        "-s",
-        "--scale",
-        type=int,
-        default=0,
-        help="Scale the image by the specified factor. Default is 0.",
-    )
-    parser.add_argument(
-        "-g",
-        "--grayscale",
-        action="store_true",
-        help="Convert the image to grayscale.",
-    )
-    parser.add_argument(
-        "-a",
-        "--contrast",
-        action="store_true",
-        help="Enhance the image contrast.",
-    )
-    parser.add_argument(
-        "-b",
-        "--burn",
-        action="store_true",
-        help="Burn the image by adjusting brightness and contrast.",
-    )
-    parser.add_argument(
-        "-p",
-        "--preprocess",
-        action="store_true",
-        help="Preprocess the image for text extraction using adaptive thresholding and erosion-dilation.",
-    )
-    parser.add_argument(
-        "-u",
-        "--contours",
-        action="store_true",
-        help="Extract text from image using contours and bounding rectangular areas.",
-    )
-    return parser.parse_args()
-
-
-def main(args: argparse.Namespace):
+if __name__ == "__main__":
     """
     Perform image processing operations and extract text from images.
     """
+
+    from argparse import ArgumentParser, Namespace
+
+    def parse_args() -> Namespace:
+        parser = ArgumentParser(
+            description="Perform image processing operations and extract text from images."
+        )
+        parser.add_argument(
+            "-i",
+            "--image_path",
+            required=True,
+            type=str,
+            help="The file path to the input image.",
+        )
+        parser.add_argument(
+            "-o",
+            "--text_path",
+            type=str,
+            default="",
+            help="The file path to save the extracted text. Default is an empty string (print to console).",
+        )
+        parser.add_argument(
+            "-r",
+            "--rotate",
+            type=int,
+            default=0,
+            help="Rotate the image by the specified angle in degrees. Default is 0.",
+        )
+        parser.add_argument(
+            "-s",
+            "--scale",
+            type=int,
+            default=0,
+            help="Scale the image by the specified factor. Default is 0.",
+        )
+        parser.add_argument(
+            "-g",
+            "--grayscale",
+            action="store_true",
+            help="Convert the image to grayscale.",
+        )
+        parser.add_argument(
+            "-a",
+            "--contrast",
+            action="store_true",
+            help="Enhance the image contrast.",
+        )
+        parser.add_argument(
+            "-b",
+            "--burn",
+            action="store_true",
+            help="Burn the image by adjusting brightness and contrast.",
+        )
+        parser.add_argument(
+            "-p",
+            "--preprocess",
+            action="store_true",
+            help="Preprocess the image for text extraction using adaptive thresholding and erosion-dilation.",
+        )
+        parser.add_argument(
+            "-u",
+            "--contours",
+            action="store_true",
+            help="Extract text from image using contours and bounding rectangular areas.",
+        )
+        return parser.parse_args()
+
+    args = parse_args()
     processor = ImageProcessor(args.image_path)
 
     if args.rotate:
@@ -297,8 +298,3 @@ def main(args: argparse.Namespace):
             plaintext.writelines(text.splitlines())
     else:
         print(text)
-
-
-if __name__ == "__main__":
-    args = get_arguments()
-    main(args)
