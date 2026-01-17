@@ -20,7 +20,6 @@ from logging import Logger
 from pathlib import Path
 from typing import List, Optional, Union
 
-from agent.hf.logger import get_default_logger
 from huggingface_hub import (
     HfApi,
     dataset_info,
@@ -34,6 +33,8 @@ from huggingface_hub.errors import (
     LocalEntryNotFoundError,
     RepositoryNotFoundError,
 )
+
+from agent.hf.logger import get_default_logger
 
 
 class HuggingFaceDownload:
@@ -145,9 +146,12 @@ class HuggingFaceDownload:
                 # NOTE: Ignore consolidated files to enforce dedupping
                 if filename.startswith("consolidated"):
                     continue
-                # NOTE: Ignore hidden files
+                # NOTE: Ignore dot files
                 if filename[0] == ".":
-                    continue  # ignore .cache, etc.
+                    continue
+                # NOTE: Ignore duplicates
+                if Path(filename).parts[0] in ["metal", "original"]:
+                    continue
                 local_files.append(filename)
 
             self._download_all_files(
