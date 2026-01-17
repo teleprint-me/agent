@@ -103,6 +103,7 @@ DEFAULT_CONF = {
         "slots": True,
         "jinja": True,
         "kv-unified": True,
+        "mmap": True,
         "verbose": False,
         "models-dir": "models",
         "pooling": "mean",
@@ -130,7 +131,7 @@ DEFAULT_CONF = {
     "style": {
         "content": style_dark,
         "type": "dict",
-    }
+    },
 }
 
 
