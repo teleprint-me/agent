@@ -34,6 +34,10 @@ IMPORT_TYPES: Set[str] = {
 COMMENT_TYPES: Set[str] = {
     "comment",
     "line_comment",
+}
+
+EXPRESSION_TYPES: Set[str] = {
+    "expression_statement",
     "variable_assignment",
     "command",
 }
@@ -96,7 +100,7 @@ def chunk_tree(tree: Tree) -> Iterable[str]:
         # --- handle expressions ---
 
         # Merge flat expressions
-        if node.type == "expression_statement":
+        if node.type in EXPRESSION_TYPES:
             expr_bucket.append(txt.strip())
             continue
         if expr_bucket:
