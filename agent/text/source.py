@@ -34,6 +34,8 @@ IMPORT_TYPES: Set[str] = {
 COMMENT_TYPES: Set[str] = {
     "comment",
     "line_comment",
+    "variable_assignment",
+    "command",
 }
 
 
@@ -54,8 +56,6 @@ def chunk_tree(tree: Tree) -> Iterable[str]:
     expr_bucket: List[str] = []
 
     for node in top_level_nodes(tree):
-        print(f"--- node type: {node.type} ---")  # debug
-
         # --- extract node text ---
 
         # Decode current node
@@ -118,9 +118,38 @@ def chunk_tree(tree: Tree) -> Iterable[str]:
 
 # Main CLI
 if __name__ == "__main__":  # pragma: no cover
-    ap = ArgumentParser(description="Parse a source file with tree‑sitter and chunk it")
-    ap.add_argument("path", help="Path to a supported source file")
-    args = ap.parse_args()
+    from argparse import ArgumentParser, Namespace
+
+    def parse_args() -> Namespace:
+        parser = ArgumentParser(
+            description="Parse a source file with tree‑sitter and chunk it"
+        )
+        parser.add_argument(
+            "path",
+            help="Path to a supported source file",
+        )
+        parser.add_argument(
+            "--walk",
+            action="store_true",
+            help="Pretty print the source tree.",
+        )
+        return parser.parse_args()
+
+    def walk(root: Node, depth: int = 0, margin: int = 30) -> None:
+        """Pretty-print a small subtree."""
+        indent = "  " * depth
+        txt = root.text[:margin].decode("utf8", errors="replace")
+        print(f"{indent}{root.type:2} ({txt!r})")
+        for node in root.children:
+            walk(node, depth + 1)
+
+    def chunk(tree: Tree) -> None:
+        for i, chunk in enumerate(chunk_tree(tree), 1):
+            print(f"--- CHUNK {i} ---")
+            print(chunk.strip())
+            print()
+
+    args = parse_args()
 
     tree = sitter.get_tree(args.path)
     if tree is None:
@@ -129,7 +158,7 @@ if __name__ == "__main__":  # pragma: no cover
         )
         sys.exit(1)
 
-    for i, chunk in enumerate(chunk_tree(tree), 1):
-        print(f"--- CHUNK {i} ---")
-        print(chunk.strip())
-        print()
+    if args.walk:
+        walk(tree.root_node)
+    else:
+        chunk(tree)
