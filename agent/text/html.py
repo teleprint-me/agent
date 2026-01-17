@@ -1,4 +1,4 @@
-# agent/text/html.py
+# agent/text/html2markdown.py
 """
 Copyright (C) 2023 Austin Berrio
 
@@ -7,7 +7,6 @@ A Python script for converting HTML files to Markdown format.
 This script recursively processes files in the input directory, converting HTML documents to Markdown format. It employs BeautifulSoup and html2text libraries to clean HTML content and perform the conversion. The script also provides detailed logging for error handling during file operations.
 """
 
-import argparse
 import os
 import time
 from logging import Logger
@@ -19,7 +18,6 @@ import tqdm
 from bs4 import BeautifulSoup
 
 from agent.text.file import TextFile
-from agent.text.logger import TextLogger
 
 
 def clean_code_blocks(html: str) -> str:
@@ -136,49 +134,47 @@ def process_html_directory(
     logger.info(f"Elapsed {elapsed_time:.2f} seconds using {n_threads} threads.")
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Convert HTML files to Markdown format."
-    )
-    parser.add_argument(
-        "-i",
-        "--input-path",
-        required=True,
-        default="",
-        help="Path to the file or directory to process.",
-    )
-    parser.add_argument(
-        "-o",
-        "--output-dir",
-        default="converted_md",
-        help="Directory to the processed output.",
-    )
-    parser.add_argument(
-        "-t",
-        "--n-threads",
-        type=int,
-        default=os.cpu_count() or 4,
-        help="Number of threads to use for processing.",
-    )
-    parser.add_argument(
-        "-d",
-        "--dry-run",
-        default=False,
-        action="store_true",
-        help="Perform a dry run and fake generating the C and C++ raw dataset.",
-    )
-    parser.add_argument(
-        "-v",
-        "--verbose",
-        action="store_true",
-        help="Enable verbosity (Default: False).",
-    )
-    return parser.parse_args()
-
-
 def main():
+    from argparse import ArgumentParser, Namespace
+
+    def parse_args() -> Namespace:
+        parser = ArgumentParser(description="Convert HTML files to Markdown format.")
+        parser.add_argument(
+            "-i",
+            "--input-path",
+            required=True,
+            default="",
+            help="Path to the file or directory to process.",
+        )
+        parser.add_argument(
+            "-o",
+            "--output-dir",
+            default="converted_md",
+            help="Directory to the processed output.",
+        )
+        parser.add_argument(
+            "-t",
+            "--n-threads",
+            type=int,
+            default=os.cpu_count() or 4,
+            help="Number of threads to use for processing.",
+        )
+        parser.add_argument(
+            "-d",
+            "--dry-run",
+            default=False,
+            action="store_true",
+            help="Perform a dry run and fake generating the C and C++ raw dataset.",
+        )
+        parser.add_argument(
+            "-v",
+            "--verbose",
+            action="store_true",
+            help="Enable verbosity (Default: False).",
+        )
+        return parser.parse_args()
+
     args = parse_args()
-    logger = TextLogger.get_logger(__name__, args.verbose)
 
     input_path = Path(args.input_path)
     output_path = Path(args.output_dir)
