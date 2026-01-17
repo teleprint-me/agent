@@ -134,8 +134,10 @@ def process_html_directory(
     logger.info(f"Elapsed {elapsed_time:.2f} seconds using {n_threads} threads.")
 
 
-def main():
+if __name__ == "__main__":
     from argparse import ArgumentParser, Namespace
+
+    from agent.config import config
 
     def parse_args() -> Namespace:
         parser = ArgumentParser(description="Convert HTML files to Markdown format.")
@@ -179,6 +181,7 @@ def main():
     input_path = Path(args.input_path)
     output_path = Path(args.output_dir)
 
+    logger = config.get_logger("logger", "html2markdown")
     if input_path.is_file():
         process_html_file_entry(
             file_entry=input_path,
@@ -195,8 +198,4 @@ def main():
             logger=logger,
         )
     else:
-        logger.error(f"Invalid input path: {input_path}. Exiting.")
-
-
-if __name__ == "__main__":
-    main()
+        print(f"Invalid input path: {input_path}. Exiting.")
