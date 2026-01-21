@@ -12,7 +12,6 @@ set -euo pipefail
 # 1. Environment variables (edit if you want a GPU PyTorch wheel)
 # ---
 PYTORCH_INDEX_URL="https://download.pytorch.org/whl/cpu"
-# PYTORCH_INDEX_URL="https://download.pytorch.org/whl/cu118"  # example GPU URL
 
 # ---
 # 2. Clean pip cache
