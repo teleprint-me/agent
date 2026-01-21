@@ -30,7 +30,7 @@ try:
 except (ModuleNotFoundError, ImportError):  # pragma: no cover
     CapsuleType = Any  # type: ignore[assignment]
 
-from tree_sitter import Language, Parser, Tree
+from tree_sitter import Language, Parser, Query, QueryCursor, Tree
 
 # Extension: tree-sitter package name mapping.
 # Note: LaTeX is not supported by tree-sitter.
@@ -46,6 +46,16 @@ _MOD_TO_EXT: dict[str, set[str]] = {
     "markdown": {".md"},
     "python": {".py", ".pyi"},
     "rust": {".rs"},
+    "glsl": {
+        ".glsl",  # generic
+        ".shader",
+        ".vert",  # vertex
+        ".frag",  # fragment
+        ".geom",  # geometry
+        ".tesc",  # tessellation evaluation
+        ".tese",  # tessellation control
+        ".comp",  # compute
+    },
 }
 
 _EXT_TO_MOD: dict[str, str] = {}
@@ -221,6 +231,14 @@ def get_tree(
 
     parser = get_parser(lang_or_path)
     return parser.parse(data)
+
+
+def get_query(root: Node, lang_or_path: str, source: str) -> dict[str, list[Node]]:
+    """Return a dictionary containing captured results for the source query."""
+    language = get_language(lang_or_path)
+    query = Query(language, source)
+    cursor = QueryCursor(query)
+    return cursor.captures(root)
 
 
 # Public API
