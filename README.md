@@ -34,7 +34,7 @@ The primary sub-packages are:
 ## Future Plans
 
 - [x] Automate llama.cpp setup and installation.
-- [x] Automate model download and quantization.
+- [ ] Automate model download and quantization.
 - [ ] Enable easy modification of application settings.
 - [ ] Add basic completion, chat completion, and infill support.
 - [ ] Add dynamic retrieval augmented generation.
@@ -79,8 +79,8 @@ Then create and install the development environment.
 The script will create a virtual environment, install the required dependencies, and then exit.
 
 ```sh
-chmod +x requirements.sh
-./requirements.sh
+chmod +x setup.sh
+./setup.sh
 ```
 
 Once the script has completed installing the required dependencies, you can activate the virtual environment.
