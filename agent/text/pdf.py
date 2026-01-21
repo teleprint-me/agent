@@ -3,6 +3,7 @@
 Copyright (C) 2023 Austin Berrio
 
 A Python script for converting PDF files to plaintext.
+https://en.wikipedia.org/wiki/PDF
 """
 
 import os
