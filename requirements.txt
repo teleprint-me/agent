@@ -14,28 +14,20 @@ setuptools
 # core
 #
 
-# LlamaCpp REST API
 requests
-
-# File Magic
 python-dotenv
 python-magic
-
-# Parsing
 regex
 jsonpycraft
 markdown-it-py
 html2text
 opencv-python~=4.11.0.86
 pytesseract
-
-# Editor
+pdfminer.six
 pygments
 prompt-toolkit
 gitpython
-
-# HuggingFace
-click
+click # I want to remove this at some point
 tqdm
 huggingface-hub
 

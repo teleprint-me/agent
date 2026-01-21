@@ -36,13 +36,6 @@ pip install -r requirements.txt
 pip install "git+https://github.com/ggml-org/llama.cpp@master#subdirectory=gguf-py"
 
 # ---
-# Install the patched python‑poppler fork
-# Temporary fix for python-poppler issue #93
-# https://github.com/cbrunet/python-poppler/issues/93
-# ---
-pip install "git+https://github.com/opale-ai/python-poppler.git@ca6678d"
-
-# ---
 # Finalise
 # ---
 deactivate
