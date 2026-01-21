@@ -49,6 +49,7 @@ tree-sitter  # base package
 tree-sitter-c
 tree-sitter-cpp
 tree-sitter-rust
+tree-sitter-glsl
 tree-sitter-python
 tree-sitter-bash
 tree-sitter-markdown
