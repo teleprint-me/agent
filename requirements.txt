@@ -2,7 +2,6 @@
 # development
 #
 
-# Development Tools
 bpython
 flake8
 pyright
