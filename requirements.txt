@@ -1,0 +1,94 @@
+#
+# development
+#
+
+# Development Tools
+bpython
+flake8
+pyright
+black
+isort
+build
+setuptools
+
+#
+# core
+#
+
+# LlamaCpp REST API
+requests
+
+# File Magic
+python-dotenv
+python-magic
+
+# Parsing
+regex
+jsonpycraft
+markdown-it-py
+html2text
+opencv-python~=4.11.0.86
+pytesseract
+
+# Editor
+pygments
+prompt-toolkit
+gitpython
+
+# HuggingFace
+click
+tqdm
+huggingface-hub
+
+#
+# tree-sitter
+#
+
+#
+# Tree Sitter - parser generator and analysis tooling.
+#
+# Notes:
+#   - Python has a builtin Abstract Syntax Tree. 
+#   - Each language has its own dependency. e.g. tree-sitter-c
+#   - tree-sitter used to support LaTeX (in rust), but repo no longer exists.
+#   - LaTeX will need to be created to mitigate nodejs security risks.
+#
+
+tree-sitter  # base package
+tree-sitter-c
+tree-sitter-cpp
+tree-sitter-rust
+tree-sitter-python
+tree-sitter-bash
+tree-sitter-markdown
+tree-sitter-json
+tree-sitter-html
+tree-sitter-css
+tree-sitter-javascript
+# LaTeX: missing official C/Rust parser – write custom one.
+
+#
+# web
+#
+
+# Required for web tools
+#
+# Never feed language models input from the web without scanning the contents for malicious inputs.
+# Web‑dependent packages are flagged as vulnerable and excluded by default as a result.
+#
+# NOTEs: 
+#   - The packages themselves are safe.
+#   - Plugging them into a LM pipeline is unsafe.
+#
+
+bs4
+selenium
+
+#
+# gguf
+#
+
+numpy~=1.26.4
+sentencepiece~=0.2.0
+transformers>=4.57.1,<5.0.0
+protobuf>=4.21.0,<5.0.0
