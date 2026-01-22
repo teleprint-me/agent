@@ -41,6 +41,8 @@ huggingface-hub
 #   - note: I do not plan on supporting every language (there are hundreds).
 #           It's easier to target stuff I'm familiar with.
 #   - note: I commented out the language packs that pip refuses to install.
+#           Some of them are JavaScript based. Meson is C based.
+#           Not all language packs show up in Pythons Package Index (PyPI).
 
 tree-sitter  # base package
 tree-sitter-c
@@ -50,8 +52,8 @@ tree-sitter-glsl
 tree-sitter-bash
 tree-sitter-make
 tree-sitter-cmake
-# tree-sitter-meson
-# tree-sitter-ninja
+# tree-sitter-meson # https://github.com/tree-sitter-grammars/tree-sitter-meson
+# tree-sitter-ninja # https://github.com/alemuller/tree-sitter-ninja
 tree-sitter-python
 tree-sitter-rst
 tree-sitter-markdown
@@ -60,8 +62,8 @@ tree-sitter-html
 tree-sitter-css
 tree-sitter-javascript
 tree-sitter-json
-# tree-sitter-latex
-# tree-sitter-vim
+# tree-sitter-latex # https://github.com/latex-lsp/tree-sitter-latex
+# tree-sitter-vim   # https://github.com/tree-sitter-grammars/tree-sitter-vim
 
 #
 # web
