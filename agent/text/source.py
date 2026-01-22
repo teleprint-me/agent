@@ -15,25 +15,25 @@ from typing import Iterable, List, Set
 
 from tree_sitter import Node, Tree
 
-from agent.text import sitter
+from agent.text.sitter import TextSitter
 
-# What counts as an “import” in the languages we support
-# If you add a new grammar (e.g. Rust, Go, JS) just add its import node type
-# to the set below.
-IMPORT_TYPES: Set[str] = {
-    "import_statement",  # Python, JS, TS, etc.
-    "import_from_statement",  # Python
-    "preproc_include",  # C, C++, Swift, etc.
-    "use_declaration",  # Rust
-}
+# If you want to add a new grammar (e.g. Go, TS, etc), just add its import node type
+# to one of the appropriate sets below. New sets can be added on as needed basis.
 
-# docstrings are type "expression_statement".
-# this means expression_statement has multiple meanings and can potentially conflict based on context.
-# not sure if it's a good idea to add here. probably not.
+# docstrings are a `Node.type` classified as "expression_statement".
+# docstrings are techinically considered to be literal strings and not a comment type.
 # note that expression statements typically happen outside of a block area.
 COMMENT_TYPES: Set[str] = {
     "comment",
     "line_comment",
+}
+
+# What counts as an “import” in the languages we support
+IMPORT_TYPES: Set[str] = {
+    "import_statement",  # Python, JS, etc.
+    "import_from_statement",  # Python
+    "preproc_include",  # C, C++, etc.
+    "use_declaration",  # Rust
 }
 
 EXPRESSION_TYPES: Set[str] = {
@@ -42,36 +42,34 @@ EXPRESSION_TYPES: Set[str] = {
     "command",
 }
 
-
-# Utility: iterate over the top‑level nodes of a tree
-def top_level_nodes(tree: Tree) -> Iterable[Node]:
-    """
-    Yield the children of the root node (e.g. `module` in Python, `source_file` in C).
-    """
-    return tree.root_node.children
+CAPTURE_TYPES: Set[str] = COMMENT_TYPES | IMPORT_TYPES | EXPRESSION_TYPES
 
 
 # Chunker
 def chunk_tree(tree: Tree) -> Iterable[str]:
     """Yield the raw source text of each *semantic* chunk."""
 
-    import_bucket: List[str] = []
-    comment_bucket: List[str] = []
-    expr_bucket: List[str] = []
+    comments: List[str] = []
+    imports: List[str] = []
+    expressions: List[str] = []
 
-    for node in top_level_nodes(tree):
+    # iterate over the top‑level nodes of a tree
+    for node in tree.root_node.children:
         # --- extract node text ---
 
         # Decode current node
         txt = node.text.decode()
         # Peek into next node
         nxt = node.next_sibling
+        # Peek at prev node
+        prv = node.prev_sibling
 
         # --- handle semicolons ---
 
-        # Skip semicolons and join split nodes
+        # Skip semicolons
         if node.type == ";":
             continue
+        # Merge split nodes
         if nxt and nxt.type == ";":
             txt += nxt.text.decode()
             yield txt
@@ -81,43 +79,43 @@ def chunk_tree(tree: Tree) -> Iterable[str]:
 
         # Merge and flush accumulated comments
         if node.type in COMMENT_TYPES:
-            comment_bucket.append(txt.strip())
+            comments.append(txt.strip())
             continue
-        if comment_bucket:
-            yield "\n".join(comment_bucket)
-            comment_bucket.clear()
+        if comments:
+            yield "\n".join(comments)
+            comments.clear()
 
         # --- handle imports ---
 
         # Merge and flush accumulated imports
         if node.type in IMPORT_TYPES:
-            import_bucket.append(txt.strip())
+            imports.append(txt.strip())
             continue
-        if import_bucket:
-            yield "\n".join(import_bucket)
-            import_bucket.clear()
+        if imports:
+            yield "\n".join(imports)
+            imports.clear()
 
         # --- handle expressions ---
 
         # Merge flat expressions
         if node.type in EXPRESSION_TYPES:
-            expr_bucket.append(txt.strip())
+            expressions.append(txt.strip())
             continue
-        if expr_bucket:
-            yield "\n".join(expr_bucket)
-            expr_bucket.clear()
+        if expressions:
+            yield "\n".join(expressions)
+            expressions.clear()
 
         # Yield the node as a separate chunk
         yield txt
 
     # --- Flush remaining buckets (if any) ---
 
-    if comment_bucket:
-        yield "\n".join(comment_bucket)
-    if import_bucket:
-        yield "\n".join(import_bucket)
-    if expr_bucket:
-        yield "\n".join(expr_bucket)
+    if comments:
+        yield "\n".join(comments)
+    if imports:
+        yield "\n".join(imports)
+    if expressions:
+        yield "\n".join(expressions)
 
 
 # Main CLI
@@ -126,26 +124,19 @@ if __name__ == "__main__":  # pragma: no cover
 
     def parse_args() -> Namespace:
         parser = ArgumentParser(
-            description="Parse a source file with tree‑sitter and chunk it"
+            description="Parse a source file with tree-sitter and chunk it"
         )
         parser.add_argument(
             "path",
             help="Path to a supported source file",
         )
         parser.add_argument(
-            "--walk",
+            "-p",
+            "--pretty-print",
             action="store_true",
             help="Pretty print the source tree.",
         )
         return parser.parse_args()
-
-    def walk(root: Node, depth: int = 0, margin: int = 30) -> None:
-        """Pretty-print a small subtree."""
-        indent = "  " * depth
-        txt = root.text[:margin].decode("utf8", errors="replace")
-        print(f"{indent}{root.type:2} ({txt!r})")
-        for node in root.children:
-            walk(node, depth + 1)
 
     def chunk(tree: Tree) -> None:
         for i, chunk in enumerate(chunk_tree(tree), 1):
@@ -155,14 +146,15 @@ if __name__ == "__main__":  # pragma: no cover
 
     args = parse_args()
 
-    tree = sitter.get_tree(args.path)
+    tree = TextSitter.tree(args.path)
     if tree is None:
         print(
-            "Could not parse – unsupported language or missing parser.", file=sys.stderr
+            "Could not parse - unsupported language or missing parser.",
+            file=sys.stderr,
         )
         sys.exit(1)
 
-    if args.walk:
-        walk(tree.root_node)
+    if args.pretty_print:
+        TextSitter.pretty_print(tree.root_node)
     else:
         chunk(tree)
