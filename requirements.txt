@@ -32,32 +32,35 @@ tqdm
 huggingface-hub
 
 #
-# tree-sitter
-#
-
-#
-# Tree Sitter - parser generator and analysis tooling.
+# tree-sitter - parser generator and analysis tooling.
 #
 # Notes:
 #   - Python has a builtin Abstract Syntax Tree. 
 #   - Each language has its own dependency. e.g. tree-sitter-c
-#   - tree-sitter used to support LaTeX (in rust), but repo no longer exists.
-#   - LaTeX will need to be created to mitigate nodejs security risks.
-#
+#   - see: https://pypi.org/project/tree-sitter-language-pack/
+#   - note: I do not plan on supporting every language (there are hundreds).
+#           It's easier to target stuff I'm familiar with.
 
 tree-sitter  # base package
 tree-sitter-c
 tree-sitter-cpp
 tree-sitter-rust
 tree-sitter-glsl
-tree-sitter-python
 tree-sitter-bash
+tree-sitter-make
+tree-sitter-cmake
+tree-sitter-meson
+tree-sitter-ninja
+tree-sitter-python
+tree-sitter-rst
 tree-sitter-markdown
-tree-sitter-json
+tree-sitter-xml
 tree-sitter-html
 tree-sitter-css
 tree-sitter-javascript
-# LaTeX: missing official C/Rust parser – write custom one.
+tree-sitter-json
+tree-sitter-latex
+tree-sitter-vim
 
 #
 # web
