@@ -33,7 +33,7 @@ try:
 except (ModuleNotFoundError, ImportError):  # pragma: no cover
     CapsuleType = Any  # type: ignore[assignment]
 
-from tree_sitter import Language, Parser, Query, QueryCursor, Tree
+from tree_sitter import Language, Node, Parser, Query, QueryCursor, Tree
 
 # Note: LaTeX is not supported by tree-sitter.
 # there has to be a better way than this 🫠
@@ -335,6 +335,10 @@ class TextSitter:
         ------
         tree_sitter.Node
             Each node in the subtree rooted at *root*.
+
+        Algorithm
+        ---------
+        https://en.wikipedia.org/wiki/Depth-first_search#Pseudocode
         """
         stack: list[Node] = [root]
         while stack:
