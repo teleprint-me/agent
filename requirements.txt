@@ -40,6 +40,7 @@ huggingface-hub
 #   - see: https://pypi.org/project/tree-sitter-language-pack/
 #   - note: I do not plan on supporting every language (there are hundreds).
 #           It's easier to target stuff I'm familiar with.
+#   - note: I commented out the language packs that pip refuses to install.
 
 tree-sitter  # base package
 tree-sitter-c
@@ -49,8 +50,8 @@ tree-sitter-glsl
 tree-sitter-bash
 tree-sitter-make
 tree-sitter-cmake
-tree-sitter-meson
-tree-sitter-ninja
+# tree-sitter-meson
+# tree-sitter-ninja
 tree-sitter-python
 tree-sitter-rst
 tree-sitter-markdown
@@ -59,8 +60,8 @@ tree-sitter-html
 tree-sitter-css
 tree-sitter-javascript
 tree-sitter-json
-tree-sitter-latex
-tree-sitter-vim
+# tree-sitter-latex
+# tree-sitter-vim
 
 #
 # web
