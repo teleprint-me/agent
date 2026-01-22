@@ -4,8 +4,17 @@ Copyright (C) 2023 Austin Berrio
 
 Utilities for loading Tree-Sitter languages, parsers, trees, queries, and captures.
 
-All helpers are lightweight and cache the immutable `Language` objects
-internally via :func:`functools.lru_cache`.
+The module is intentionally lightweight - each helper caches immutable
+`tree_sitter.Language` objects via `functools.lru_cache` so repeated look-ups
+are O(1).  The public API is a single `TextSitter` class that exposes
+language-agnostic helpers as staticmethods.
+
+Typical usage:
+
+>>> from agent.text.sitter import TextSitter
+>>> tree = TextSitter.tree("python", "print('hello')")
+>>> tree.root_node.type
+'module'
 """
 
 import importlib
@@ -26,9 +35,10 @@ except (ModuleNotFoundError, ImportError):  # pragma: no cover
 
 from tree_sitter import Language, Parser, Query, QueryCursor, Tree
 
-# Extension: tree-sitter package name mapping.
 # Note: LaTeX is not supported by tree-sitter.
 # there has to be a better way than this 🫠
+
+# Map module names to file extensions
 _MOD_TO_EXT: dict[str, set[str]] = {
     "bash": {".sh"},
     "c": {".c", ".h"},
@@ -52,11 +62,13 @@ _MOD_TO_EXT: dict[str, set[str]] = {
     },
 }
 
+# Map file extensions to module names
 _EXT_TO_MOD: dict[str, str] = {}
 for _k, _v in _MOD_TO_EXT.items():
     for _ext in _v:
         _EXT_TO_MOD[_ext] = _k
 
+# Discover installed tree-sitter packages
 _MODULE_NAMES: list[str] = []
 for _d in importlib.metadata.distributions():
     if _d.name.startswith("tree-sitter-"):
@@ -64,39 +76,38 @@ for _d in importlib.metadata.distributions():
         _MODULE_NAMES.append(_d.name.replace("-", "_"))
 
 
+# --------------------------------------------------------------------------- #
+# Helper functions - cached
+# --------------------------------------------------------------------------- #
 @lru_cache(maxsize=None)
 def _capsule_from_name(lang: str) -> CapsuleType:
     """
-    Import a `tree-sitter-<lang>` package and return its `language()` capsule.
+    Return the PyCapsule for *lang* by importing the corresponding
+    `tree_sitter_<lang>` module.
 
     Parameters
     ----------
     lang : str
-        Language identifier (e.g. "python", "c").  Case-insensitive.
+        Language identifier (case-insensitive).
+        Example: `"python"` or `"c"`.
 
     Returns
     -------
     CapsuleType
-        The PyCapsule returned by the module's `language()`, ready for use with
-        :class:`tree_sitter.Language`.
+        The value returned by the module's `language()` function.
+        Example: A `void *` that `tree_sitter.Language` can consume.
 
     Raises
     ------
     ValueError
-        If *lang* is not a supported tree-sitter package.
+        If *lang* does not map to a known `tree-sitter-` distribution.
     ModuleNotFoundError
-        (unlikely after the check) - only if the import fails unexpectedly.
+        If the import of the module fails.
+        Note: This should never happen after the `_MODULE_NAMES` check.
     AttributeError
-        When the module does **not** expose `language()` as expected.
-
-    Notes
-    -----
-    The function remains cached (`lru_cache`) so repeated calls for a language are O(1).
+        If the module does not expose a `language()` attribute.
     """
-    # Normalise input to lower-case
     lang = lang.lower()
-
-    # Quick sanity check
     module_name = f"tree_sitter_{lang}"
     if module_name not in _MODULE_NAMES:
         raise ValueError(
@@ -104,14 +115,11 @@ def _capsule_from_name(lang: str) -> CapsuleType:
             f"Supported languages are: {', '.join(_MOD_TO_EXT.keys())}"
         )
 
-    # Import the module
     try:
         module = importlib.import_module(module_name)
     except ModuleNotFoundError as exc:  # pragma: no cover
-        # This should never happen, but we keep it explicit.
         raise ModuleNotFoundError(f"Failed to load package '{module_name}'.") from exc
 
-    # Verify the API contract
     if not hasattr(module, "language"):
         raise AttributeError(
             f"The module '{module_name}' does not expose a 'language()' function."
@@ -123,14 +131,23 @@ def _capsule_from_name(lang: str) -> CapsuleType:
 @lru_cache(maxsize=None)
 def _capsule_from_path(path: Union[str, Path]) -> CapsuleType:
     """
-    Import `path` and return the `language()` capsule.
+    Resolve a file extension to a language capsule.
 
-    Returns: CapsuleType | None
-        The PyCapsule that :class:`tree_sitter.Language` expects, or
-        `None` if the module cannot be imported or does not expose
-        `language()`.
+    Parameters
+    ----------
+    path : Union[str, Path]
+        Path to a source file.  The file must exist and its suffix must be
+        recognised by `_EXT_TO_MOD`.
 
-    Raises ValueError if the extension does not exist.
+    Returns
+    -------
+    CapsuleType
+        The capsule returned by the appropriate `tree_sitter_<lang>` module.
+
+    Raises
+    ------
+    ValueError
+        If the file suffix is unknown.
     """
     suffix = Path(path).resolve().suffix.lower()
     lang = _EXT_TO_MOD.get(suffix)
@@ -142,12 +159,42 @@ def _capsule_from_path(path: Union[str, Path]) -> CapsuleType:
     return _capsule_from_name(lang)
 
 
+# Public API
 class TextSitter:
-    """A simple, language agnostic, tree-sitter convenience wrapper."""
+    """
+    A tiny, language-agnostic wrapper around the `tree_sitter` API.
+
+    Every helper is a :py:func:`staticmethod` that lazily loads the
+    corresponding `Language` object - the object is cached via
+    `functools.lru_cache` for O(1) repeated access.  The design keeps the
+    public surface minimal while still exposing all common patterns:
+
+    * `capsule` - returns the raw `void *` capsule.
+    * `language` - a :class:`tree_sitter.Language` instance.
+    * `parser` - a :class:`tree_sitter.Parser`.
+    * `tree` - a :class:`tree_sitter.Tree` parsed from a file or a string.
+    * `query` - a :class:`tree_sitter.Query` for a language.
+    * `captures` - helper to run a `QueryCursor` over a subtree.
+    """
 
     @staticmethod
     def capsule(lang_or_path: Union[str, Path]) -> CapsuleType:
-        # note: capsule type is void*
+        """
+        Return the underlying PyCapsule for *lang_or_path*.
+
+        Parameters
+        ----------
+        lang_or_path : Union[str, Path]
+            Either a language identifier (e.g. `"python"`) or a path to a
+            source file.  If a file exists, the method resolves the suffix
+            to a language; otherwise it treats the argument as a language
+            name.
+
+        Returns
+        -------
+        CapsuleType
+            The `void *` returned by the `tree_sitter_<lang>.language()`.
+        """
         return (
             _capsule_from_path(lang_or_path)
             if Path(lang_or_path).is_file()
@@ -157,16 +204,35 @@ class TextSitter:
     @staticmethod
     def language(lang_or_path: Union[str, Path]) -> Language:
         """
-        Return a :class:`tree_sitter.Language` instance.
+        Return a cached :class:`tree_sitter.Language` for *lang_or_path*.
 
-        The function is idempotent: repeated calls for the same language
-        reuse the cached `Language` object.
+        Parameters
+        ----------
+        lang_or_path : Union[str, Path]
+            Language name or path to a source file.
+
+        Returns
+        -------
+        tree_sitter.Language
+            A language instance ready to be fed into a `Parser`.
         """
         return Language(TextSitter.capsule(lang_or_path))
 
     @staticmethod
     def parser(lang_or_path: Union[str, Path]) -> Parser:
-        """Return a :class:`tree_sitter.Parser` for a language."""
+        """
+        Return a :class:`tree_sitter.Parser` for *lang_or_path*.
+
+        Parameters
+        ----------
+        lang_or_path : Union[str, Path]
+            Language name or path to a source file.
+
+        Returns
+        -------
+        tree_sitter.Parser
+            A new parser instance bound to the requested language.
+        """
         return Parser(TextSitter.language(lang_or_path))
 
     @staticmethod
@@ -174,14 +240,35 @@ class TextSitter:
         lang_or_path: Union[str, Path],
         source: Optional[Union[str, bytes]] = None,
     ) -> Tree:
+        """
+        Parse *source* or a file into a :class:`tree_sitter.Tree`.
+
+        Parameters
+        ----------
+        lang_or_path : Union[str, Path]
+            Language name or path to a source file.
+        source : Optional[Union[str, bytes]]
+            Source code to parse when `lang_or_path` does **not** point
+            to an existing file.  Must be supplied in that case.
+
+        Returns
+        -------
+        tree_sitter.Tree
+            The parse tree.  The returned `Tree` has the `language`
+            attribute pointing to the underlying `Language` instance.
+
+        Raises
+        ------
+        ValueError
+            If `source` is omitted when `lang_or_path` does not refer to
+            an existing file.
+        """
         parser = TextSitter.parser(lang_or_path)
 
-        # Case 1 – a real file exists → parse it directly
         path = Path(lang_or_path)
         if path.is_file():
             return parser.parse(path.read_bytes())
 
-        # Case 2 – treat *lang_or_path* as the language name.
         if source is None:
             raise ValueError(
                 f"Expected `source` when `{lang_or_path}` does not refer to a file."
@@ -191,21 +278,55 @@ class TextSitter:
         return parser.parse(data)
 
     @staticmethod
-    def query(lang_or_path: Language, sexpression: str) -> Query:
-        """Return a :class:`tree_sitter.Query` for a language."""
+    def query(lang_or_path: Union[str, Path], sexpression: str) -> Query:
+        """
+        Compile a tree-sitter query for *lang_or_path*.
+
+        Parameters
+        ----------
+        lang_or_path : Union[str, Path]
+            Language name or path to a source file.
+        sexpression : str
+            The S-expression string describing the query.
+
+        Returns
+        -------
+        tree_sitter.Query
+            A compiled query ready to be executed with a :class:`QueryCursor`.
+
+        Raises
+        ------
+        tree_sitter.tree_sitter_error.TreeSitterError
+            If the query string is invalid for the chosen language.
+        """
         language = TextSitter.language(lang_or_path)
         return Query(language, sexpression)
 
     @staticmethod
     def captures(query: Query, root: Node) -> dict[str, list[Node]]:
+        """
+        Execute *query* on *root* and return the capture mapping.
+
+        Parameters
+        ----------
+        query : tree_sitter.Query
+            Compiled query to run.
+        root : tree_sitter.Node
+            The node (typically a `Tree.root_node`) to run the query on.
+
+        Returns
+        -------
+        dict[str, list[tree_sitter.Node]]
+            Mapping from capture names to the list of nodes that matched.
+        """
         return QueryCursor(query).captures(root)
 
 
 # Public API
 __all__ = ["TextSitter"]
 
-# example usage
-if __name__ == "__main__":
+# Demo / doctest
+if __name__ == "__main__":  # pragma: no cover
     from argparse import ArgumentParser, Namespace
 
     def parse_args() -> Namespace:
