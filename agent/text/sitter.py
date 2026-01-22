@@ -343,7 +343,10 @@ class TextSitter:
 
     @staticmethod
     def collect(root: Node, keep_types: Optional[set[str]] = None) -> Iterable[Node]:
-        pass
+        if keep_types is None or root.type in keep_types:
+            yield root
+        for node in root.children:
+            yield from TextSitter.collect(node)
 
     @staticmethod
     def pretty_print(root: Node, depth: int = 0, margin: int = 30) -> None:
