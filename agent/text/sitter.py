@@ -322,7 +322,7 @@ class TextSitter:
         return QueryCursor(query).captures(root)
 
     @staticmethod
-    def walk(root: Node, depth: int = 0) -> Iterable[Node]:
+    def walk(root: Node) -> Iterable[Node]:
         """
         Depth-first traversal that yields each node exactly once.
 
@@ -330,9 +330,6 @@ class TextSitter:
         ----------
         root : tree_sitter.Node
             The starting node of the traversal.
-        depth : int, default 0
-            Current recursion depth - kept for API symmetry but unused
-            inside the generator.
 
         Returns
         -------
@@ -342,7 +339,11 @@ class TextSitter:
         """
         yield root
         for node in root.children:
-            yield from TextSitter.walk(node, depth + 1)
+            yield from TextSitter.walk(node)
+
+    @staticmethod
+    def collect(root: Node, keep_types: Optional[set[str]] = None) -> Iterable[Node]:
+        pass
 
     @staticmethod
     def pretty_print(root: Node, depth: int = 0, margin: int = 30) -> None:
