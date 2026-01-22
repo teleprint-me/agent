@@ -321,6 +321,56 @@ class TextSitter:
         """
         return QueryCursor(query).captures(root)
 
+    @staticmethod
+    def walk(root: Node, depth: int = 0) -> Iterable[Node]:
+        """
+        Depth-first traversal that yields each node exactly once.
+
+        Parameters
+        ----------
+        root : tree_sitter.Node
+            The starting node of the traversal.
+        depth : int, default 0
+            Current recursion depth - kept for API symmetry but unused
+            inside the generator.
+
+        Returns
+        -------
+        Iterable[tree_sitter.Node]
+            A generator that yields the *root* and then all of its
+            descendants in depth-first order.
+        """
+        yield root
+        for node in root.children:
+            yield from TextSitter.walk(node, depth + 1)
+
+    @staticmethod
+    def pretty_print(root: Node, depth: int = 0, margin: int = 30) -> None:
+        """
+        Pretty-print a small subtree to `stdout`.
+
+        Parameters
+        ----------
+        root : tree_sitter.Node
+            The node to be rendered.  Typically `Tree.root_node`.
+        depth : int, default 0
+            Current recursion depth - used for indentation.
+        margin : int, default 30
+            Truncate node text to this many bytes before decoding.  Useful
+            for keeping the output compact when the source is large.
+
+        Returns
+        -------
+        None
+            The function prints directly to `stdout`; it does not return
+            anything.
+        """
+        indent = "  " * depth
+        txt = root.text[:margin].decode("utf8", errors="replace")
+        print(f"{indent}{root.type:2} ({txt!r})")
+        for node in root.children:
+            TextSitter.pretty_print(node, depth + 1)
+
 
 # Public API
 __all__ = ["TextSitter"]
@@ -334,14 +384,6 @@ if __name__ == "__main__":  # pragma: no cover
         parser.add_argument("path", help="Path to a plain text source file")
         return parser.parse_args()
 
-    def walk(root: Node, depth: int = 0, margin: int = 30) -> None:
-        """Pretty-print a small subtree."""
-        indent = "  " * depth
-        txt = root.text[:margin].decode("utf8", errors="replace")
-        print(f"{indent}{root.type:2} ({txt!r})")
-        for node in root.children:
-            walk(node, depth + 1)
-
     args = parse_args()
 
     # Parse source from io
@@ -354,7 +396,7 @@ if __name__ == "__main__":  # pragma: no cover
     print(f"Root Node Type: {tree_file.root_node.type}")
     print(f"Number of children: {tree_file.root_node.child_count}")
 
-    walk(tree_file.root_node)
+    TextSitter.pretty_print(tree_file.root_node)
 
     # Parse from string (language name + source)
     source_code = """
@@ -387,4 +429,4 @@ if __name__ == "__main__":  # pragma: no cover
     print(f"Root Node Type: {tree_source.root_node.type}")
     print(f"Number of children: {tree_source.root_node.child_count}")
 
-    walk(tree_source.root_node)
+    TextSitter.pretty_print(tree_source.root_node)
