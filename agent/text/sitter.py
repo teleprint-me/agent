@@ -2,13 +2,7 @@
 """
 Copyright (C) 2023 Austin Berrio
 
-Utilities for loading Tree-Sitter languages, parsers, and trees.
-
-Public helpers
---------------
-* :func:`get_language` - Return a :class:`tree_sitter.Language` instance for a file.
-* :func:`get_parser`   - Return a fresh :class:`tree_sitter.Parser` configured for the file.
-* :func:`get_tree`     - Convenience: parse a file and return a :class:`tree_sitter.Tree`.
+Utilities for loading Tree-Sitter languages, parsers, trees, queries, and captures.
 
 All helpers are lightweight and cache the immutable `Language` objects
 internally via :func:`functools.lru_cache`.
@@ -52,8 +46,8 @@ _MOD_TO_EXT: dict[str, set[str]] = {
         ".vert",  # vertex
         ".frag",  # fragment
         ".geom",  # geometry
-        ".tesc",  # tessellation evaluation
-        ".tese",  # tessellation control
+        ".tesc",  # tessellation control
+        ".tese",  # tessellation evaluation
         ".comp",  # compute
     },
 }
@@ -78,20 +72,20 @@ def _capsule_from_name(lang: str) -> CapsuleType:
     Parameters
     ----------
     lang : str
-        Language identifier (e.g. "python", "c").  Case‑insensitive.
+        Language identifier (e.g. "python", "c").  Case-insensitive.
 
     Returns
     -------
     CapsuleType
-        The PyCapsule returned by the module’s `language()`, ready for use with
+        The PyCapsule returned by the module's `language()`, ready for use with
         :class:`tree_sitter.Language`.
 
     Raises
     ------
     ValueError
-        If *lang* is not a supported tree‑sitter package.
+        If *lang* is not a supported tree-sitter package.
     ModuleNotFoundError
-        (unlikely after the check) – only if the import fails unexpectedly.
+        (unlikely after the check) - only if the import fails unexpectedly.
     AttributeError
         When the module does **not** expose `language()` as expected.
 
@@ -99,14 +93,14 @@ def _capsule_from_name(lang: str) -> CapsuleType:
     -----
     The function remains cached (`lru_cache`) so repeated calls for a language are O(1).
     """
-    # Normalise input to lower‑case
+    # Normalise input to lower-case
     lang = lang.lower()
 
     # Quick sanity check
     module_name = f"tree_sitter_{lang}"
     if module_name not in _MODULE_NAMES:
         raise ValueError(
-            f"No tree‑sitter package found for language '{lang}'. "
+            f"No tree-sitter package found for language '{lang}'. "
             f"Supported languages are: {', '.join(_MOD_TO_EXT.keys())}"
         )
 
@@ -148,101 +142,67 @@ def _capsule_from_path(path: Union[str, Path]) -> CapsuleType:
     return _capsule_from_name(lang)
 
 
-def get_language(lang_or_path: Union[str, Path]) -> Language:
-    """
-    Return a :class:`tree_sitter.Language` instance.
+class TextSitter:
+    """A simple, language agnostic, tree-sitter convenience wrapper."""
 
-    The function is idempotent: repeated calls for the same language
-    reuse the cached `Language` object.
-    """
-    if Path(lang_or_path).is_file():
-        capsule = _capsule_from_path(lang_or_path)
-        return Language(capsule)
-    capsule = _capsule_from_name(lang_or_path)
-    return Language(capsule)  # note: capsule type is void*
-
-
-def get_parser(lang_or_path: Union[str, Path]) -> Parser:
-    """
-    Create a fresh :class:`tree_sitter.Parser` for a language.
-
-    A new `Parser` instance is returned each time - this is intentional
-    because parsers hold mutable state that is useful when editing a file
-    incrementally.
-    """
-    language = get_language(lang_or_path)
-    return Parser(language)
-
-
-def get_tree(
-    lang_or_path: Union[str, Path],
-    source: Optional[Union[str, bytes]] = None,
-) -> Tree:
-    """
-    Parse a source file or string with tree‑sitter.
-
-    Parameters
-    ----------
-    lang_or_path : str | pathlib.Path
-        * If it points at an existing regular file → that file is parsed.
-        * Otherwise interpreted as the language identifier (e.g. `"python"`,
-          `"c"`, …).  In this mode a source string must be supplied via
-          **source**.
-
-    source : str | bytes, optional
-        Raw source code to parse when *lang_or_path* is not an existing file.
-        When given as text it will be UTF‑8 encoded automatically.  If the
-        caller already has a byte‑string just pass that; no double‑encoding
-        occurs.
-
-    Returns
-    -------
-    tree_sitter.Tree
-
-    Raises
-    ------
-    ValueError
-        * `source` is missing while `lang_or_path` does not point at an existing file.
-        * The language for the supplied source cannot be found (handled in
-          :func:`_capsule_from_name` / :func:`get_parser`).
-
-    Notes
-    -----
-    This function remains fast because both :func:`get_language` and
-    :func:`get_parser` are cached via `lru_cache`.
-    """
-    path = Path(lang_or_path)
-
-    # Case 1 – a real file exists → parse it directly
-    if path.is_file():
-        parser = get_parser(path)
-        return parser.parse(path.read_bytes())
-
-    # Case 2 – treat *lang_or_path* as the language name.
-    # We deliberately raise if no source was supplied; that keeps debugging
-    # simple and matches a “crash‑fast” philosophy.
-    if source is None:
-        raise ValueError(
-            f"Expected `source` when `{lang_or_path}` does not refer to a file."
+    @staticmethod
+    def capsule(lang_or_path: Union[str, Path]) -> CapsuleType:
+        # note: capsule type is void*
+        return (
+            _capsule_from_path(lang_or_path)
+            if Path(lang_or_path).is_file()
+            else _capsule_from_name(lang_or_path)
         )
 
-    # Convert the source into raw bytes (UTF‑8 for str, identity for bytes)
-    data = source.encode() if isinstance(source, str) else bytes(source)
+    @staticmethod
+    def language(lang_or_path: Union[str, Path]) -> Language:
+        """
+        Return a :class:`tree_sitter.Language` instance.
 
-    parser = get_parser(lang_or_path)
-    return parser.parse(data)
+        The function is idempotent: repeated calls for the same language
+        reuse the cached `Language` object.
+        """
+        return Language(TextSitter.capsule(lang_or_path))
 
+    @staticmethod
+    def parser(lang_or_path: Union[str, Path]) -> Parser:
+        """Return a :class:`tree_sitter.Parser` for a language."""
+        return Parser(TextSitter.language(lang_or_path))
 
-def get_query(root: Node, lang_or_path: str, source: str) -> dict[str, list[Node]]:
-    """Return a dictionary containing captured results for the source query."""
-    language = get_language(lang_or_path)
-    query = Query(language, source)
-    cursor = QueryCursor(query)
-    return cursor.captures(root)
+    @staticmethod
+    def tree(
+        lang_or_path: Union[str, Path],
+        source: Optional[Union[str, bytes]] = None,
+    ) -> Tree:
+        parser = TextSitter.parser(lang_or_path)
+
+        # Case 1 – a real file exists → parse it directly
+        path = Path(lang_or_path)
+        if path.is_file():
+            return parser.parse(path.read_bytes())
+
+        # Case 2 – treat *lang_or_path* as the language name.
+        if source is None:
+            raise ValueError(
+                f"Expected `source` when `{lang_or_path}` does not refer to a file."
+            )
+
+        data = source.encode() if isinstance(source, str) else bytes(source)
+        return parser.parse(data)
+
+    @staticmethod
+    def query(lang_or_path: Language, sexpression: str) -> Query:
+        """Return a :class:`tree_sitter.Query` for a language."""
+        language = TextSitter.language(lang_or_path)
+        return Query(language, sexpression)
+
+    @staticmethod
+    def captures(query: Query, root: Node) -> dict[str, list[Node]]:
+        return QueryCursor(query).captures(root)
 
 
 # Public API
-__all__ = ["get_language", "get_parser", "get_tree"]
+__all__ = ["TextSitter"]
 
 # example usage
 if __name__ == "__main__":
@@ -263,8 +223,8 @@ if __name__ == "__main__":
 
     args = parse_args()
 
-    # Parse a real file
-    tree_file = get_tree(args.path)
+    # Parse source from io
+    tree_file = TextSitter.tree(args.path)
 
     # note: language.version is deprecated. use language.abi_version instead.
     # a warning will be emitted to standard output if version is used.
@@ -297,7 +257,9 @@ if __name__ == "__main__":
     if __name__ == "__main__":
         main()
     """
-    tree_source = get_tree("python", source=source_code)
+
+    # Parse source from str
+    tree_source = TextSitter.tree("python", source_code)
 
     print(f"Language Name: {tree_source.language.name}")
     print(f"ABI Version: {tree_source.language.abi_version}")
