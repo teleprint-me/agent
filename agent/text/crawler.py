@@ -35,7 +35,7 @@ _MOD_TO_EXT.update(
         # optical character recognition supported files
         "tesseract": {".png", ".jpg", ".jpeg"},
         # portable document format
-        "poppler": {".pdf"},
+        "pdfminer": {".pdf"},
     }
 )
 
