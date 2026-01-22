@@ -1,4 +1,4 @@
-# agent/text/parser.py
+# agent/text/chunker.py
 """
 Copyright (C) 2023 Austin Berrio
 
