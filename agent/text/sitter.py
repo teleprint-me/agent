@@ -329,24 +329,48 @@ class TextSitter:
         Parameters
         ----------
         root : tree_sitter.Node
-            The starting node of the traversal.
+            Starting node of the traversal.
 
-        Returns
-        -------
-        Iterable[tree_sitter.Node]
-            A generator that yields the *root* and then all of its
-            descendants in depth-first order.
+        Yields
+        ------
+        tree_sitter.Node
+            Each node in the subtree rooted at *root*.
         """
-        yield root
-        for node in root.children:
-            yield from TextSitter.walk(node)
+        stack: list[Node] = [root]
+        while stack:
+            node = stack.pop()
+            yield node
+            # children are already in left-to-right order
+            stack.extend(reversed(node.children))
 
     @staticmethod
-    def collect(root: Node, keep_types: Optional[set[str]] = None) -> Iterable[Node]:
-        if keep_types is None or root.type in keep_types:
-            yield root
-        for node in root.children:
-            yield from TextSitter.collect(node)
+    def collect(
+        root: Node,
+        keep_types: Optional[Set[str]] = None,
+    ) -> Iterable[Node]:
+        """
+        Yield nodes that match *keep_types* (or all leaf nodes if `None`).
+
+        Parameters
+        ----------
+        root : tree_sitter.Node
+            Root of the subtree to walk.
+        keep_types : Optional[Set[str]]
+            Node types to keep.  If `None` the traversal stops at leafs.
+
+        Yields
+        ------
+        tree_sitter.Node
+            Matching nodes in depth-first order.
+        """
+        for node in TextSitter.walk(root):
+            if keep_types is None:
+                # leaf-only - node has no children
+                if not node.children:
+                    yield node
+            else:
+                if node.type in keep_types:
+                    yield node
 
     @staticmethod
     def pretty_print(root: Node, depth: int = 0, margin: int = 30) -> None:
@@ -356,24 +380,17 @@ class TextSitter:
         Parameters
         ----------
         root : tree_sitter.Node
-            The node to be rendered.  Typically `Tree.root_node`.
+            Node to render.
         depth : int, default 0
-            Current recursion depth - used for indentation.
+            Current depth - used only for indentation.
         margin : int, default 30
-            Truncate node text to this many bytes before decoding.  Useful
-            for keeping the output compact when the source is large.
-
-        Returns
-        -------
-        None
-            The function prints directly to `stdout`; it does not return
-            anything.
+            Truncate node text to this many bytes before decoding.
         """
         indent = "  " * depth
         txt = root.text[:margin].decode("utf8", errors="replace")
         print(f"{indent}{root.type:2} ({txt!r})")
-        for node in root.children:
-            TextSitter.pretty_print(node, depth + 1)
+        for child in root.children:
+            TextSitter.pretty_print(child, depth + 1, margin)
 
 
 # Public API
