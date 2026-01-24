@@ -10,7 +10,7 @@ from typing import Iterable, Tuple
 
 from tree_sitter import Node, Tree
 
-from agent.text.sitter import TextSitter
+from agent.text.sitter import TextSitter as ts
 
 ESCAPE = "\x1b"
 RESET = f"{ESCAPE}[0m"
@@ -36,10 +36,20 @@ def hl_value(color: int, n: object) -> str:
     return f"{color}{n}{RESET}"
 
 
+def get_text(node: Node) -> str:
+    return node.text.decode().strip()
+
+
 def print_meta(node: Node):
     start, end = node.byte_range
     size = end - start
-    print(hl_value(FG_GREEN, node.type), (start, end), hl_value(FG_BLUE, size))
+    text = get_text(node)
+    print(
+        hl_key(FG_GREEN, node.type),
+        (start, end),
+        hl_value(FG_GOLD, size),
+        hl_value(FG_BLUE, text[:30].split()),
+    )
 
 
 def print_text(node: Node):
@@ -56,14 +66,17 @@ if __name__ == "__main__":  # pragma: no cover - manual testing only
     parser.add_argument("path", help="Path to a markdown file.")
     args = parser.parse_args()
 
-    tree = TextSitter.tree(lang_or_path=args.path, source=None)
+    tree = ts.tree(lang_or_path=args.path, source=None)
     seen = []
 
     # Gather all (start,end,node) tuples for section nodes.
-    for node in TextSitter.walk(tree.root_node):
-        if not node.is_named:
-            continue  # skip punctuation
+    for node in ts.walk(tree.root_node):
+        size = node.end_byte - node.start_byte
+        if not node.is_named or not size > 0:
+            continue  # skip punctuation and empty
         print_meta(node)
+        if node.type == "document" or node.parent.type == "document":
+            continue  # skip parents
         if node.type == "section":
             start, end = node.byte_range
             seen.append((start, end, node))
@@ -75,16 +88,13 @@ if __name__ == "__main__":  # pragma: no cover - manual testing only
     last_end = -1
     chunks = []
     for start, end, node in seen:
-        if not node.is_named:
-            continue
-        start, end = node.byte_range
-        size = end - start
         print_meta(node)
-        if node.type == "document" or node.parent.type == "document":
-            continue
+        if start < last_end:
+            continue  # nested - skip it
         if (node.type == "section" and node.parent.type == "section") or (
             node.type == "section"
             and not any(child.type == "section" for child in node.children)
         ):
             print_text(node)
             chunks.append(node)
+            last_end = max(last_end, end)
