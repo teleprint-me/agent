@@ -2,13 +2,12 @@
 """
 Color is the spice of life.
 
-Rendering:
+Convenience helpers for 256-color ANSI output.
 
-- https://en.wikipedia.org/wiki/ANSI_escape_code#Select_Graphic_Rendition_parameters
-
-8-Bit Coloring:
-
-- https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit
+References:
+- **Rendering:** https://en.wikipedia.org/wiki/ANSI_escape_code#Select_Graphic_Rendition_parameters
+- **8-Bit Coloring:** https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit
+- **Block Elements:** https://en.wikipedia.org/wiki/Block_Elements
 """
 
 
