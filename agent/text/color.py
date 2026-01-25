@@ -60,12 +60,62 @@ def t256(n: int, bg: bool = False) -> str:
     return bg256(n) if bg else fg256(n)
 
 
+def paint(text: str, fg: int | Code | None = None, bg: int | Code | None = None) -> str:
+    """Wrap *text* with optional foreground/background 256-color codes."""
+    parts = []
+    if fg is not None:
+        parts.append(t256(int(fg), bg=False))
+    if bg is not None:
+        parts.append(t256(int(bg), bg=True))
+    parts.append(text)
+    parts.append(RESET)
+    return parts
+
+
+def key(n: int | Code, *values: Iterable[str]) -> str:
+    """Format a key/value pair with the supplied foreground color."""
+    color = t256(int(n))
+    vals = " ".join(map(str, values))
+    return f"{color}[{n}]{vals}{RESET}"
+
+
 # usage example
 if __name__ == "__main__":
-    # print a gride of colors from 0 - 255
-    swatch = "█"
-    pad = " "
+    """Print a full 256-color swatch."""
 
-    for i in enumerate(range(0, 256)):
-        color = Foreground.t256(i)
-        print()
+    from argparse import ArgumentParser
+
+    parser = ArgumentParser()
+    parser.add_argument(
+        "-c",
+        "--columns",
+        type=int,
+        default=12,
+        help="Add a new row after n columns (default: 12).",
+    )
+    parser.add_argument(
+        "-d",
+        "--codes",
+        action="store_true",
+        help="Print the code to the left of each swatch (default: False).",
+    )
+    parser.add_argument(
+        "-s",
+        "--swatch",
+        default="█",
+        help="Character used for each sampled block (default: █).",
+    )
+    args = parser.parse_args()
+
+    for i in range(256):
+        samples = []
+        if args.codes:
+            samples.append(f"{i:03} ")
+        samples.append(f"{t256(i)}{args.swatch}{RESET}")
+        if args.codes:
+            samples.append(" ")
+        print("".join(samples), end="")
+        if (i + 1) % args.columns == 0:
+            print()  # new row after n columns
+    if args.codes:
+        print()  # add missing newline
