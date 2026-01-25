@@ -15,10 +15,10 @@ from agent.text import color as cs
 from agent.text.sitter import TextSitter as ts
 
 
-@dataclass
+@dataclass(frozen=True)
 class NodeSlice:
-    parent: Node  # the parent node (e.g. a section)
-    offset: int  # the part that belongs only to this node
+    node: Node  # the parent node (e.g. a section)
+    offset: int  # number of bytes from node.start_byte to the slice end
 
 
 def get_text(node: Node) -> str:
@@ -26,27 +26,14 @@ def get_text(node: Node) -> str:
 
 
 def get_slice(node_slice: NodeSlice) -> str:
-    text = get_text(node_slice.parent)
+    text = get_text(node_slice.node)
     return text[: node_slice.offset]
 
 
 def slice_before(parent: Node) -> NodeSlice:
     child = parent.children[0]
-    offset = child.start_byte - parent.start_byte
+    offset = child.end_byte - parent.start_byte
     return NodeSlice(parent, offset)
-
-
-def slice_nodes(tree: Tree) -> NodeSlice:
-    query = ts.query("markdown", "(section) @sec")
-    captures = ts.captures(query, tree.root_node)
-    sections = [c for c in captures["sec"] if c.start_byte > c.parent.start_byte]
-    slices = [slice_before(s.parent) for s in sections]
-    print(
-        f"Captures: keys ({len(captures)}), "
-        f"sections ({len(sections)}), "
-        f"slices ({len(slices)})"
-    )
-    return slices
 
 
 def print_meta(node: Node):
@@ -56,8 +43,8 @@ def print_meta(node: Node):
     print(
         cs.paint(node.type, cs.Code.RED),
         cs.paint(f"({start}, {end})", cs.Code.WHITE),
-        cs.paint(f"{size}", cs.Code.GREEN),
-        cs.paint(f"{text[:30].split()}", cs.Code.BLUE),
+        cs.paint(f"{size}", cs.Code.CYAN),
+        cs.paint(f"{text[:30]!r}", cs.Code.GREEN),
     )
 
 
@@ -87,13 +74,36 @@ if __name__ == "__main__":  # pragma: no cover - manual testing only
     args = parser.parse_args()
 
     tree = ts.tree("markdown", Path(args.path).read_text())
-    slices = slice_nodes(tree)
 
-    # This works for the most part, but I need slices from the parent nodes
-    # e.g. if parent is 0, 320 and child is 116, 171, then get a slice of the
-    # parent from 0 - 116. There doesn't seem to be sane way to get a node out
-    # this process and the nodes are required to retain related metadata.
-    for s in slices:
-        print_meta(s.parent)
-        text = get_slice(s)
-        print(cs.paint(text, fg=cs.Code.YELLOW))
+    query = ts.query("markdown", "(section) @sec")
+    captures = ts.captures(query, tree.root_node)
+    nodes = sorted(captures["sec"], key=lambda n: n.start_byte)
+
+    # get a unique set of children (dedup nodes)
+    children = list({n for n in nodes if n.start_byte > n.parent.start_byte})
+
+    # get a unique set of parents and map them to their children
+    parents = {}
+    for c in children:
+        v = parents.get(c.parent, [])
+        if v:
+            v.append(c)
+        else:
+            v = [c]
+        parents[c.parent] = sorted(v, key=lambda n: n.start_byte)
+
+    print(
+        f"captures: ({len(captures)}), "
+        f"parents ({len(parents)}), "
+        f"children ({len(children)}), "
+    )
+
+    # Note: Large blobs are usually ~5k or greater
+    for p, c in parents.items():
+        print(cs.paint("---parent---", cs.Code.MAGENTA))
+        print_meta(p)
+        print_text(p, args.margin)
+        print(cs.paint("---children---", cs.Code.MAGENTA))
+        for n in c:
+            print_meta(n)
+            print_text(n, args.margin)
