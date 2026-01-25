@@ -59,9 +59,23 @@ if __name__ == "__main__":  # pragma: no cover - manual testing only
     tree = ts.tree("markdown", Path(args.path).read_text())
     query = ts.query("markdown", """(section) @block""")
     captures = ts.captures(query, tree.root_node)
+
+    # extract the captured nodes
     blocks = sorted(captures["block"], key=lambda b: b.start_byte)
 
-    print(f"Captures: keys ({len(captures)}), blocks ({len(blocks)})")
-    for blk in blocks:
-        print_meta(blk)
-        print_text(blk, margin=args.margin)
+    # filter out parent nodes
+    sections = [b for b in blocks if b.start_byte > b.parent.start_byte]
+
+    print(
+        f"Captures: keys ({len(captures)}), "
+        f"blocks ({len(blocks)}), "
+        f"sections ({len(sections)})"
+    )
+
+    # This works for the most part, but I need slices from the parent nodes
+    # e.g. if parent is 0, 320 and child is 116, 171, then get a slice of the
+    # parent from 0 - 116. There doesn't seem to be sane way to get a node out
+    # this process and the nodes are required to retain related metadata.
+    for sec in sections:
+        print_meta(sec)
+        print_text(sec, margin=args.margin)
