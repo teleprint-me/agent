@@ -10,84 +10,54 @@ References:
 - **Block Elements:** https://en.wikipedia.org/wiki/Block_Elements
 """
 
-
-class Renderer:
-    @property
-    def escape() -> str:
-        return "\x1b"
-
-    @property
-    def reset() -> str:
-        return f"{ESCAPE}[0m"
-
-    @staticmethod
-    def paint():
-        pass
+ESCAPE = "\x1b"
+RESET = f"{ESCAPE}[0m"
 
 
-class Background:
-    @staticmethod
-    def t256(n: int) -> str:
-        """Return a background escape sequence for the given 0-255 code."""
-        return f"{ESCAPE}[48;5;{n}m"
+class Code:
+    # Standard 8‑color codes (0–7) + bright (8–15)
+    BLACK = 0
+    RED = 1
+    GREEN = 2
+    YELLOW = 3
+    BLUE = 4
+    MAGENTA = 5
+    CYAN = 6
+    WHITE = 7
+    # Bright variants
+    BBLACK = 8
+    BRED = 9
+    BGREEN = 10
+    BYELLOW = 11
+    BBLUE = 12
+    BMAGENTA = 13
+    BCYAN = 14
+    BWHITE = 15
 
-    def matte() -> str:
-        return Background.t256(233)
+
+def in_range(n: int) -> bool:
+    return 0 <= n <= 255
 
 
-class Foreground:
-    @staticmethod
-    def t256(n: int) -> str:
-        """Return a foreground escape sequence for the given 0-255 code."""
-        return f"{ESCAPE}[38;5;{n}m"
+def bg256(n: int) -> str:
+    """Return a background escape sequence for the given 0-255 code."""
+    if not in_range(n):
+        raise ValueError("color number must be 0-255")
+    return f"{ESCAPE}[48;5;{n}m"
 
-    # RGB
-    @property
-    def red() -> str:
-        return Foreground.t256(9)
 
-    @property
-    def green() -> str:
-        return Foreground.t256(10)
+def fg256(n: int) -> str:
+    """Return a foreground escape sequence for the given 0-255 code."""
+    if not in_range(n):
+        raise ValueError("color number must be 0-255")
+    return f"{ESCAPE}[38;5;{n}m"
 
-    @property
-    def blue() -> str:
-        return Foreground.t256(32)
 
-    # CMYK
-    @property
-    def cyan() -> str:
-        return Foreground.t256(14)
-
-    @property
-    def magenta() -> str:
-        return Foreground.t256(13)
-
-    @property
-    def yellow() -> str:
-        return Foreground.t256(226)
-
-    @property
-    def black() -> str:
-        return Foreground.t256(0)
-
-    # Other
-    @property
-    def pink() -> str:
-        return Foreground.t256(198)
-
-    @property
-    def gold() -> str:
-        return Foreground.t256(214)
-
-    # Convenience helpers
-    @staticmethod
-    def key(color: str, n: object) -> str:
-        return f"{color}[{n}]{RESET}"
-
-    @staticmethod
-    def value(color: str, n: object) -> str:
-        return f"{color}{n}{RESET}"
+def t256(n: int, bg: bool = False) -> str:
+    """Return the 256-color escape for *n* (0-255). Pass `bg=True` for bg."""
+    if not in_range(n):
+        raise ValueError("color number must be 0-255")
+    return bg256(n) if bg else fg256(n)
 
 
 # usage example
