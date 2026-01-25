@@ -35,6 +35,8 @@ except (ModuleNotFoundError, ImportError):  # pragma: no cover
 
 from tree_sitter import Language, Node, Parser, Query, QueryCursor, Tree
 
+from agent.text import color as cs
+
 # Note: LaTeX is not supported by tree-sitter.
 # there has to be a better way than this 🫠
 
@@ -392,7 +394,11 @@ class TextSitter:
         """
         indent = "  " * depth
         txt = root.text[:margin].decode("utf8", errors="replace")
-        print(f"{indent}{root.type:2} ({txt!r})")
+        if root.is_named:
+            start, end = root.byte_range
+            paint_type = cs.paint(root.type, fg=cs.Code.RED)
+            paint_text = cs.paint(f"{txt!r}", fg=cs.Code.YELLOW)
+            print(f"{indent}{paint_type:2} ({start}, {end}) ({paint_text})")
         for child in root.children:
             TextSitter.pretty_print(child, depth + 1, margin)
 
