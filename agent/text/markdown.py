@@ -11,7 +11,7 @@ from typing import Iterable, Tuple
 
 from tree_sitter import Node, Tree
 
-from agent.text import color
+from agent.text import color as cs
 from agent.text.sitter import TextSitter as ts
 
 
@@ -24,22 +24,22 @@ def print_meta(node: Node):
     size = end - start
     text = get_text(node)
     print(
-        color.paint(node.type, color.Code.RED),
-        color.paint(f"({start}, {end})", color.Code.WHITE),
-        color.paint(f"{size}", color.Code.GREEN),
-        color.paint(f"{text[:30].split()}", color.Code.BLUE),
+        cs.paint(node.type, cs.Code.RED),
+        cs.paint(f"({start}, {end})", cs.Code.WHITE),
+        cs.paint(f"{size}", cs.Code.GREEN),
+        cs.paint(f"{text[:30].split()}", cs.Code.BLUE),
     )
 
 
 def print_text(node: Node, margin: int = 30):
     start, end = node.byte_range
-    text = node.text.decode().strip()
-    print(color.paint(f"start-of-text({start})", fg=color.Code.YELLOW))
+    text = get_text(node)
+    print(cs.paint(f"start-of-text({start})", fg=cs.Code.YELLOW))
     if margin > 0:
         print(text[:margin])
     else:
         print(text)
-    print(color.paint(f"end-of-text({end})", fg=color.Code.YELLOW))
+    print(cs.paint(f"end-of-text({end})", fg=cs.Code.YELLOW))
 
 
 if __name__ == "__main__":  # pragma: no cover - manual testing only
@@ -59,8 +59,7 @@ if __name__ == "__main__":  # pragma: no cover - manual testing only
     tree = ts.tree("markdown", Path(args.path).read_text())
     query = ts.query("markdown", """(section) @block""")
     captures = ts.captures(query, tree.root_node)
-    blocks = captures["block"]
-    blocks = sorted(blocks, key=lambda b: b.start_byte)
+    blocks = sorted(captures["block"], key=lambda b: b.start_byte)
 
     print(f"Captures: keys ({len(captures)}), blocks ({len(blocks)})")
     for blk in blocks:
