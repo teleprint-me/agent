@@ -92,6 +92,13 @@ if __name__ == "__main__":  # pragma: no cover - manual testing only
         rent.add(child)
         parents[child.parent] = set(sorted(rent, key=lambda n: n.start_byte))
 
+    print(
+        f"document: {root.end_byte} bytes, "
+        f"captures: ({len(captures)}), "
+        f"parents ({len(parents)}), "
+        f"children ({len(children)})"
+    )
+
     # as much as i'd like to keep the nodes, i don't think it's possible.
     # nodes seem to be opaque to the user from the tree-sitter interface?
 
@@ -99,7 +106,7 @@ if __name__ == "__main__":  # pragma: no cover - manual testing only
     sections = []
     for rent in parents:
         # get unique offsets between parents and first child
-        children = parents.get(rent, set())  # use key to get children
+        children = list(parents.get(rent, set()))  # use key to get children
         first_child = children[0] if children else None  # only first child
         if not first_child:  # parent has no children?
             continue  # nothing to extract
@@ -108,27 +115,34 @@ if __name__ == "__main__":  # pragma: no cover - manual testing only
         end_byte = first_child.start_byte  # stop at first child
         text = rent.text[start_byte:end_byte].decode()  # maybe just bytes?
         # this should fill the gap and provide missing information unique to parents
-        sections.append((start_byte, end_byte, rent, first_child, text))
+        sections.append(
+            (
+                start_byte,
+                end_byte,
+                rent,
+                first_child,
+                text,
+            )
+        )
         # now we can get the slices from the children
         for child in children:
-            start_byte = child.start_byte
-            end_byte = child.end_byte
-            text = child.text[start_byte:end_byte].decode()
-            sections.append((start_byte, end_byte, rent, child, text))
+            # get the full section from the child nodes (these are usually small)
+            # sometimes they can be big, but it's rare.
+            sections.append(
+                (
+                    child.start_byte,
+                    child.end_byte,
+                    rent,
+                    child,
+                    child.text.decode(),
+                )
+            )
 
-    print(
-        f"document: {root.end_byte} bytes, "
-        f"captures: ({len(captures)}), "
-        f"parents ({len(parents)}), "
-        f"children ({len(children)}), "
-    )
-
-    # Note: Large blobs are usually ~5k or greater
-    for p, c in parents.items():
-        print(cs.paint("---parent---", cs.Code.MAGENTA))
-        print_meta(p)
-        print_text(p, args.margin)
-        print(cs.paint("---children---", cs.Code.MAGENTA))
-        for n in c:
-            print_meta(n)
-            print_text(n, args.margin)
+    print(f"Extracted {len(sections)} sections.")
+    for sec in sections:
+        start = sec[0]
+        end = sec[1]
+        text = sec[-1]
+        head = cs.paint(f"--- section has {end - start} bytes ---", fg=cs.Code.RED)
+        print(head)
+        print(text)
