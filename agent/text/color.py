@@ -117,5 +117,5 @@ if __name__ == "__main__":
         print("".join(samples), end="")
         if (i + 1) % args.columns == 0:
             print()  # new row after n columns
-    if args.codes:
+    if args.columns % 8:
         print()  # add missing newline
