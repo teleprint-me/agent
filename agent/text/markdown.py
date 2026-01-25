@@ -70,7 +70,7 @@ if __name__ == "__main__":  # pragma: no cover - manual testing only
         "-m",
         "--margin",
         type=int,
-        default=30,
+        default=300,
         help="Number of bytes to print to stdout (default: 30).",
     )
     args = parser.parse_args()
@@ -114,20 +114,26 @@ if __name__ == "__main__":  # pragma: no cover - manual testing only
         start_byte = rent.start_byte  # start at parent
         end_byte = first_child.start_byte  # stop at first child
         text = rent.text[start_byte:end_byte].decode()  # maybe just bytes?
-        # this should fill the gap and provide missing information unique to parents
-        sections.append(
-            (
-                start_byte,
-                end_byte,
-                rent,
-                first_child,
-                text,
+        # do not append empty chunks
+        # do not append parents, we have children already
+        # we only want unique slices from parents
+        if text:
+            # this should fill the gap and provide
+            # missing information unique to parents
+            sections.append(
+                (
+                    start_byte,
+                    end_byte,
+                    rent,
+                    first_child,
+                    text,
+                )
             )
-        )
         # now we can get the slices from the children
         for child in children:
-            # get the full section from the child nodes (these are usually small)
-            # sometimes they can be big, but it's rare.
+            # get the full section from the child nodes
+            # these are usually small, but occassionaly can be +10k bytes
+            # we want 5k bytes or less to keep chunks reasonable
             sections.append(
                 (
                     child.start_byte,
@@ -137,12 +143,14 @@ if __name__ == "__main__":  # pragma: no cover - manual testing only
                     child.text.decode(),
                 )
             )
+    # the dictionary is unordered
+    sections = sorted(sections, key=lambda s: s[0])
 
-    print(f"Extracted {len(sections)} sections.")
-    for sec in sections:
+    print(cs.paint(f"Extracted {len(sections)} sections.", fg=cs.Code.YELLOW))
+    for i, sec in enumerate(sections):
         start = sec[0]
         end = sec[1]
-        text = sec[-1]
-        head = cs.paint(f"--- section has {end - start} bytes ---", fg=cs.Code.RED)
+        text = sec[-1].strip()
+        head = cs.paint(f"--- section[{i}] has {end - start} bytes ---", fg=cs.Code.RED)
         print(head)
-        print(text)
+        print(text[: args.margin])  # just do the first n bytes
