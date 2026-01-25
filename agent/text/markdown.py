@@ -15,8 +15,38 @@ from agent.text import color as cs
 from agent.text.sitter import TextSitter as ts
 
 
+@dataclass
+class NodeSlice:
+    parent: Node  # the parent node (e.g. a section)
+    offset: int  # the part that belongs only to this node
+
+
 def get_text(node: Node) -> str:
     return node.text.decode().strip()
+
+
+def get_slice(node_slice: NodeSlice) -> str:
+    text = get_text(node_slice.parent)
+    return text[: node_slice.offset]
+
+
+def slice_before(parent: Node) -> NodeSlice:
+    child = parent.children[0]
+    offset = child.start_byte - parent.start_byte
+    return NodeSlice(parent, offset)
+
+
+def slice_nodes(tree: Tree) -> NodeSlice:
+    query = ts.query("markdown", "(section) @sec")
+    captures = ts.captures(query, tree.root_node)
+    sections = [c for c in captures["sec"] if c.start_byte > c.parent.start_byte]
+    slices = [slice_before(s.parent) for s in sections]
+    print(
+        f"Captures: keys ({len(captures)}), "
+        f"sections ({len(sections)}), "
+        f"slices ({len(slices)})"
+    )
+    return slices
 
 
 def print_meta(node: Node):
@@ -57,25 +87,13 @@ if __name__ == "__main__":  # pragma: no cover - manual testing only
     args = parser.parse_args()
 
     tree = ts.tree("markdown", Path(args.path).read_text())
-    query = ts.query("markdown", """(section) @block""")
-    captures = ts.captures(query, tree.root_node)
-
-    # extract the captured nodes
-    blocks = sorted(captures["block"], key=lambda b: b.start_byte)
-
-    # filter out parent nodes
-    sections = [b for b in blocks if b.start_byte > b.parent.start_byte]
-
-    print(
-        f"Captures: keys ({len(captures)}), "
-        f"blocks ({len(blocks)}), "
-        f"sections ({len(sections)})"
-    )
+    slices = slice_nodes(tree)
 
     # This works for the most part, but I need slices from the parent nodes
     # e.g. if parent is 0, 320 and child is 116, 171, then get a slice of the
     # parent from 0 - 116. There doesn't seem to be sane way to get a node out
     # this process and the nodes are required to retain related metadata.
-    for sec in sections:
-        print_meta(sec)
-        print_text(sec, margin=args.margin)
+    for s in slices:
+        print_meta(s.parent)
+        text = get_slice(s)
+        print(cs.paint(text, fg=cs.Code.YELLOW))
