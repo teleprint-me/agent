@@ -69,7 +69,7 @@ def paint(text: str, fg: int | Code | None = None, bg: int | Code | None = None)
         parts.append(t256(int(bg), bg=True))
     parts.append(text)
     parts.append(RESET)
-    return parts
+    return "".join(parts)
 
 
 def key(n: int | Code, *values: Iterable[str]) -> str:
