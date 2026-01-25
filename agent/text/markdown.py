@@ -105,30 +105,29 @@ if __name__ == "__main__":  # pragma: no cover - manual testing only
     # we already have unique sets, each key is allowed only once
     sections = []
     for rent in parents:
-        # get unique offsets between parents and first child
+        # get unique offsets between parent and first child
         children = list(parents.get(rent, set()))  # use key to get children
         first_child = children[0] if children else None  # only first child
-        if not first_child:  # parent has no children?
-            continue  # nothing to extract
-        # extract the slice
-        start_byte = rent.start_byte  # start at parent
-        end_byte = first_child.start_byte  # stop at first child
-        text = rent.text[start_byte:end_byte].decode()  # maybe just bytes?
-        # do not append empty chunks
-        # do not append parents, we have children already
-        # we only want unique slices from parents
-        if text:
-            # this should fill the gap and provide
-            # missing information unique to parents
-            sections.append(
-                (
-                    start_byte,
-                    end_byte,
-                    rent,
-                    first_child,
-                    text,
+        if first_child:  # parent must have children
+            # extract the slice
+            start_byte = rent.start_byte  # start at parent
+            end_byte = first_child.start_byte  # stop at first child
+            text = rent.text[start_byte:end_byte].decode()  # maybe just bytes?
+            # do not append empty chunks
+            # do not append parents, we have children already
+            # we only want unique slices from parents
+            if text:
+                # this should fill the gap and provide
+                # missing information unique to parents
+                sections.append(
+                    (
+                        start_byte,
+                        end_byte,
+                        rent,
+                        first_child,
+                        text,
+                    )
                 )
-            )
         # now we can get the slices from the children
         for child in children:
             # get the full section from the child nodes
