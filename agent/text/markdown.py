@@ -5,6 +5,7 @@ Markdown parsing helper built on top of :mod:`tree_sitter`.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Tuple
 
@@ -33,10 +34,11 @@ def print_meta(node: Node):
 def print_text(node: Node, margin: int = 30):
     start, end = node.byte_range
     text = node.text.decode().strip()
-    print(
-        color.paint(f"start-of-text({start})", fg=color.Code.YELLOW),
-        f"\n{text[:margin]}",
-    )
+    print(color.paint(f"start-of-text({start})", fg=color.Code.YELLOW))
+    if margin > 0:
+        print(text[:margin])
+    else:
+        print(text)
     print(color.paint(f"end-of-text({end})", fg=color.Code.YELLOW))
 
 
@@ -45,18 +47,22 @@ if __name__ == "__main__":  # pragma: no cover - manual testing only
 
     parser = argparse.ArgumentParser(description="Parse markdown and print sections")
     parser.add_argument("path", help="Path to a markdown file.")
+    parser.add_argument(
+        "-m",
+        "--margin",
+        type=int,
+        default=30,
+        help="Number of bytes to print to stdout (default: 30).",
+    )
     args = parser.parse_args()
 
-    tree = ts.tree(lang_or_path=args.path, source=None)
-    query = ts.query("markdown", """[ (section) ]""")
+    tree = ts.tree("markdown", Path(args.path).read_text())
+    query = ts.query("markdown", """(section) @block""")
+    captures = ts.captures(query, tree.root_node)
+    blocks = captures["block"]
+    blocks = sorted(blocks, key=lambda b: b.start_byte)
 
-    # last_child = cursor.goto
-    seen = []
-
-    # Gather all (start,end,node) tuples for section nodes.
-    for node in ts.walk(tree.root_node):
-        if node.type == "block_continuation":
-            continue  # skip these
-        if node.is_named:
-            print_meta(node)
-            print_text(node)
+    print(f"Captures: keys ({len(captures)}), blocks ({len(blocks)})")
+    for blk in blocks:
+        print_meta(blk)
+        print_text(blk, margin=args.margin)
