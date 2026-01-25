@@ -17,9 +17,10 @@ from agent.text.sitter import TextSitter as ts
 
 @dataclass(frozen=True)
 class NodeSlice:
-    node: Node  # the node that owns the slice of text
     start: int  # the start offset
     end: int  # the end offset
+    parent: Node
+    child: Node
     text: str  # the slice of text
 
 
@@ -145,6 +146,15 @@ if __name__ == "__main__":  # pragma: no cover - manual testing only
     # the dictionary is unordered
     sections = sorted(sections, key=lambda s: s[0])
 
+    # I still get duplicates because some children are parents and others are not.
+    # This is arbitrary, not sure if there's a finite way to go about this to
+    # enable general consumption.
+    # Sometimes we end up with duplicates, which means that we most likely have
+    # a child that is a parent which means we should be able to extract those,
+    # but the above algorithms do not account for that.
+    # so, parent -> child -> descendent -> [children]
+    # parsing out the dom for unique nodes is a royal pain in the ass.
+    # especially considering tree-siter was not designed for this at all.
     print(cs.paint(f"Extracted {len(sections)} sections.", fg=cs.Code.YELLOW))
     for i, sec in enumerate(sections):
         start = sec[0]
