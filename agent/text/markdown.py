@@ -72,61 +72,76 @@ if __name__ == "__main__":  # pragma: no cover - manual testing only
     # capture all nodes of type "section".
     # note: we can reuse the query as many times as needed.
     query = ts.query("markdown", "(section) @sec")
+    # captures is an unordered mapping
     captures = ts.captures(query, tree.root_node)
+    # sort the captures
+    captures["sec"] = sorted(captures["sec"], key=lambda s: s.start_byte)
 
     seen = set()
     slices = list()
-    for node in captures["sec"]:
-        if node in seen:
-            continue
+    for cap in captures["sec"]:
+        print("capture", end="=")
+        print_node(cap)
 
         # only capture children that are sections
-        # if we don't do this, children will almost always be true.
+        # if we don't do this, node.children will always be true.
         # we can filter nodes we don't care about by doing this.
-        sections = ts.captures(query, node)["sec"]
-        print(sections)
-
-        # check if the current node is an only-child
+        sections = sorted(ts.captures(query, cap)["sec"], key=lambda s: s.start_byte)
+        # check if the current node is a leaf node
         if 1 == len(sections):  # not a parent
-            print("discovered child")
+            leaf = sections[0]
+            if leaf in seen:
+                continue
+
+            print("leaf", end="=")
+            print_node(leaf)
+
             # get the entire body of text since there are no subsections
             node_slice = NodeSlice(
-                node.start_byte,
-                node.end_byte,
-                get_size(node),
-                node,
-                get_text(node),
+                leaf.start_byte,
+                leaf.end_byte,
+                get_size(leaf),
+                leaf,
+                get_text(leaf),
             )
             # add the child slice to sections
             slices.append(node_slice)
-            seen.add(node)
+            seen.add(leaf)
             continue
 
         # check if the current node has a parent
         if len(sections) > 1:
-            print("discovered parent")
+            print("relatives")
             # do not duplicate the root nodes
-            for sec in sections:
-                if sec in seen:
+            for child in reversed(sections):
+                print_node(child)
+                if child in seen:
+                    print("seen")
                     continue
-                if sec.parent.type == "document":
-                    continue
-                # get the difference between the parent and the current node
+                if child.parent.type == "document":
+                    print("root", end="=")
+                    print_node(child)
+                    break  # found root node
+                # get the difference between the parent and child nodes
                 # start from beginning of parent and end at beginning of child
-                start_byte = sec.parent.start_byte
-                end_byte = sec.start_byte
-                size = get_size(sec)
+                start_byte = child.parent.start_byte
+                end_byte = child.start_byte
                 # slice out the unique text from the parent (get a unique slice)
-                parent_text = get_text(sec.parent)[start_byte:end_byte].strip()
-                if not parent_text:  # empty slice
+                parent_slice = child.parent.text[start_byte:end_byte].decode().strip()
+                if not parent_slice:  # empty slice
                     continue  # nothing to extract
                 node_slice = NodeSlice(
-                    start_byte, end_byte, size, sec.parent, parent_text
+                    start_byte,
+                    end_byte,
+                    get_size(child),
+                    child.parent,
+                    parent_slice,
                 )
                 # add the parent slice to sections
                 slices.append(node_slice)
-                seen.add(sec)
+                seen.add(child)
 
+    print(cs.paint("--- slices ---", cs.Code.MAGENTA))
     for s in slices:
         print_slice(s, args.margin)
         print(s.text)
