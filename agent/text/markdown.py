@@ -66,15 +66,20 @@ if __name__ == "__main__":  # pragma: no cover - manual testing only
     )
     args = parser.parse_args()
 
-    tree = ts.tree("markdown", Path(args.path).read_text())
+    source_bytes = Path(args.path).read_bytes()
+    tree = ts.tree("markdown", source_bytes)
 
     # capture all nodes of type "section".
     # note: we can reuse the query as many times as needed.
     query = ts.query("markdown", "(section) @sec")
     captures = ts.captures(query, tree.root_node)
 
-    slices = []
+    seen = set()
+    slices = list()
     for node in captures["sec"]:
+        if node in seen:
+            continue
+
         # only capture children that are sections
         # if we don't do this, children will almost always be true.
         # we can filter nodes we don't care about by doing this.
@@ -94,23 +99,33 @@ if __name__ == "__main__":  # pragma: no cover - manual testing only
             )
             # add the child slice to sections
             slices.append(node_slice)
+            seen.add(node)
             continue
 
         # check if the current node has a parent
         if len(sections) > 1:
             print("discovered parent")
-            # get the difference between the parent and the current node
-            # start from beginning of parent and end at beginning of child
-            start_byte = node.parent.start_byte
-            end_byte = node.start_byte
-            size = get_size(node)
-            # slice out the unique text from the parent (get a unique slice)
-            parent_text = get_text(node.parent)[start_byte:end_byte].strip()
-            if not parent_text:  # empty slice
-                continue  # nothing to extract
-            node_slice = NodeSlice(start_byte, end_byte, size, node.parent, parent_text)
-            # add the parent slice to sections
-            slices.append(node_slice)
+            # do not duplicate the root nodes
+            for sec in sections:
+                if sec in seen:
+                    continue
+                if sec.parent.type == "document":
+                    continue
+                # get the difference between the parent and the current node
+                # start from beginning of parent and end at beginning of child
+                start_byte = sec.parent.start_byte
+                end_byte = sec.start_byte
+                size = get_size(sec)
+                # slice out the unique text from the parent (get a unique slice)
+                parent_text = get_text(sec.parent)[start_byte:end_byte].strip()
+                if not parent_text:  # empty slice
+                    continue  # nothing to extract
+                node_slice = NodeSlice(
+                    start_byte, end_byte, size, sec.parent, parent_text
+                )
+                # add the parent slice to sections
+                slices.append(node_slice)
+                seen.add(sec)
 
     for s in slices:
         print_slice(s, args.margin)
