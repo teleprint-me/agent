@@ -8,7 +8,9 @@ The algorithm walks the tree once, keeps the original `Node` for
 metadata, and yields a `NodeSlice` that contains the absolute byte
 range and the extracted text.
 
-Author: Austin Berrio  (Arch Linux + GPT‑OSS 20B + tree‑sitter)
+Authors:
+  - Austin Berrio
+  - GPT-OSS 20B
 """
 
 from __future__ import annotations
@@ -29,7 +31,7 @@ class NodeSlice:
     end: int  # absolute byte offset (exclusive)
     size: int  # end - start
     node: Node  # the `section` node that owns the slice
-    text: bytes  # raw bytes – keep as bytes for later processing
+    text: bytes  # raw bytes - keep as bytes for later processing
 
 
 # --------------------------------------------------------------------------- #
@@ -57,7 +59,7 @@ def walk_sections(tree: Tree, max_chunk: int = 5_000) -> List[NodeSlice]:
 
         header_end = first_child.start_byte if first_child else node.end_byte
         if header_end <= node.start_byte:
-            continue  # defensive – should not happen
+            continue  # defensive - should not happen
 
         # Slice from the absolute source
         raw = src[node.start_byte : header_end]
@@ -83,7 +85,7 @@ def walk_sections(tree: Tree, max_chunk: int = 5_000) -> List[NodeSlice]:
 
 
 def print_slice(slice: NodeSlice, margin: int = 30) -> None:
-    """Pretty‑print a NodeSlice (header)."""
+    """Pretty-print a NodeSlice (header)."""
     txt_preview = slice.text.decode(errors="replace")[:margin]
     print(
         cs.paint(f"({slice.node.type})", cs.Code.YELLOW),
@@ -100,7 +102,7 @@ if __name__ == "__main__":  # pragma: no cover
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="Extract markdown section headers (header‑only slices)"
+        description="Extract markdown section headers (header-only slices)"
     )
     parser.add_argument("path", help="Path to a markdown file")
     parser.add_argument(
@@ -122,7 +124,7 @@ if __name__ == "__main__":  # pragma: no cover
         "--chunk",
         type=int,
         default=5_000,
-        help="Maximum slice size in bytes (default: 5 kB)",
+        help="Maximum slice size in bytes (default: 5 kB)",
     )
     args = parser.parse_args()
 
