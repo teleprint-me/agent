@@ -17,29 +17,38 @@ from agent.text.sitter import TextSitter as ts
 
 @dataclass(frozen=True)
 class NodeSlice:
-    start: int  # the start offset
-    end: int  # the end offset
-    parent: Node
-    child: Node
-    text: str  # the slice of text
+    start: int  # start offset
+    end: int  # end offset
+    size: int  # diff between end and start
+    node: Node  # node text was extracted from
+    text: str  # extracted content
 
 
 def get_text(node: Node) -> str:
-    return node.text.decode().strip()
+    return node.text.decode("utf-8").strip()
 
 
-def node_size(node: Node) -> int:
+def get_size(node: Node) -> int:
     return node.end_byte - node.start_byte
 
 
 def print_node(node: Node, margin: int = 30):
-    size = node_size(node)
+    size = get_size(node)
     text = get_text(node)
     print(
         cs.paint(f"({node.type})", cs.Code.YELLOW),
         cs.paint(f"{node.byte_range}", cs.Code.WHITE),
         cs.paint(f"{size} bytes", cs.Code.RED),
         cs.paint(f"{text[:margin]!r}", cs.Code.GREEN),
+    )
+
+
+def print_slice(slice: NodeSlice, margin: int = 30):
+    print(
+        cs.paint(f"({slice.node.type})", cs.Code.YELLOW),
+        cs.paint(f"({slice.start}, {slice.end})", cs.Code.WHITE),
+        cs.paint(f"{slice.size} bytes", cs.Code.RED),
+        cs.paint(f"{slice.text[:margin]!r}", cs.Code.GREEN),
     )
 
 
@@ -59,25 +68,50 @@ if __name__ == "__main__":  # pragma: no cover - manual testing only
 
     tree = ts.tree("markdown", Path(args.path).read_text())
 
-    seen = set()
-    sections = set()
-    for node in ts.walk(tree.root_node):
-        if not node.is_named:
+    # capture all nodes of type "section".
+    # note: we can reuse the query as many times as needed.
+    query = ts.query("markdown", "(section) @sec")
+    captures = ts.captures(query, tree.root_node)
+
+    slices = []
+    for node in captures["sec"]:
+        # only capture children that are sections
+        # if we don't do this, children will almost always be true.
+        # we can filter nodes we don't care about by doing this.
+        sections = ts.captures(query, node)["sec"]
+        print(sections)
+
+        # check if the current node is an only-child
+        if 1 == len(sections):  # not a parent
+            print("discovered child")
+            # get the entire body of text since there are no subsections
+            node_slice = NodeSlice(
+                node.start_byte,
+                node.end_byte,
+                get_size(node),
+                node,
+                get_text(node),
+            )
+            # add the child slice to sections
+            slices.append(node_slice)
             continue
-        if node in seen:
-            continue
 
-        size = node_size(node)
-        if not size > 0:
-            continue  # empty node
+        # check if the current node has a parent
+        if len(sections) > 1:
+            print("discovered parent")
+            # get the difference between the parent and the current node
+            # start from beginning of parent and end at beginning of child
+            start_byte = node.parent.start_byte
+            end_byte = node.start_byte
+            size = get_size(node)
+            # slice out the unique text from the parent (get a unique slice)
+            parent_text = get_text(node.parent)[start_byte:end_byte].strip()
+            if not parent_text:  # empty slice
+                continue  # nothing to extract
+            node_slice = NodeSlice(start_byte, end_byte, size, node.parent, parent_text)
+            # add the parent slice to sections
+            slices.append(node_slice)
 
-        if (
-            node.type != "section"
-            and node.parent
-            and node.parent.type not in ["document", "section"]
-        ):
-            continue  # probably list, inline, paragraph, etc.
-
-        print_node(node, args.margin)
-
-        seen.add(node)
+    for s in slices:
+        print_slice(s, args.margin)
+        print(s.text)
