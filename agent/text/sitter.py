@@ -350,10 +350,7 @@ class TextSitter:
             stack.extend(reversed(node.children))
 
     @staticmethod
-    def collect(
-        root: Node,
-        keep_types: Optional[Set[str]] = None,
-    ) -> Iterable[Node]:
+    def collect(root: Node, keep_types: Set[str] = None) -> Iterable[Node]:
         """
         Yield nodes that match *keep_types* (or all leaf nodes if `None`).
 
@@ -361,22 +358,17 @@ class TextSitter:
         ----------
         root : tree_sitter.Node
             Root of the subtree to walk.
-        keep_types : Optional[Set[str]]
-            Node types to keep.  If `None` the traversal stops at leafs.
+        keep_types : Set[str]
+            Node types to keep.
 
         Yields
         ------
         tree_sitter.Node
-            Matching nodes in depth-first order.
+            Matching nodes in depth-first order. Otherwise, yields None.
         """
         for node in TextSitter.walk(root):
-            if keep_types is None:
-                # leaf-only - node has no children
-                if not node.children:
-                    yield node
-            else:
-                if node.type in keep_types:
-                    yield node
+            if keep_types and node.type in keep_types:
+                yield node
 
     @staticmethod
     def pretty_print(root: Node, depth: int = 0, margin: int = 30) -> None:
