@@ -84,7 +84,7 @@ def walk_sections(tree: Tree, max_chunk: int = 5_000) -> List[NodeSlice]:
 
 def print_slice(slice: NodeSlice, margin: int = 30) -> None:
     """Pretty‑print a NodeSlice (header)."""
-    txt_preview = slice.text[:margin].decode(errors="replace")
+    txt_preview = slice.text.decode(errors="replace")[:margin]
     print(
         cs.paint(f"({slice.node.type})", cs.Code.YELLOW),
         cs.paint(f"({slice.start}, {slice.end})", cs.Code.WHITE),
@@ -104,11 +104,18 @@ if __name__ == "__main__":  # pragma: no cover
     )
     parser.add_argument("path", help="Path to a markdown file")
     parser.add_argument(
-        "-m",
-        "--margin",
+        "-p",
+        "--preview",
         type=int,
         default=30,
         help="Number of bytes to show for each slice (default: 30)",
+    )
+    parser.add_argument(
+        "-m",
+        "--margin",
+        type=int,
+        default=100,
+        help="Number of bytes to show for each chunk (default: 30)",
     )
     parser.add_argument(
         "-c",
@@ -125,8 +132,9 @@ if __name__ == "__main__":  # pragma: no cover
     slices = walk_sections(tree, max_chunk=args.chunk)
 
     print(
-        f"document: {tree.root_node.end_byte} bytes, extracted {len(slices)} header slices\n"
+        f"document: {tree.root_node.end_byte} bytes, extracted {len(slices)} header slices"
     )
     for s in slices:
-        print_slice(s, args.margin)
-        print(s.text.decode(errors="replace"))
+        print_slice(s, args.preview)
+        text = s.text.decode(errors="replace").strip()
+        print(text[: args.margin] if args.margin > 0 else text)
