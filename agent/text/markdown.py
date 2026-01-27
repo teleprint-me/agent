@@ -34,9 +34,6 @@ class NodeSlice:
     text: bytes  # raw bytes - keep as bytes for later processing
 
 
-# --------------------------------------------------------------------------- #
-# Helpers
-# --------------------------------------------------------------------------- #
 def walk_sections(tree: Tree, max_chunk: int = 5_000) -> List[NodeSlice]:
     """
     Return a list of NodeSlice objects for every section node.
@@ -87,66 +84,41 @@ def walk_sections(tree: Tree, max_chunk: int = 5_000) -> List[NodeSlice]:
             # When sum > max_chunk, finalize slice up to before the last
             # child that would exceed. Then start new slice from that child.
 
-            # We only want to parse leaves that have children (omit sections)
-            if any(c.type == "section" for c in node.children):
-                continue  # skip parent - parse children first
+            # oh my fucking god, it's working 🥲
+            # need to figure out how to chunk siblings together
+            #
+            # all nodes are independent of one another.
+            # maybe need a buffer? need to group them together.
 
-            # Get a TreeCursor to walk siblings
+            # Current node is not a parent of any existing section nodes.
+
+            # Get a TreeCursor to walk siblings (this is a recursive op)
             cursor = node.walk()  # cursor starts at current section
             # Get the first descendant
             cursor.goto_first_child()  # i.e. section -> atx_heading
 
-            # Current node is a section and has no child sections.
-            chunk_start = start_byte
-            chunk_size = 0
+            # Create a buffer to group siblings together
+            buffer = []  # i.e. pipe_tables have pipe_table_* neighbors
 
-            # Split into < max_chunk chunks as needed
+            # Discover and pool siblings that are < max_chunk
             while True:
-                # Get the current sibling
-                sib = cursor.node
-                # Get the siblings byte size
-                sib_size = sib.end_byte - sib.start_byte
+                # We only want to parse sections that are leaves
+                if any(c.type == "section" for c in node.children):
+                    break  # skip parent - parse children first
+
+                sib = cursor.node  # update current sibling
 
                 # If the sibling is a blob, go to its first child
-                if sib_size > max_chunk:
-                    # tbh, I'm not sure how this should work yet.
-                    # I just know that we have to walk the siblings.
+                if ts.size(sib) > max_chunk:
                     cursor = sib.walk()  # update cursor to isolate blob
-                    cursor.goto_first_child()  # dig in to get siblings
-                    sib = cursor.node  # update sibling
-                    sib_size = sib.end_byte - sib.start_byte  # update size
+                    cursor.goto_first_child()  # get first child
+                    continue  # recurse until size < max_chunk
 
-                # oh my fucking god, it's working 🥲
-                # need to figure out how to chunk siblings together
-                # maybe need a buffer?
-                # otherwise, all nodes are independent of one another.
-                # need to group them together.
-
-                if sib_size + chunk_size < max_chunk:
-                    chunk_size += sib_size
-                    continue  # accumulate
-
-                # Extract resized chunk
-                part = src[chunk_start : sib.end_byte]
                 # Skip empty / whitespace‑only parts
-                if not part.decode(errors="replace").strip():
+                if not ts.text(sib):
                     continue
 
-                # For an unknown reason, large chunks are not properly split.
-                # Still results in large blobs. For example, 12839 bytes should
-                # result in 3 (12839 / 5000 = 2r1) parts, but results in 1 large
-                # part instead. This algorithm is close, but not there yet.
-                slice = NodeSlice(
-                    start=chunk_start,
-                    end=sib.end_byte,
-                    size=len(part),
-                    node=node,
-                    text=part,
-                )
-                slices.append(slice)
-
-                chunk_start = sib.end_byte  # next start at current end
-                chunk_size = 0  # reset
+                buffer.append(sib)  # collect node
 
                 # This has to be done last, otherwise nodes are skipped
                 if not cursor.goto_next_sibling():
