@@ -75,21 +75,16 @@ def walk_sections(tree: Tree, max_chunk: int = 5_000) -> List[NodeSlice]:
             )
             slices.append(slice)
 
-        # This problem is literally driving me crazy.
+        # oh my fucking god, it's finally working 🥲
+        # finally. this problem nearly drove me mad.
+        # Algorithm: For each section node, gather its child nodes.
+        # Then accumulate contiguous ranges until sum > max_chunk.
+        # When sum > max_chunk, finalize slice up to before the last
+        # child that would exceed. Then start new slice from that child.
+        # note: this can probably be simplified, but this problem is non-trivial.
 
         # Split into < max_chunk chunks
         if raw_size >= max_chunk:
-            # Simplify: For each section node, gather its child nodes.
-            # Then accumulate contiguous ranges until sum > max_chunk.
-            # When sum > max_chunk, finalize slice up to before the last
-            # child that would exceed. Then start new slice from that child.
-
-            # oh my fucking god, it's working 🥲
-            # need to figure out how to chunk siblings together
-            #
-            # all nodes are independent of one another.
-            # maybe need a buffer? need to group them together.
-
             # We only want to parse nodes that are leaves (omit sections)
             if any(c.type == "section" for c in node.children):
                 continue  # skip parent - parse children first
@@ -123,10 +118,16 @@ def walk_sections(tree: Tree, max_chunk: int = 5_000) -> List[NodeSlice]:
                     continue
 
                 buffer.append(sib)  # accumulate
-                buffer_text = "".join((s.text.decode() for s in buffer))
+                buffer_text = "\n".join((s.text.decode() for s in buffer))
                 buffer_size = len(buffer_text)
                 if buffer_size >= max_chunk:
-                    temp = buffer[-2:]  # mitigate overflow
+                    temp = []  # mitigate overflow
+                    while buffer_size >= max_chunk:
+                        temp.append(buffer.pop())  # popping inverts order
+                        buffer_text = "\n".join((s.text.decode() for s in buffer))
+                        buffer_size = len(buffer_text)
+
+                    # Create a slice relative to the current range
                     slices.append(
                         NodeSlice(
                             start=buffer[0].start_byte,  # parent start
@@ -136,7 +137,9 @@ def walk_sections(tree: Tree, max_chunk: int = 5_000) -> List[NodeSlice]:
                             text=buffer_text.encode(),  # raw bytes
                         )
                     )
-                    buffer = temp  # update accumulation
+
+                    # update accumulation and restore order
+                    buffer = list(reversed(temp))
 
                 # This has to be done last. Otherwise, nodes are skipped
                 if not cursor.goto_next_sibling():
