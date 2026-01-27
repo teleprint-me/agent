@@ -82,28 +82,52 @@ def walk_sections(tree: Tree, max_chunk: int = 5_000) -> List[NodeSlice]:
 
         # Split into < max_chunk chunks
         if raw_size >= max_chunk:
-            # Simplify: For each section node, gather its child nodes
-            # (including nested sections - maybe?). Then accumulate contiguous
-            # ranges until sum > max_chunk. When sum > max_chunk, finalize
-            # slice up to before the last child that would exceed. Then
-            # start new slice from that child.
+            # Simplify: For each section node, gather its child nodes.
+            # Then accumulate contiguous ranges until sum > max_chunk.
+            # When sum > max_chunk, finalize slice up to before the last
+            # child that would exceed. Then start new slice from that child.
 
             # We only want to parse leaves that have children (omit sections)
             if any(c.type == "section" for c in node.children):
                 continue  # skip parent - parse children first
 
+            # Get a TreeCursor to walk siblings
+            cursor = node.walk()  # cursor starts at current section
+            # Get the first descendant
+            cursor.goto_first_child()  # i.e. section -> atx_heading
+
             # Current node is a section and has no child sections.
             chunk_start = start_byte
             chunk_size = 0
 
-            # Split into < max_chunk chunks if needed
-            for c in node.children:
-                if chunk_size < max_chunk:
-                    chunk_size += c.end_byte - c.start_byte
+            # Split into < max_chunk chunks as needed
+            while True:
+                # Get the current sibling
+                sib = cursor.node
+                # Get the siblings byte size
+                sib_size = sib.end_byte - sib.start_byte
+
+                # If the sibling is a blob, go to its first child
+                if sib_size > max_chunk:
+                    # tbh, I'm not sure how this should work yet.
+                    # I just know that we have to walk the siblings.
+                    cursor = sib.walk()  # update cursor to isolate blob
+                    cursor.goto_first_child()  # dig in to get siblings
+                    sib = cursor.node  # update sibling
+                    sib_size = sib.end_byte - sib.start_byte  # update size
+
+                # oh my fucking god, it's working 🥲
+                # need to figure out how to chunk siblings together
+                # maybe need a buffer?
+                # otherwise, all nodes are independent of one another.
+                # need to group them together.
+
+                if sib_size + chunk_size < max_chunk:
+                    chunk_size += sib_size
                     continue  # accumulate
 
                 # Extract resized chunk
-                part = src[chunk_start : c.end_byte]
+                part = src[chunk_start : sib.end_byte]
                 # Skip empty / whitespace‑only parts
                 if not part.decode(errors="replace").strip():
                     continue
@@ -114,16 +138,19 @@ def walk_sections(tree: Tree, max_chunk: int = 5_000) -> List[NodeSlice]:
                 # part instead. This algorithm is close, but not there yet.
                 slice = NodeSlice(
                     start=chunk_start,
-                    end=c.end_byte,
+                    end=sib.end_byte,
                     size=len(part),
                     node=node,
                     text=part,
                 )
                 slices.append(slice)
 
-                # Update and reset
-                chunk_start = c.end_byte
-                chunk_size = 0
+                chunk_start = sib.end_byte  # next start at current end
+                chunk_size = 0  # reset
+
+                # This has to be done last, otherwise nodes are skipped
+                if not cursor.goto_next_sibling():
+                    break
 
     # deterministic order
     slices.sort(key=lambda s: s.start)
@@ -131,7 +158,7 @@ def walk_sections(tree: Tree, max_chunk: int = 5_000) -> List[NodeSlice]:
 
 
 def sample_slice(slice: NodeSlice, window: int = 30) -> str:
-    text = slice.text.decode(errors="replace")
+    text = slice.text.decode(errors="replace").strip()
     return text[:window] if window > 0 else text
 
 
