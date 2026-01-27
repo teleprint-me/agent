@@ -90,6 +90,10 @@ def walk_sections(tree: Tree, max_chunk: int = 5_000) -> List[NodeSlice]:
             # all nodes are independent of one another.
             # maybe need a buffer? need to group them together.
 
+            # We only want to parse nodes that are leaves (omit sections)
+            if any(c.type == "section" for c in node.children):
+                continue  # skip parent - parse children first
+
             # Current node is not a parent of any existing section nodes.
 
             # Get a TreeCursor to walk siblings (this is a recursive op)
@@ -102,11 +106,11 @@ def walk_sections(tree: Tree, max_chunk: int = 5_000) -> List[NodeSlice]:
 
             # Discover and pool siblings that are < max_chunk
             while True:
-                # We only want to parse sections that are leaves
-                if any(c.type == "section" for c in node.children):
-                    break  # skip parent - parse children first
-
                 sib = cursor.node  # update current sibling
+
+                # Leaves only - no sections.
+                if any(c.type == "section" for c in sib.children):
+                    break  # skip parent - parse children first
 
                 # If the sibling is a blob, go to its first child
                 if ts.size(sib) > max_chunk:
@@ -115,12 +119,26 @@ def walk_sections(tree: Tree, max_chunk: int = 5_000) -> List[NodeSlice]:
                     continue  # recurse until size < max_chunk
 
                 # Skip empty / whitespace‑only parts
-                if not ts.text(sib):
+                if not ts.text(sib):  # strip and decode
                     continue
 
-                buffer.append(sib)  # collect node
+                buffer.append(sib)  # accumulate
+                buffer_text = "".join((s.text.decode() for s in buffer))
+                buffer_size = len(buffer_text)
+                if buffer_size >= max_chunk:
+                    temp = buffer[-2:]  # mitigate overflow
+                    slices.append(
+                        NodeSlice(
+                            start=buffer[0].start_byte,  # parent start
+                            end=buffer[-1].end_byte,  # parent end
+                            size=buffer_size,  # n bytes in slice
+                            node=sib.parent,  # common ancestor
+                            text=buffer_text.encode(),  # raw bytes
+                        )
+                    )
+                    buffer = temp  # update accumulation
 
-                # This has to be done last, otherwise nodes are skipped
+                # This has to be done last. Otherwise, nodes are skipped
                 if not cursor.goto_next_sibling():
                     break
 
