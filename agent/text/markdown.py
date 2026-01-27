@@ -130,25 +130,19 @@ def walk_sections(tree: Tree, max_chunk: int = 5_000) -> List[NodeSlice]:
     return slices
 
 
-def print_node(node: Node, start_byte: int, end_byte: int):
-    size = end_byte - start_byte
-    text = node.text[start_byte:end_byte]
-    print(
-        cs.paint(f"({node.type})", cs.Code.YELLOW),
-        cs.paint(f"({start_byte, end_byte})", cs.Code.WHITE),
-        cs.paint(f"{size} bytes", cs.Code.RED),
-        cs.paint(f"{text!r}", cs.Code.GREEN),
-    )
+def sample_slice(slice: NodeSlice, window: int = 30) -> str:
+    text = slice.text.decode(errors="replace")
+    return text[:window] if window > 0 else text
 
 
-def print_slice(slice: NodeSlice, margin: int = 30) -> None:
+def print_slice(slice: NodeSlice, preview: int = 30) -> None:
     """Pretty-print a NodeSlice (header)."""
-    txt_preview = slice.text.decode(errors="replace")[:margin]
+    text = sample_slice(slice, window=preview)
     print(
         cs.paint(f"({slice.node.type})", cs.Code.YELLOW),
         cs.paint(f"({slice.start}, {slice.end})", cs.Code.WHITE),
         cs.paint(f"{slice.size} bytes", cs.Code.RED),
-        cs.paint(f"{txt_preview!r}", cs.Code.GREEN),
+        cs.paint(f"{text!r}", cs.Code.GREEN),
     )
 
 
@@ -167,14 +161,14 @@ if __name__ == "__main__":  # pragma: no cover
         "--preview",
         type=int,
         default=30,
-        help="Number of bytes to show for each slice (default: 30)",
+        help="Number of bytes previewed from each node (default: 30)",
     )
     parser.add_argument(
-        "-m",
-        "--margin",
+        "-s",
+        "--sample",
         type=int,
         default=100,
-        help="Number of bytes to show for each chunk (default: 30)",
+        help="Number of bytes sampled from each chunk (default: 100)",
     )
     parser.add_argument(
         "-c",
@@ -195,5 +189,4 @@ if __name__ == "__main__":  # pragma: no cover
     )
     for s in slices:
         print_slice(s, args.preview)
-        text = s.text.decode(errors="replace").strip()
-        print(text[: args.margin] if args.margin > 0 else text)
+        print(sample_slice(s, args.sample))
