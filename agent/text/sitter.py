@@ -375,14 +375,24 @@ class TextSitter:
                 yield node
 
     @staticmethod
+    def size(node: Node) -> int:
+        """Return the number of bytes in a `tree_sitter.Node`."""
+        return node.end_byte - node.start_byte
+
+    @staticmethod
+    def text(node: Node) -> str:
+        """Return the decoded bytes from a `tree_sitter.Node`."""
+        return node.text.decode("utf8", errors="replace").strip()
+
+    @staticmethod
     def print_node(node: Node, depth: int = 0, margin: int = 30) -> None:
         """Pretty-print a `tree_sitter.Node` to stdout."""
         # Get the text to print
-        _data = node.text.decode("utf8", errors="replace").strip()
+        _data = TextSitter.text(node)
         _text = cs.paint(f"{_data[:margin]!r}", cs.Code.GREEN)
 
         # Get related text metadata
-        _size = cs.paint(f"{node.end_byte - node.start_byte} bytes", cs.Code.RED)
+        _size = cs.paint(f"{TextSitter.size(node)} bytes", cs.Code.RED)
         _range = cs.paint(f"{node.byte_range}", cs.Code.WHITE)
         _type = cs.paint(f"({node.type})", cs.Code.YELLOW)
 
