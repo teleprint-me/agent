@@ -11,10 +11,14 @@ language-agnostic helpers as staticmethods.
 
 Typical usage:
 
->>> from agent.text.sitter import TextSitter
->>> tree = TextSitter.tree("python", "print('hello')")
+>>> from agent.text.sitter import TextSitter as ts
+>>> tree = ts.tree("python", "print('hello')")
 >>> tree.root_node.type
 'module'
+>>> ts.print_tree(tree.root_node)
+(module) (0, 14) 14 bytes "print('hello')")
+  (expression_statement) (0, 14) 14 bytes "print('hello')")
+...
 """
 
 import importlib
@@ -427,42 +431,9 @@ if __name__ == "__main__":  # pragma: no cover
 
     # note: language.version is deprecated. use language.abi_version instead.
     # a warning will be emitted to standard output if version is used.
-    print(f"Language Name: {tree_file.language.name}")
+    print(f"Language: {tree_file.language.name}")
     print(f"ABI Version: {tree_file.language.abi_version}")
     print(f"Root Type: {tree_file.root_node.type}")
     print(f"Root Count: {tree_file.root_node.child_count}")
 
     TextSitter.print_tree(tree_file.root_node)
-
-    # Parse from string (language name + source)
-    source_code = """
-    import fubar
-    from padme import hum
-
-    QUX = "bar"
-
-    class Foo:
-        @property
-        def bar(self):
-            return QUX
-
-    def baz(foo: Foo):
-        print(foo.bar)
-
-    def main():
-        foo = Foo()
-        baz(foo)
-
-    if __name__ == "__main__":
-        main()
-    """
-
-    # Parse source from str
-    tree_source = TextSitter.tree("python", source_code)
-
-    print(f"Language Name: {tree_source.language.name}")
-    print(f"ABI Version: {tree_source.language.abi_version}")
-    print(f"Root Node Type: {tree_source.root_node.type}")
-    print(f"Number of children: {tree_source.root_node.child_count}")
-
-    TextSitter.print_tree(tree_source.root_node)
