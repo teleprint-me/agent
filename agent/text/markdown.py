@@ -52,29 +52,33 @@ def walk_sections(tree: Tree, max_chunk: int = 5_000) -> List[NodeSlice]:
             continue
 
         # Find the first nested section child (if any)
-        first_child = next((c for c in node.children if c.type == "section"), None)
-        # Slice from top of parent to top of child, else use current node
-        end_byte = first_child.start_byte if first_child else node.end_byte
+        child = next((c for c in node.children if c.type == "section"), None)
+
+        # Slice from top of parent to top of child
+        start_byte = node.start_byte  # top of parent
+        end_byte = child.start_byte if child else node.end_byte  # top of child
 
         # Slice from the absolute source
         raw = src[node.start_byte : end_byte]
+        # Compute size of raw source
+        raw_size = len(raw)
+
         # Skip empty / whitespace‑only headers
         if not raw.decode(errors="replace").strip():
             continue
-        # Get the size of the current chunk
-        raw_size = len(raw)
 
         # Chunk is within the given range
         if raw_size < max_chunk:
             slice = NodeSlice(
-                start=node.start_byte,
+                start=start_byte,
                 end=end_byte,
                 size=raw_size,
                 node=node,
                 text=raw,
             )
             slices.append(slice)
-            print_slice(slice)
+
+        # This problem is literally driving me crazy.
 
         # Split into < max_chunk chunks
         if raw_size >= max_chunk:
@@ -84,29 +88,42 @@ def walk_sections(tree: Tree, max_chunk: int = 5_000) -> List[NodeSlice]:
             # slice up to before the last child that would exceed. Then
             # start new slice from that child.
 
-            # grab the current node
-            descendant = first_child if first_child else node
+            # We only want to parse leaves that have children (omit sections)
+            if any(c.type == "section" for c in node.children):
+                continue  # skip parent - parse children first
 
-            chunk_start = node.start_byte
+            # Current node is a section and has no child sections.
+            chunk_start = start_byte
             chunk_size = 0
 
-            # use descendants to discover chunk boundaries
-            for child in descendant.children:
-                # stop when we reach the first nested section (header ends there)
-                if child.type == "section":
-                    break
-                part = raw[chunk_start : child.end_byte]
+            # Split into < max_chunk chunks if needed
+            for c in node.children:
+                if chunk_size < max_chunk:
+                    chunk_size += c.end_byte - c.start_byte
+                    continue  # accumulate
+
+                # Extract resized chunk
+                part = src[chunk_start : c.end_byte]
+                # Skip empty / whitespace‑only parts
+                if not part.decode(errors="replace").strip():
+                    continue
+
+                # For an unknown reason, large chunks are not properly split.
+                # Still results in large blobs. For example, 12839 bytes should
+                # result in 3 (12839 / 5000 = 2r1) parts, but results in 1 large
+                # part instead. This algorithm is close, but not there yet.
                 slice = NodeSlice(
                     start=chunk_start,
-                    end=child.end_byte,
+                    end=c.end_byte,
                     size=len(part),
-                    node=child,
+                    node=node,
                     text=part,
                 )
                 slices.append(slice)
-                print_slice(slice)
-                # update cursor position
-                chunk_start = child.end_byte
+
+                # Update and reset
+                chunk_start = c.end_byte
+                chunk_size = 0
 
     # deterministic order
     slices.sort(key=lambda s: s.start)
@@ -173,10 +190,10 @@ if __name__ == "__main__":  # pragma: no cover
 
     slices = walk_sections(tree, max_chunk=args.chunk)
 
-    # print(
-    #     f"document: {tree.root_node.end_byte} bytes, extracted {len(slices)} header slices"
-    # )
-    # for s in slices:
-    #     print_slice(s, args.preview)
-    #     text = s.text.decode(errors="replace").strip()
-    #     print(text[: args.margin] if args.margin > 0 else text)
+    print(
+        f"document: {tree.root_node.end_byte} bytes, extracted {len(slices)} header slices"
+    )
+    for s in slices:
+        print_slice(s, args.preview)
+        text = s.text.decode(errors="replace").strip()
+        print(text[: args.margin] if args.margin > 0 else text)
