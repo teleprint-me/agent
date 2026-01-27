@@ -350,9 +350,9 @@ class TextSitter:
             stack.extend(reversed(node.children))
 
     @staticmethod
-    def collect(root: Node, keep_types: Set[str] = None) -> Iterable[Node]:
+    def collect(root: Node, keep_types: Set[str]) -> Iterable[Node]:
         """
-        Yield nodes that match *keep_types* (or all leaf nodes if `None`).
+        Yield nodes that match *keep_types*. Otherwise, yields None.
 
         Parameters
         ----------
@@ -364,14 +364,32 @@ class TextSitter:
         Yields
         ------
         tree_sitter.Node
-            Matching nodes in depth-first order. Otherwise, yields None.
+            Matching nodes in depth-first order.
         """
         for node in TextSitter.walk(root):
             if keep_types and node.type in keep_types:
                 yield node
 
     @staticmethod
-    def pretty_print(root: Node, depth: int = 0, margin: int = 30) -> None:
+    def print_node(node: Node, depth: int = 0, margin: int = 30) -> None:
+        """Pretty-print a `tree_sitter.Node` to stdout."""
+        # Get the text to print
+        _data = node.text.decode("utf8", errors="replace").strip()
+        _text = cs.paint(f"{_data[:margin]!r}", cs.Code.GREEN)
+
+        # Get related text metadata
+        _size = cs.paint(f"{node.end_byte - node.start_byte} bytes", cs.Code.RED)
+        _range = cs.paint(f"{node.byte_range}", cs.Code.WHITE)
+        _type = cs.paint(f"({node.type})", cs.Code.YELLOW)
+
+        # Compute padded formatting
+        _indent = "  " * depth
+
+        # Flush painted text to stdout
+        print(f"{_indent}{_type:2} {_range} {_size} {_text})")
+
+    @staticmethod
+    def print_tree(root: Node, depth: int = 0, margin: int = 30) -> None:
         """
         Pretty-print a small subtree to `stdout`.
 
@@ -384,15 +402,10 @@ class TextSitter:
         margin : int, default 30
             Truncate node text to this many bytes before decoding.
         """
-        indent = "  " * depth
-        txt = root.text[:margin].decode("utf8", errors="replace")
         if root.is_named:
-            start, end = root.byte_range
-            paint_type = cs.paint(root.type, fg=cs.Code.RED)
-            paint_text = cs.paint(f"{txt!r}", fg=cs.Code.YELLOW)
-            print(f"{indent}{paint_type:2} ({start}, {end}) ({paint_text})")
+            TextSitter.print_node(root, depth, margin)
         for child in root.children:
-            TextSitter.pretty_print(child, depth + 1, margin)
+            TextSitter.print_tree(child, depth + 1, margin)
 
 
 # Public API
@@ -416,10 +429,10 @@ if __name__ == "__main__":  # pragma: no cover
     # a warning will be emitted to standard output if version is used.
     print(f"Language Name: {tree_file.language.name}")
     print(f"ABI Version: {tree_file.language.abi_version}")
-    print(f"Root Node Type: {tree_file.root_node.type}")
-    print(f"Number of children: {tree_file.root_node.child_count}")
+    print(f"Root Type: {tree_file.root_node.type}")
+    print(f"Root Count: {tree_file.root_node.child_count}")
 
-    TextSitter.pretty_print(tree_file.root_node)
+    TextSitter.print_tree(tree_file.root_node)
 
     # Parse from string (language name + source)
     source_code = """
@@ -452,4 +465,4 @@ if __name__ == "__main__":  # pragma: no cover
     print(f"Root Node Type: {tree_source.root_node.type}")
     print(f"Number of children: {tree_source.root_node.child_count}")
 
-    TextSitter.pretty_print(tree_source.root_node)
+    TextSitter.print_tree(tree_source.root_node)
