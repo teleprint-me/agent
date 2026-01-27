@@ -52,36 +52,76 @@ def walk_sections(tree: Tree, max_chunk: int = 5_000) -> List[NodeSlice]:
             continue
 
         # Find the first nested section child (if any)
-        first_child = next(
-            (c for c in node.children if c.type == "section"),
-            None,
-        )
-
-        header_end = first_child.start_byte if first_child else node.end_byte
-        if header_end <= node.start_byte:
-            continue  # defensive - should not happen
+        first_child = next((c for c in node.children if c.type == "section"), None)
+        # Slice from top of parent to top of child, else use current node
+        end_byte = first_child.start_byte if first_child else node.end_byte
 
         # Slice from the absolute source
-        raw = src[node.start_byte : header_end]
-        if not raw.strip():  # skip empty / whitespace‑only headers
+        raw = src[node.start_byte : end_byte]
+        # Skip empty / whitespace‑only headers
+        if not raw.decode(errors="replace").strip():
             continue
+        # Get the size of the current chunk
+        raw_size = len(raw)
 
-        # Split into < max_chunk chunks if needed
-        for i in range(0, len(raw), max_chunk):
-            part = raw[i : i + max_chunk]
-            slices.append(
-                NodeSlice(
-                    start=node.start_byte + i,
-                    end=node.start_byte + i + len(part),
+        # Chunk is within the given range
+        if raw_size < max_chunk:
+            slice = NodeSlice(
+                start=node.start_byte,
+                end=end_byte,
+                size=raw_size,
+                node=node,
+                text=raw,
+            )
+            slices.append(slice)
+            print_slice(slice)
+
+        # Split into < max_chunk chunks
+        if raw_size >= max_chunk:
+            # Simplify: For each section node, gather its child nodes
+            # (including nested sections - maybe?). Then accumulate contiguous
+            # ranges until sum > max_chunk. When sum > max_chunk, finalize
+            # slice up to before the last child that would exceed. Then
+            # start new slice from that child.
+
+            # grab the current node
+            descendant = first_child if first_child else node
+
+            chunk_start = node.start_byte
+            chunk_size = 0
+
+            # use descendants to discover chunk boundaries
+            for child in descendant.children:
+                # stop when we reach the first nested section (header ends there)
+                if child.type == "section":
+                    break
+                part = raw[chunk_start : child.end_byte]
+                slice = NodeSlice(
+                    start=chunk_start,
+                    end=child.end_byte,
                     size=len(part),
-                    node=node,
+                    node=child,
                     text=part,
                 )
-            )
+                slices.append(slice)
+                print_slice(slice)
+                # update cursor position
+                chunk_start = child.end_byte
 
     # deterministic order
     slices.sort(key=lambda s: s.start)
     return slices
+
+
+def print_node(node: Node, start_byte: int, end_byte: int):
+    size = end_byte - start_byte
+    text = node.text[start_byte:end_byte]
+    print(
+        cs.paint(f"({node.type})", cs.Code.YELLOW),
+        cs.paint(f"({start_byte, end_byte})", cs.Code.WHITE),
+        cs.paint(f"{size} bytes", cs.Code.RED),
+        cs.paint(f"{text!r}", cs.Code.GREEN),
+    )
 
 
 def print_slice(slice: NodeSlice, margin: int = 30) -> None:
@@ -133,10 +173,10 @@ if __name__ == "__main__":  # pragma: no cover
 
     slices = walk_sections(tree, max_chunk=args.chunk)
 
-    print(
-        f"document: {tree.root_node.end_byte} bytes, extracted {len(slices)} header slices"
-    )
-    for s in slices:
-        print_slice(s, args.preview)
-        text = s.text.decode(errors="replace").strip()
-        print(text[: args.margin] if args.margin > 0 else text)
+    # print(
+    #     f"document: {tree.root_node.end_byte} bytes, extracted {len(slices)} header slices"
+    # )
+    # for s in slices:
+    #     print_slice(s, args.preview)
+    #     text = s.text.decode(errors="replace").strip()
+    #     print(text[: args.margin] if args.margin > 0 else text)
