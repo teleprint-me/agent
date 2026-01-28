@@ -1,5 +1,7 @@
 # agent/text/markdown.py
 """
+Copyright (C) 2023 Austin Berrio
+
 Markdown section extractor that returns the *header* part of every
 `section` node (i.e. the part that belongs to the parent but not to
 any nested section).
