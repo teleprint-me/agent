@@ -23,6 +23,7 @@ class PDFMagic:
 
 
 class PDF:
+    @staticmethod
     def magic(path: str) -> PDFMagic:
         with open(args.path, "rb") as file:
             header = file.readline().strip()  # remove newline
@@ -37,6 +38,10 @@ class PDF:
                 mime=mime,
                 path=Path(path),
             )
+
+    @staticmethod
+    def buffer(magic: PDFMagic) -> bytes:
+        return magic.path.read_bytes()
 
 
 # Usage example
@@ -63,6 +68,8 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    pdf_magic = pdf_magic_factory(args.path)
-    print(pdf_magic)
-    # print(packed[:30])
+    magic = PDF.magic(args.path)
+    buffer = PDF.buffer(magic)
+
+    print(magic)
+    print(buffer[:30])
