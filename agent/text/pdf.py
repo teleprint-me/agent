@@ -56,4 +56,9 @@ if __name__ == "__main__":
             codec=None,
         )
     content = string.getvalue()
-    print(content)
+
+    if args.output:
+        with open(args.output, "w") as file:
+            file.write(content)
+    else:
+        print(content)
