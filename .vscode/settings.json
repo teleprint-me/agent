@@ -1,10 +1,18 @@
 {
+  "workbench.startupEditor": "none",
+  "workbench.iconTheme": "material-icon-theme",
+  "workbench.layoutControl.enabled": false,
+  "workbench.navigationControl.enabled": false,
+  "workbench.colorTheme": "Rosé Pine Moon",
   "editor.defaultFormatter": null,
   "editor.stickyTabStops": true,
   "editor.tabCompletion": "on",
   "editor.wordWrap": "on",
   "editor.fontSize": 10,
   "editor.fontFamily": "'Noto Sans Mono', 'Source Code Pro', 'Droid Sans Mono'",
+  "chat.disableAIFeatures": true,
+  "diffEditor.renderSideBySide": false,
+  "explorer.confirmDragAndDrop": false,
   "terminal.integrated.shellIntegration.enabled": false,
   "notebook.formatOnSave.enabled": true,
   "notebook.codeActionsOnSave": {
