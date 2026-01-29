@@ -48,6 +48,12 @@ if __name__ == "__main__":
     string = StringIO()
     params = LAParams()
     with open(args.path, "rb") as file:
-        extract_text_to_fp(file, string, laparams=params, output_type="html", codec=None)
+        extract_text_to_fp(
+            file,
+            string,
+            laparams=params,
+            output_type="html",
+            codec=None,
+        )
     content = string.getvalue()
     print(content)
